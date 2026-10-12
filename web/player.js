@@ -33,6 +33,7 @@ import { Spotify } from './dj/Spotify.js';
 import { TwitchChat } from './dj/TwitchChat.js';
 import { YouTubeLive } from './dj/YouTubeLive.js';
 import { SmartRecommend } from './dj/SmartRecommend.js';
+import { SwitchPad } from './dj/SwitchPad.js';
 import { CloudSync } from './dj/CloudSync.js';
 import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
@@ -126,6 +127,9 @@ class DJPlayer {
 
         // AI Recommendations
         this.smartRecommend = safeInit('SmartRecommend', () => new SmartRecommend(this.harmonic));
+
+        // One-tap next-track switches (buttons under the crossfader, and the controller pads)
+        this.switchPad = safeInit('SwitchPad', () => new SwitchPad(this));
 
         // Cloud Sync
         this.cloudSync = safeInit('CloudSync', () => new CloudSync(this.storage));

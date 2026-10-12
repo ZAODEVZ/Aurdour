@@ -47,6 +47,7 @@ const PIONEER_DDJ = {
     CH_GLOBAL: 6,
     CH_PADS1: 7,
     CH_PADS2: 9,
+    CH_PADS2_ALT: 8, // DDJ-SB3 sends deck 2 pads here (deck 1 on 7, decks 3/4 on 9/10)
 
     // Note numbers — Transport (channels 0/1)
     NOTE_PLAY: 0x0B,
@@ -308,7 +309,7 @@ export class MidiController {
             }
 
             // Hot cue pads — channels 7 (deck1) / 9 (deck2)
-            if (channel === P.CH_PADS1 || channel === P.CH_PADS2) {
+            if (channel === P.CH_PADS1 || channel === P.CH_PADS2 || channel === P.CH_PADS2_ALT) {
                 const padDeck = channel === P.CH_PADS1 ? 'A' : 'B';
                 if (data1 >= P.PAD_HOTCUE_BASE && data1 <= P.PAD_HOTCUE_BASE + 7) {
                     const padIdx = data1 - P.PAD_HOTCUE_BASE;
@@ -322,6 +323,13 @@ export class MidiController {
                     const beats = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8][padIdx];
                     _midiLog('note', `🔁 ROLL PAD ${padIdx + 1} (${beats} beats) — Deck ${padDeck}`);
                     this._deckAction(padDeck, 'autoLoop', beats);
+                    return;
+                }
+                // Pad Scratch mode pads (0x20–0x27): the eight next-track switches
+                if (data1 >= P.PAD_SLICER_BASE && data1 <= P.PAD_SLICER_BASE + 7) {
+                    const padIdx = data1 - P.PAD_SLICER_BASE;
+                    _midiLog('note', `SWITCH PAD ${padIdx + 1} (from Deck ${padDeck} pads)`);
+                    this.dj.switchPad?.trigger(padIdx);
                     return;
                 }
                 // Sampler pads (0x30–0x37)
@@ -356,7 +364,7 @@ export class MidiController {
             }
 
             // Completely unhandled note on
-            if (!deckId && channel !== P.CH_PADS1 && channel !== P.CH_PADS2 && channel !== P.CH_GLOBAL) {
+            if (!deckId && channel !== P.CH_PADS1 && channel !== P.CH_PADS2 && channel !== P.CH_PADS2_ALT && channel !== P.CH_GLOBAL) {
                 _midiLog('note', `??? UNKNOWN NOTE ON: ch=${channel} note=${_hexByte(data1)} vel=${data2}`);
             }
         }
@@ -458,6 +466,17 @@ export class MidiController {
         const router = this.dj.audioRouter;
         if (!router) {
             _midiLog('error', `AudioRouter not available! Global CC ${_hexByte(cc)} ignored`);
+            return;
+        }
+
+        // Filter knobs: the DDJ-SB3 sends these on the mixer channel, 0x17 for deck 1 and 0x18 for deck 2
+        if (cc === P.CC_FILTER_MSB || cc === P.CC_FILTER_MSB + 1) {
+            this._storeMSB(P.CH_GLOBAL, cc, value);
+            this._apply14bitFilter(cc === P.CC_FILTER_MSB ? 'A' : 'B', P.CH_GLOBAL, cc);
+            return;
+        }
+        if (cc === P.CC_FILTER_LSB || cc === P.CC_FILTER_LSB + 1) {
+            this._apply14bitFilter(cc === P.CC_FILTER_LSB ? 'A' : 'B', P.CH_GLOBAL, cc - 0x20, value);
             return;
         }
 
