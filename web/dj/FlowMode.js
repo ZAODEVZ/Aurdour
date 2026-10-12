@@ -201,8 +201,15 @@ export class FlowMode {
         // Mark as played
         this.playedInSession.push(nextTrack.id || nextTrack.title);
 
+        // The idle deck may still hold the track it played last time. Stop it and mark it empty,
+        // or the wait below sees the OLD track as ready and starts the mix before the new one
+        // has loaded (the new track then lands silent at 0:00).
+        const incoming = this.dj.decks[idleDeck];
+        if (incoming.isPlaying) { try { incoming.pause(); } catch (e) { /* not fatal */ } }
+        incoming.isLoaded = false;
+
         // Load next track to idle deck (handles both local and streaming)
-        this._loadTrackToDeck(this.dj.decks[idleDeck], nextTrack);
+        this._loadTrackToDeck(incoming, nextTrack);
 
         // Wait for deck to be ready, then start transition
         let retries = 0;
