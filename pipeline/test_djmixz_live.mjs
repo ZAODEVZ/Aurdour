@@ -100,6 +100,59 @@ try {
     const h2 = await handover(2);
     check('no page errors during the set', (h2.errs || []).length === 0, (h2.errs || []).join(' ; '));
 
+    // ── Takeover: a person grabs the decks, mixes one in by hand, then hands back ──
+    const took = await evalJs(`
+        const p = window._djPlayer, m = p.djMixz, f = p.flowMode;
+        m.takeOver('button');
+        const live = m._liveDeck(); const cur = p.decks[live];
+        // run the playing deck into the zone where DJ MixZ would normally start its move
+        cur.wavesurfer.setTime(Math.max(0, cur.getDuration() - f.transitionPoint - 1));
+        await new Promise(r => setTimeout(r, 6000));
+        return { human: m.human, live, trans: f._transitioning, bar: document.getElementById('djmixz-bar')?.innerText.replace(/\\s+/g, ' '), other: p.decks[live === 'A' ? 'B' : 'A'].isPlaying };`);
+    check('TAKE OVER: DJ MixZ stands down and does not start its move', took.human && !took.trans && /YOU HAVE THE DECKS/.test(took.bar || ''), took.bar);
+
+    const back = await evalJs(`
+        const p = window._djPlayer, m = p.djMixz, f = p.flowMode;
+        const from = m._liveDeck(); const to = from === 'A' ? 'B' : 'A';
+        // the person mixes in a track of their own choosing: one DJ MixZ had planned for later
+        const mine = m.plan[m.plan.length - 1].track;
+        p.decks[to].isLoaded = false; p.library.loadToDeck(mine, to);
+        for (let i = 0; i < 60 && !p.decks[to].isLoaded; i++) await new Promise(r => setTimeout(r, 500));
+        p.decks[to].play();
+        const xf = document.getElementById('crossfader'); xf.value = to === 'B' ? 100 : 0; p.audioRouter.setCrossfade(to === 'B' ? 1 : 0);
+        p.decks[from].pause();
+        await new Promise(r => setTimeout(r, 1500));
+        m.handBack();
+        return { human: m.human, live: m._liveDeck(), to, flowDeck: f.currentDeck, first: m.plan[0].track.title, mine: mine.title, planLen: m.plan.length, queue: f.queue.length, dup: m.plan.filter(x => x.track.title === mine.title).length, nextMove: m.plan[1]?.move?.type, bar: document.getElementById('djmixz-bar')?.innerText.replace(/\\s+/g, ' ') };`);
+    check('HAND BACK: DJ MixZ picks up from the track the person left playing', !back.human && back.flowDeck === back.to && back.first === back.mine, `"${back.first}" on deck ${back.flowDeck}`);
+    check('HAND BACK: the rest of the set is re-planned around it, with no repeat', back.dup === 1 && back.queue === back.planLen - 1 && !!back.nextMove && /DJ MIXZ IS MIXING/.test(back.bar || ''), `${back.planLen - 1} tracks left, next move ${back.nextMove}`);
+    await handover(3);
+
+    // ── Back to back: one track each ──
+    const b2b = await evalJs(`
+        const p = window._djPlayer, m = p.djMixz, f = p.flowMode;
+        m.b2b = 1; m._turn = 0; m.battle = true; m.score = { ai: 0, human: 0 }; m.round = 1;
+        return { b2b: m.b2b };`);
+    await handover(4);
+    const turn = await evalJs(`const p = window._djPlayer, m = p.djMixz; await new Promise(r => setTimeout(r, 800)); return { human: m.human, bar: document.getElementById('djmixz-bar')?.innerText.replace(/\\s+/g, ' ') };`);
+    check('back to back: after its track, DJ MixZ hands the decks over on its own', b2b.b2b === 1 && turn.human, turn.bar);
+    const myTurn = await evalJs(`
+        const p = window._djPlayer, m = p.djMixz, f = p.flowMode;
+        const from = m._liveDeck(); const to = from === 'A' ? 'B' : 'A';
+        const mine = m.plan[m.plan.length - 1].track;
+        p.decks[to].isLoaded = false; p.library.loadToDeck(mine, to);
+        for (let i = 0; i < 60 && !p.decks[to].isLoaded; i++) await new Promise(r => setTimeout(r, 500));
+        p.decks[to].play();
+        const xf = document.getElementById('crossfader'); xf.value = to === 'B' ? 100 : 0; p.audioRouter.setCrossfade(to === 'B' ? 1 : 0);
+        p.decks[from].pause();
+        await new Promise(r => setTimeout(r, 2500));
+        return { human: m.human, first: m.plan[0].track.title, mine: mine.title, flowDeck: f.currentDeck, to };`);
+    check('back to back: once the person lands their mix, DJ MixZ takes the decks back', !myTurn.human && myTurn.first === myTurn.mine && myTurn.flowDeck === myTurn.to, `"${myTurn.first}"`);
+    const contest = await evalJs(`const p = window._djPlayer, m = p.djMixz; const bar1 = document.getElementById('djmixz-bar')?.innerText.replace(/\s+/g, ' '); const open = m._voteOpen; document.querySelector('#djmixz-bar [data-act="vote-human"]')?.click(); return { open, bar1, score: m.score, round: m.round, closed: !m._voteOpen, bar2: document.getElementById('djmixz-bar')?.innerText.replace(/\s+/g, ' ') };`);
+    check('contest: when both have played, the room is asked who took the round, and the point is scored', contest.open && /Who took round 1/.test(contest.bar1 || '') && contest.score.human === 1 && contest.score.ai === 0 && contest.round === 2 && contest.closed, contest.bar2);
+    const errs = await evalJs('return window.__errs');
+    check('no page errors during takeover and back to back', errs.length === 0, errs.join(' ; '));
+
     const stopped = await evalJs(`const p = window._djPlayer, m = p.djMixz, f = p.flowMode; m.stop(); return { running: m.running, restored: f._triggerTransition !== undefined && !document.getElementById('djmixz-open').classList.contains('live') };`);
     check('STOP gives the decks back', stopped.running === false && stopped.restored);
 } catch (e) {
