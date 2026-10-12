@@ -2,7 +2,7 @@
 // Full offline support with app shell caching, audio IndexedDB caching,
 // graceful updates, and background sync
 
-const CACHE_VERSION = 9;
+const CACHE_VERSION = 11;
 const CACHE_NAME = `aurdour-v${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = 'aurdour-audio-v1';
 
@@ -44,8 +44,10 @@ const APP_SHELL = [
     '/dj/TwitchChat.js',
     '/dj/YouTubeLive.js',
     '/dj/SmartRecommend.js',
+    '/mixz.css',
     '/dj/SwitchPad.js',
     '/dj/ZaoCrate.js',
+    '/dj/DjMixz.js',
     '/dj/SongChainn.js',
     '/dj/CloudSync.js',
     '/dj/PluginManager.js',

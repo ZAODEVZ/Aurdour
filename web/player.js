@@ -36,6 +36,7 @@ import { SmartRecommend } from './dj/SmartRecommend.js';
 import { SwitchPad } from './dj/SwitchPad.js';
 import { ZaoCrate } from './dj/ZaoCrate.js';
 import { SongChainn } from './dj/SongChainn.js';
+import { DjMixz } from './dj/DjMixz.js';
 import { CloudSync } from './dj/CloudSync.js';
 import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
@@ -136,6 +137,9 @@ class DJPlayer {
         // ZAO crate: ZAO artists' music from Audius, in the library and in the switch pad's pool
         this.songchainn = safeInit('SongChainn', () => new SongChainn());
         this.zaoCrate = safeInit('ZaoCrate', () => new ZaoCrate(this));
+
+        // DJ MixZ: the bot DJ. Plans a set from a playlist and a mood, then mixes it.
+        this.djMixz = safeInit('DjMixz', () => new DjMixz(this));
 
         // Cloud Sync
         this.cloudSync = safeInit('CloudSync', () => new CloudSync(this.storage));

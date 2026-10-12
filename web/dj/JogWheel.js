@@ -228,78 +228,101 @@ export class JogWheel {
         requestAnimationFrame(() => this._drawLoop());
     }
 
+    // A platter, drawn at 2x for sharp screens: brushed outer ring with tick marks, vinyl
+    // grooves, a centre label with the deck letter, and a position marker that turns with the
+    // track. The ring lights up on the beat.
     _drawWheel(deckId, state) {
-        const { canvas, ctx, rotation, dragging } = state;
+        const { canvas, ctx, dragging } = state;
         if (!canvas) return;
 
+        // Keep the drawing buffer at 2x the size the page gives the canvas
+        const cssSize = Math.round(canvas.clientWidth || 120);
+        const want = Math.max(240, cssSize * 2);
+        if (canvas.width !== want) { canvas.width = want; canvas.height = want; }
+
         const w = canvas.width;
-        const h = canvas.height;
         const cx = w / 2;
-        const cy = h / 2;
-        const r = Math.min(cx, cy) - 4;
-
-        ctx.clearRect(0, 0, w, h);
-
-        // Outer ring
-        const color = deckId === 'A' ? '#00d4ff' : '#ff6b35';
-        const dimColor = deckId === 'A' ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255, 107, 53, 0.15)';
-        const activeColor = deckId === 'A' ? 'rgba(0, 212, 255, 0.3)' : 'rgba(255, 107, 53, 0.3)';
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = dragging ? activeColor : dimColor;
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Rotation indicator line
+        const cy = w / 2;
+        const R = w / 2 - 2;
+        const u = w / 240; // scale unit
+        const isA = deckId === 'A';
+        const rgb = isA ? '0, 212, 255' : '255, 107, 53';
         const deck = this.decks[deckId];
-        const isPlaying = deck?.isPlaying;
-        if (isPlaying) {
-            const time = deck.getCurrentTime();
-            state.rotation = time * 2; // continuous rotation based on playback
+        const isPlaying = !!deck?.isPlaying;
+        const loaded = !!deck?.isLoaded;
+        if (isPlaying) state.rotation = deck.getCurrentTime() * 2;
+        const rot = state.rotation;
+
+        ctx.clearRect(0, 0, w, w);
+
+        // Beat pulse, 1 on the beat fading to 0
+        let pulse = 0;
+        const bpm = loaded && deck.getBPM ? deck.getBPM() : null;
+        if (bpm && isPlaying) {
+            const beat = 60 / bpm;
+            pulse = Math.pow(1 - ((deck.getCurrentTime() % beat) / beat), 3);
         }
 
-        const lineAngle = state.rotation;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(lineAngle) * (r - 8), cy + Math.sin(lineAngle) * (r - 8));
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Outer ring: brushed metal
+        const ring = ctx.createLinearGradient(0, 0, w, w);
+        ring.addColorStop(0, '#3a3d4d'); ring.addColorStop(0.45, '#15161f'); ring.addColorStop(0.55, '#262835'); ring.addColorStop(1, '#0c0d13');
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fillStyle = ring; ctx.fill();
 
-        // Beat indicator dots around the wheel
-        if (deck?.isLoaded) {
-            const bpm = deck.getBPM();
-            if (bpm && isPlaying) {
-                const currentTime = deck.getCurrentTime();
-                const beatDuration = 60 / bpm;
-                const beatPhase = (currentTime % beatDuration) / beatDuration;
+        // Tick marks on the ring, turning with the platter
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+        for (let i = 0; i < 72; i++) {
+            const major = i % 6 === 0;
+            ctx.rotate((Math.PI * 2) / 72);
+            ctx.beginPath(); ctx.moveTo(R - 4 * u, 0); ctx.lineTo(R - (major ? 13 : 8) * u, 0);
+            ctx.strokeStyle = major ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.16)';
+            ctx.lineWidth = (major ? 1.6 : 1) * u; ctx.stroke();
+        }
+        ctx.restore();
 
-                // Draw 4 beat marker dots around the wheel
-                for (let i = 0; i < 4; i++) {
-                    const angle = (i / 4) * Math.PI * 2 - Math.PI / 2;
-                    const dotX = cx + Math.cos(angle) * (r + 1);
-                    const dotY = cy + Math.sin(angle) * (r + 1);
-                    const isCurrent = Math.abs(beatPhase - i / 4) < 0.15 || Math.abs(beatPhase - i / 4 + 1) < 0.15;
+        // Lit ring: deck colour, brighter on the beat and while touched
+        const lit = dragging ? 0.95 : loaded ? 0.5 + pulse * 0.45 : 0.18;
+        ctx.beginPath(); ctx.arc(cx, cy, R - 17 * u, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rgb}, ${lit})`; ctx.lineWidth = 2.5 * u;
+        ctx.shadowColor = `rgba(${rgb}, ${lit})`; ctx.shadowBlur = (loaded ? 10 + pulse * 14 : 0) * u; ctx.stroke(); ctx.shadowBlur = 0;
 
-                    ctx.beginPath();
-                    ctx.arc(dotX, dotY, isCurrent ? 3 : 1.5, 0, Math.PI * 2);
-                    ctx.fillStyle = isCurrent ? color : dimColor;
-                    ctx.fill();
-                }
-            }
+        // Vinyl surface
+        const vr = R - 21 * u;
+        const vinyl = ctx.createRadialGradient(cx - vr * 0.3, cy - vr * 0.35, vr * 0.05, cx, cy, vr);
+        vinyl.addColorStop(0, '#23242e'); vinyl.addColorStop(0.5, '#0e0f15'); vinyl.addColorStop(1, '#050508');
+        ctx.beginPath(); ctx.arc(cx, cy, vr, 0, Math.PI * 2); ctx.fillStyle = vinyl; ctx.fill();
+
+        // Grooves
+        for (let g = vr - 5 * u; g > 34 * u; g -= 5.5 * u) {
+            ctx.beginPath(); ctx.arc(cx, cy, g, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 1 * u; ctx.stroke();
         }
 
-        // Center dot
-        ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-        ctx.fillStyle = dragging ? color : dimColor;
-        ctx.fill();
+        // Sheen: two soft light wedges that stay put while the record turns
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, vr, 0, Math.PI * 2); ctx.clip();
+        for (const start of [-2.5, 0.65]) {
+            const sheen = ctx.createConicGradient ? ctx.createConicGradient(start, cx, cy) : null;
+            if (!sheen) break;
+            sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.06, 'rgba(255,255,255,0.07)'); sheen.addColorStop(0.12, 'rgba(255,255,255,0)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = sheen; ctx.fillRect(0, 0, w, w);
+        }
+        ctx.restore();
 
-        // Label
-        ctx.font = '9px JetBrains Mono, monospace';
-        ctx.fillStyle = '#555577';
-        ctx.textAlign = 'center';
-        ctx.fillText('JOG', cx, cy + r + 12);
+        // Position marker: a bright stripe from the label to the edge
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+        ctx.beginPath(); ctx.moveTo(36 * u, 0); ctx.lineTo(vr - 4 * u, 0);
+        ctx.strokeStyle = `rgba(${rgb}, ${loaded ? 0.95 : 0.35})`; ctx.lineWidth = 3 * u; ctx.lineCap = 'round';
+        ctx.shadowColor = `rgba(${rgb}, 0.9)`; ctx.shadowBlur = loaded ? 8 * u : 0; ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // Centre label
+        const lr = 32 * u;
+        const label = ctx.createRadialGradient(cx, cy - lr * 0.4, lr * 0.1, cx, cy, lr);
+        label.addColorStop(0, `rgba(${rgb}, ${loaded ? 0.95 : 0.4})`); label.addColorStop(1, `rgba(${rgb}, ${loaded ? 0.55 : 0.18})`);
+        ctx.beginPath(); ctx.arc(cx, cy, lr, 0, Math.PI * 2); ctx.fillStyle = label; ctx.fill();
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+        ctx.fillStyle = 'rgba(5, 6, 10, 0.85)'; ctx.font = `800 ${26 * u}px "Bricolage Grotesque", "DM Sans", sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(deckId, 0, 1 * u);
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(cx, cy, 3.5 * u, 0, Math.PI * 2); ctx.fillStyle = '#05060a'; ctx.fill();
     }
 }
