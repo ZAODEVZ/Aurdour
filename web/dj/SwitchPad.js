@@ -160,7 +160,7 @@ export class SwitchPad {
     _current(deck) {
         const m = deck.metadata?.metadata || {};
         return {
-            id: m.id ?? deck.metadata?.id, title: m.title, artist: m.artist,
+            id: m.id ?? deck.metadata?._sourceId ?? deck.metadata?.id, title: m.title, artist: m.artist,
             bpm: m.bpm || (deck.getBPM ? deck.getBPM() : null), key: m.key, genre: m.genre,
         };
     }
@@ -168,7 +168,7 @@ export class SwitchPad {
     _pool() {
         const lib = this.dj.library;
         if (!lib) return [];
-        return [...(lib.tracks || []), ...(lib.audiusTracks || []), ...(lib.soundcloudTracks || [])];
+        return [...(lib.zaoTracks || []), ...(lib.droppedTracks || []), ...(lib.tracks || []), ...(lib.audiusTracks || []), ...(lib.soundcloudTracks || [])];
     }
 
     // Tap a button (or a pad). Returns the pick, or null with a message shown.
@@ -194,7 +194,9 @@ export class SwitchPad {
         const pick = ranked[i % ranked.length];
         this.cursor[mode] = (i + 1) % ranked.length;
 
-        this.dj.library.loadToDeck(pick.track, decks.next.id);
+        // A file dragged in earlier this session loads through the drag-and-drop loader
+        if (pick.track.source === 'file' && pick.track.file && this.dj.dragDrop?._loadFile) this.dj.dragDrop._loadFile(decks.next.id, pick.track.file);
+        else this.dj.library.loadToDeck(pick.track, decks.next.id);
         this.played.add(idOf(pick.track));
         const more = ranked.length > 1 ? ` Tap again for another (${ranked.length} fit).` : '';
         this._say(`${def.label}: ${pick.track.title || 'Unknown'}${pick.track.artist ? ', ' + pick.track.artist : ''} on Deck ${decks.next.id}. ${pick.why.join(', ')}.${more}`);

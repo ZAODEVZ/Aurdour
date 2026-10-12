@@ -50,6 +50,15 @@ export class Audius {
         return (data.data || []).map(t => this._normalizeTrack(t));
     }
 
+    // Every track on one artist's Audius page, by their handle.
+    async getUserTracks(handle, limit = 100) {
+        const user = await this._apiGet(`/v1/users/handle/${encodeURIComponent(handle)}`);
+        const id = user?.data?.id;
+        if (!id) return [];
+        const data = await this._apiGet(`/v1/users/${id}/tracks?limit=${limit}`);
+        return (data.data || []).map(t => this._normalizeTrack(t));
+    }
+
     getStreamUrl(trackId) {
         return `${this.host}/v1/tracks/${trackId}/stream?app_name=${this.appName}`;
     }

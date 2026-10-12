@@ -1,0 +1,45 @@
+// SongChainn.js — songs from songchainn.xyz, through its public read-only song list.
+// The key below is SongChainn's public "anon" key, the same one its own website ships to every
+// visitor. It can only read the public song list.
+//
+// Note: the audio sits on Cloudflare R2. The DJ decks decode audio in the browser, so those
+// buckets must allow cross-origin reads (a CORS rule allowing GET), or a track will not load.
+
+const ENDPOINT = 'https://wsjhbfmzbonxmxaaassu.supabase.co/rest/v1/songchainn_public_songs';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzamhiZm16Ym9ueG14YWFhc3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyMTAyNDgsImV4cCI6MjA4Mjc4NjI0OH0.AlniOnpK7BGYaYBIJvuGj4FrDdX-0OZfV8LYUNzq-fs';
+
+export class SongChainn {
+    constructor() {
+        this._all = null;
+    }
+
+    // Every public song, newest first. Cached for the session.
+    async all() {
+        if (this._all) return this._all;
+        const resp = await fetch(`${ENDPOINT}?select=id,title,artist_name,cover_art_url,audio_url,created_at&order=created_at.desc&limit=1000&apikey=${ANON_KEY}`);
+        if (!resp.ok) throw new Error(`SongChainn error: ${resp.status}`);
+        this._all = (await resp.json()).filter((r) => r.audio_url).map((r) => this._normalizeTrack(r));
+        return this._all;
+    }
+
+    // Songs by the artists named (matched anywhere in the artist line, so features count).
+    async byArtists(names) {
+        const want = names.map((n) => n.toLowerCase());
+        return (await this.all()).filter((t) => want.some((n) => t.artist.toLowerCase().includes(n)));
+    }
+
+    _normalizeTrack(raw) {
+        return {
+            id: `songchainn:${raw.id}`,
+            title: raw.title || 'Unknown',
+            artist: raw.artist_name || 'Unknown Artist',
+            duration: 0,
+            bpm: null,
+            key: null,
+            genre: '',
+            artwork: raw.cover_art_url || null,
+            source: 'songchainn',
+            streamUrl: raw.audio_url,
+        };
+    }
+}

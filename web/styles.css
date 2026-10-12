@@ -6269,3 +6269,7 @@ input[type="range"] {
 .switch-btn.miss { border-color: var(--accent-b); background: rgba(255, 107, 53, .12); }
 .switch-pad-say { margin-top: 8px; min-height: 30px; font-size: 12px; line-height: 1.35; color: var(--text-primary); }
 @media (max-width: 720px) { .switch-pad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ZAO crate tab */
+.zao-crate-tab { font-weight: 800; letter-spacing: .08em; }
+#zao-crate-count { font-weight: 600; opacity: .7; }

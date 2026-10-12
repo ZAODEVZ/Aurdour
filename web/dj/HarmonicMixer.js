@@ -52,7 +52,9 @@ export class HarmonicMixer {
         if (!keyStr) return null;
         // Audius writes keys out in words ("E flat minor", "F sharp major")
         const k = String(keyStr).trim().replace(/\s+flat\b/i, 'b').replace(/\s+sharp\b/i, '#');
-        return this.camelotMap[keyStr] || this.camelotMap[k] || null;
+        // "A# minor" and the like: fall back to the short names (A#m, C#)
+        const short = k.replace(/\s+minor$/i, 'm').replace(/\s+major$/i, '');
+        return this.camelotMap[keyStr] || this.camelotMap[k] || this.camelotMap[short] || null;
     }
 
     // Get compatible keys (same, ±1 on wheel, parallel major/minor)
