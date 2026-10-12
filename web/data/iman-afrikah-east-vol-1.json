@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "id": "iman-afrikah-east-vol-1",
+    "title": "East vol 1",
+    "artist": "IMan Afrikah",
+    "duration": 208,
+    "genre": "Tribe Bass",
+    "bpm": 100,
+    "key": "F major",
+    "description": "East vol 1 by IMan Afrikah",
+    "tags": [],
+    "source": "add_music"
+  },
+  "audio_files": {
+    "mp3": "music/iman-afrikah/east-vol-1.mp3"
+  },
+  "markers": [],
+  "social": {
+    "share_url": "",
+    "download_enabled": false,
+    "comments_enabled": false
+  }
+}

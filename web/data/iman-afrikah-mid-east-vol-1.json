@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "id": "iman-afrikah-mid-east-vol-1",
+    "title": "Mid-East vol 1",
+    "artist": "IMan Afrikah",
+    "duration": 165,
+    "genre": "Tribe Bass",
+    "bpm": 99.9,
+    "key": "D major",
+    "description": "Mid-East vol 1 by IMan Afrikah",
+    "tags": [],
+    "source": "add_music"
+  },
+  "audio_files": {
+    "mp3": "music/iman-afrikah/mid-east-vol-1.mp3"
+  },
+  "markers": [],
+  "social": {
+    "share_url": "",
+    "download_enabled": false,
+    "comments_enabled": false
+  }
+}
