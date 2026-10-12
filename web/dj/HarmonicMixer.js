@@ -50,7 +50,9 @@ export class HarmonicMixer {
     // Get Camelot code for a key string
     getCamelot(keyStr) {
         if (!keyStr) return null;
-        return this.camelotMap[keyStr] || this.camelotMap[keyStr.trim()] || null;
+        // Audius writes keys out in words ("E flat minor", "F sharp major")
+        const k = String(keyStr).trim().replace(/\s+flat\b/i, 'b').replace(/\s+sharp\b/i, '#');
+        return this.camelotMap[keyStr] || this.camelotMap[k] || null;
     }
 
     // Get compatible keys (same, ±1 on wheel, parallel major/minor)

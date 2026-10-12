@@ -6252,3 +6252,20 @@ input[type="range"] {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* ── Switch pad: one-tap next-track buttons ───────────────────── */
+.switch-pad { margin-top: 10px; padding: 10px; border: 1px solid var(--border-active, #2a2a4a); border-radius: 10px; background: var(--bg-control); }
+.switch-pad-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.switch-pad-title { font-size: 11px; font-weight: 700; letter-spacing: .12em; color: var(--text-secondary); }
+.switch-pad-auto { font-size: 11px; color: var(--text-secondary); display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.switch-pad-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.switch-btn { position: relative; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-height: 52px; padding: 8px 8px 7px 22px; border-radius: 8px; border: 1px solid var(--border-active, #2a2a4a); background: var(--bg-input); color: var(--text-primary); cursor: pointer; text-align: left; transition: transform .08s, border-color .15s, background .15s; }
+.switch-btn:hover, .switch-btn:focus-visible { border-color: var(--accent-a); outline: none; }
+.switch-btn:active { transform: scale(.97); }
+.switch-btn-n { position: absolute; left: 7px; top: 8px; font-size: 10px; font-weight: 700; color: var(--text-dim); }
+.switch-btn-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.switch-btn-hint { font-size: 10px; line-height: 1.2; color: var(--text-secondary); }
+.switch-btn.hit { border-color: #00ff88; background: rgba(0, 255, 136, .12); }
+.switch-btn.miss { border-color: var(--accent-b); background: rgba(255, 107, 53, .12); }
+.switch-pad-say { margin-top: 8px; min-height: 30px; font-size: 12px; line-height: 1.35; color: var(--text-primary); }
+@media (max-width: 720px) { .switch-pad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
