@@ -178,6 +178,8 @@ export class Deck {
                     artist: meta.artist || '',
                     bpm: meta.bpm || null,
                     key: meta.key || null,
+                    genre: meta.genre || null,
+                    id: meta.id ?? null,
                 },
                 audio_files: { mp3: audioUrl },
                 _source: meta.source || 'direct',

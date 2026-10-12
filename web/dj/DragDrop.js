@@ -1,6 +1,8 @@
 // DragDrop.js — Drag & drop audio files from desktop onto decks + file picker buttons
 // Includes: improved drop zone visuals, library-to-deck drag, audio validation, recently loaded tracks
 
+import { applySheet } from './ZaoCrate.js';
+
 export class DragDrop {
     constructor(decks, audioRouter) {
         this.decks = decks;
@@ -316,16 +318,28 @@ export class DragDrop {
         const title = parts.length > 1 ? parts[1].trim() : name;
         const artist = parts.length > 1 ? parts[0].trim() : '';
 
+        // A song on the ZAO song sheet gets the artist's own tempo and key
+        const known = applySheet({ title: name });
+        const fileId = `file:${file.name}`;
+
         // Create minimal metadata object
         deck.metadata = {
             audio_files: { mp3: audioUrl },
             metadata: {
+                id: fileId,
                 title,
                 artist,
-                bpm: null,
-                key: null,
+                bpm: known.bpm || null,
+                key: known.key || null,
             },
         };
+
+        // Remember the file for this session, so the next-track switches can pick it again
+        const lib = window._djPlayer?.library;
+        if (lib) {
+            lib.droppedTracks = (lib.droppedTracks || []).filter((t) => t.id !== fileId);
+            lib.droppedTracks.push({ id: fileId, title, artist, bpm: known.bpm || null, key: known.key || null, genre: '', source: 'file', file });
+        }
 
         deck.hotCues = new Array(8).fill(null);
         deck.cuePoint = 0;
