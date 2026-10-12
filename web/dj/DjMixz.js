@@ -159,6 +159,13 @@ export class DjMixz {
         this.index = 0;
         this.running = false;
         this.mood = 'journey';
+        this.human = false;      // true while a person has the decks
+        this.b2b = 0;            // back to back: tracks per turn, 0 = off
+        this._turn = 0;          // handovers done in the current turn
+        this.battle = false;     // contest: the room scores each round, DJ MixZ against the live DJ
+        this.score = { ai: 0, human: 0 };
+        this.round = 1;
+        this._voteOpen = false;
         this._buildUI();
     }
 
@@ -194,6 +201,7 @@ export class DjMixz {
         if (!this._orig) this._orig = { fill: flow._autoFillQueue.bind(flow), trigger: flow._triggerTransition.bind(flow), done: flow.onTransitionComplete.bind(flow) };
         flow._autoFillQueue = () => {};
         flow._triggerTransition = () => {
+            if (this.human) return; // a person has the decks: DJ MixZ keeps its hands off
             const next = this.plan[this.index + 1];
             if (!next) { this._finish(); return; }
             this._applyMove(next.move);
@@ -204,6 +212,9 @@ export class DjMixz {
             this.index += 1;
             this._armNext();
             this._renderPlan();
+            this._turn += 1;
+            if (this.b2b && this._turn >= this.b2b) this.takeOver('turn');
+            else this._renderBar();
         };
 
         flow.queue = this.plan.slice(1).map((p) => p.track);
@@ -212,6 +223,10 @@ export class DjMixz {
         this._renderPlan();
         this._say(`DJ MixZ is on. ${this.plan.length} tracks, ${MOODS.find((m) => m.id === this.mood)?.label} mood.`);
         document.getElementById('djmixz-open')?.classList.add('live');
+        this.human = false; this._turn = 0;
+        this.score = { ai: 0, human: 0 }; this.round = 1; this._voteOpen = false;
+        this._watchHands();
+        this._renderBar();
         return true;
     }
 
@@ -234,14 +249,127 @@ export class DjMixz {
     stop() {
         const flow = this.dj.flowMode;
         if (flow && this._orig) { flow._autoFillQueue = this._orig.fill; flow._triggerTransition = this._orig.trigger; flow.onTransitionComplete = this._orig.done; }
+        if (this.running && this.battle && (this.score.ai || this.score.human)) {
+            const { ai, human } = this.score;
+            this._say(ai === human ? `Contest over. It is a draw, ${ai} all.` : `Contest over. ${ai > human ? 'DJ MixZ' : 'The live DJ'} wins, ${Math.max(ai, human)} to ${Math.min(ai, human)}.`);
+        }
         this.running = false;
+        this.human = false;
+        clearInterval(this._turnTimer);
         document.getElementById('djmixz-open')?.classList.remove('live');
         this._renderPlan();
+        this._renderBar();
     }
 
     _finish() {
         this._say('That was the set. DJ MixZ is off.');
         this.stop();
+    }
+
+    // ── Takeover: a person can grab the decks mid-set, and hand them back ──────────
+    // The deck the room is hearing: the playing one on the crossfader's side.
+    _liveDeck() {
+        const d = this.dj.decks; const xf = parseFloat(document.getElementById('crossfader')?.value ?? '50');
+        if (d.A.isPlaying && !d.B.isPlaying) return 'A';
+        if (d.B.isPlaying && !d.A.isPlaying) return 'B';
+        return xf > 50 ? 'B' : 'A';
+    }
+
+    // why: 'button' (pressed TAKE OVER), 'touch' (grabbed a control), 'turn' (back to back)
+    takeOver(why = 'button') {
+        if (!this.running || this.human) return;
+        this.human = true;
+        this._turn = 0;
+        this._humanFrom = this._liveDeck();
+        const flow = this.dj.flowMode;
+        try { this.dj.autoTransition?.cancel?.(); } catch (e) { /* nothing running */ }
+        if (flow) { flow._transitioning = false; }
+        this._say(why === 'turn' ? 'Your turn. Mix in your next track; DJ MixZ takes it back after.' : why === 'touch' ? 'You grabbed a control, so the decks are yours. DJ MixZ is standing by.' : 'The decks are yours. DJ MixZ is standing by.');
+        // In back to back, watch for the person finishing their mixes, then take the decks back.
+        clearInterval(this._turnTimer);
+        this._turnTimer = setInterval(() => {
+            if (!this.running || !this.human) { clearInterval(this._turnTimer); return; }
+            const live = this._liveDeck();
+            const xf = parseFloat(document.getElementById('crossfader')?.value ?? '50');
+            const landed = (live === 'A' && xf <= 8) || (live === 'B' && xf >= 92);
+            if (landed && live !== this._humanFrom && this.dj.decks[live].isPlaying) {
+                this._humanFrom = live; this._turn += 1; this._renderBar();
+                if (this.b2b && this._turn >= this.b2b) this.handBack();
+            }
+        }, 500);
+        this._renderBar();
+        this._renderPlan();
+    }
+
+    // DJ MixZ picks up from whatever the person left playing and re-plans the rest around it.
+    handBack() {
+        if (!this.running || !this.human) return;
+        const flow = this.dj.flowMode;
+        const live = this._liveDeck();
+        const deck = this.dj.decks[live];
+        const m = deck.metadata?.metadata || {};
+        const now = { id: m.id ?? deck.metadata?._sourceId ?? `deck:${m.title}`, title: m.title || 'Unknown', artist: m.artist || '', bpm: m.bpm || (deck.getBPM ? deck.getBPM() : null), key: m.key || null, genre: m.genre || '' };
+        const used = new Set(this.plan.slice(0, this.index + 1).map((p) => idOf(p.track)));
+        used.add(idOf(now));
+        const rest = this.plan.slice(this.index + 1).map((p) => p.track).filter((t) => !used.has(idOf(t)));
+        const tail = planSet(rest, this.mood, this.dj.harmonic);
+        if (tail.length) tail[0].move = planTransition(now, tail[0].track, this.dj.harmonic);
+        this.plan = [{ track: now, energy: energyOf(now), target: energyOf(now), move: null }, ...tail];
+        this.index = 0;
+        this.human = false;
+        this._turn = 0;
+        clearInterval(this._turnTimer);
+        if (this.battle) this._voteOpen = true; // both have played: the room scores the round
+        if (flow) {
+            flow.currentDeck = live; flow.currentTrack = now;
+            flow._transitioning = false; flow._nearEndTriggered = false;
+            flow.queue = tail.map((p) => p.track);
+        }
+        this._armNext();
+        this._say(tail.length ? `DJ MixZ has the decks again. Next: ${tail[0].track.title}.` : 'DJ MixZ has the decks again, and the playlist is finished after this track.');
+        this._renderBar();
+        this._renderPlan();
+    }
+
+    // A real hand on the crossfader, a deck's transport or a load button takes over at once.
+    _watchHands() {
+        if (this._handsWired || typeof document === 'undefined') return;
+        this._handsWired = true;
+        const grab = (e) => { if (e.isTrusted && this.running && !this.human) this.takeOver('touch'); };
+        document.getElementById('crossfader')?.addEventListener('input', grab);
+        ['deck-a-play', 'deck-b-play', 'deck-a-cue', 'deck-b-cue'].forEach((id) => document.getElementById(id)?.addEventListener('click', grab));
+        document.getElementById('library')?.addEventListener('click', (e) => { if (e.target.closest?.('.btn-load-a, .btn-load-b')) grab(e); });
+    }
+
+    // Contest: one point for whoever took the round.
+    vote(who) {
+        if (!this.battle || !this._voteOpen) return;
+        this.score[who] += 1;
+        this.round += 1;
+        this._voteOpen = false;
+        this._say(`Round to ${who === 'ai' ? 'DJ MixZ' : 'the live DJ'}. DJ MixZ ${this.score.ai}, live DJ ${this.score.human}.`);
+        this._renderBar();
+    }
+
+    // The strip at the bottom of the screen while a set is running.
+    _renderBar() {
+        if (typeof document === 'undefined') return;
+        let bar = document.getElementById('djmixz-bar');
+        if (!this.running) { bar?.remove(); return; }
+        if (!bar) {
+            bar = document.createElement('div'); bar.id = 'djmixz-bar'; bar.className = 'djmixz-bar';
+            document.body.appendChild(bar);
+            bar.addEventListener('click', (e) => { const act = e.target.closest?.('[data-act]')?.dataset.act; if (act === 'take') this.takeOver('button'); if (act === 'back') this.handBack(); if (act === 'vote-ai' || act === 'vote-human') this.vote(act === 'vote-ai' ? 'ai' : 'human'); });
+        }
+        const next = this.plan[this.index + 1];
+        const esc = (x) => String(x || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const turn = this.b2b ? `<span class="djmixz-bar-turn">${this._turn} of ${this.b2b} this turn</span>` : '';
+        const score = this.battle ? `<span class="djmixz-bar-score">ROUND ${this.round} <b>DJ MIXZ ${this.score.ai}</b> : <b>${this.score.human} LIVE DJ</b></span>` : '';
+        const votes = this.battle && this._voteOpen ? `<span class="djmixz-bar-vote">Who took round ${this.round}?<button class="djmixz-bar-btn vote" data-act="vote-ai">DJ MIXZ</button><button class="djmixz-bar-btn vote" data-act="vote-human">LIVE DJ</button></span>` : '';
+        bar.classList.toggle('human', this.human);
+        bar.innerHTML = this.human
+            ? `<span class="djmixz-bar-who">YOU HAVE THE DECKS</span><span class="djmixz-bar-next">DJ MixZ is standing by</span>${turn}${score}<button class="djmixz-bar-btn" data-act="back">HAND BACK TO DJ MIXZ</button>`
+            : `<span class="djmixz-bar-who">DJ MIXZ IS MIXING</span><span class="djmixz-bar-next">${next ? 'next: ' + esc(next.track.title) + ', ' + esc(next.move?.type.replace('-', ' ')) : 'last track'}</span>${turn}${score}${votes}<button class="djmixz-bar-btn" data-act="take">TAKE OVER</button>`;
     }
 
     // ── Panel ──────────────────────────────────────────────────
@@ -271,6 +399,8 @@ export class DjMixz {
             <div class="djmixz-moods">${MOODS.map((m) => `<button class="djmixz-mood${m.id === this.mood ? ' active' : ''}" data-mood="${m.id}"><b>${m.label}</b><span>${m.hint}</span></button>`).join('')}</div>
             <label class="djmixz-label" for="djmixz-length">Set length</label>
             <select id="djmixz-length" class="toolbar-select djmixz-select"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">90 minutes</option><option value="0">The whole playlist</option></select>
+            <label class="djmixz-label" for="djmixz-b2b">Back to back with a live DJ</label>
+            <select id="djmixz-b2b" class="toolbar-select djmixz-select"><option value="0" selected>Off. DJ MixZ plays the whole set</option><option value="1">Trade every track: one each</option><option value="2">Trade every 2 tracks</option><option value="3">Trade every 3 tracks</option><option value="b1">Contest: one track each, the room scores every round</option><option value="b2">Contest: two tracks each, the room scores every round</option></select>
             <div class="djmixz-actions">
                 <button class="djmixz-btn" id="djmixz-build">BUILD THE SET</button>
                 <button class="djmixz-btn djmixz-go" id="djmixz-start" disabled>START</button>
@@ -291,7 +421,9 @@ export class DjMixz {
             panel.querySelector('#djmixz-start').disabled = plan.length < 2;
             this._say(plan.length < 2 ? 'That playlist has fewer than two playable tracks. Open a fuller tab in the library and build again.' : `Set built: ${plan.length} tracks. Read it through, then press START.`);
         });
-        panel.querySelector('#djmixz-start').addEventListener('click', () => { if (this.start()) { panel.querySelector('#djmixz-stop').hidden = false; } });
+        const readB2b = (v) => { this.battle = String(v).startsWith('b'); this.b2b = Number(String(v).replace('b', '')) || 0; };
+        panel.querySelector('#djmixz-b2b').addEventListener('change', (e) => { readB2b(e.target.value); this._renderBar(); });
+        panel.querySelector('#djmixz-start').addEventListener('click', () => { readB2b(panel.querySelector('#djmixz-b2b').value); if (this.start()) { panel.querySelector('#djmixz-stop').hidden = false; } });
         panel.querySelector('#djmixz-stop').addEventListener('click', () => { this.stop(); this.dj.flowMode?.disable(); panel.querySelector('#djmixz-stop').hidden = true; this._say('Stopped. The decks are yours.'); });
     }
 
