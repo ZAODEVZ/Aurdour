@@ -220,7 +220,8 @@ export class SwitchPad {
 
     _buildUI() {
         if (typeof document === 'undefined') return;
-        const anchor = document.querySelector('.crossfader-section');
+        // Its own full-width row under the two decks. Inside the mixer column it had 140px and the labels were cut off.
+        const anchor = document.getElementById('mixer')?.closest('.decks-row') || document.querySelector('.decks-row');
         if (!anchor || document.getElementById('switch-pad')) return;
         const bar = document.createElement('div');
         bar.id = 'switch-pad';
