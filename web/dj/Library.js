@@ -415,7 +415,7 @@ export class Library {
     }
 
     loadToDeck(track, deckId) {
-        if (track && track.source === 'audius') {
+        if (track && (track.source === 'audius' || track.source === 'songchainn')) {
             if (this.onLoadDirect) {
                 this.onLoadDirect(deckId, track.streamUrl, track);
             }

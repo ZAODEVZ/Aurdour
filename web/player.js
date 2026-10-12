@@ -35,6 +35,7 @@ import { YouTubeLive } from './dj/YouTubeLive.js';
 import { SmartRecommend } from './dj/SmartRecommend.js';
 import { SwitchPad } from './dj/SwitchPad.js';
 import { ZaoCrate } from './dj/ZaoCrate.js';
+import { SongChainn } from './dj/SongChainn.js';
 import { CloudSync } from './dj/CloudSync.js';
 import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
@@ -133,6 +134,7 @@ class DJPlayer {
         this.switchPad = safeInit('SwitchPad', () => new SwitchPad(this));
 
         // ZAO crate: ZAO artists' music from Audius, in the library and in the switch pad's pool
+        this.songchainn = safeInit('SongChainn', () => new SongChainn());
         this.zaoCrate = safeInit('ZaoCrate', () => new ZaoCrate(this));
 
         // Cloud Sync

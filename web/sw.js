@@ -2,7 +2,7 @@
 // Full offline support with app shell caching, audio IndexedDB caching,
 // graceful updates, and background sync
 
-const CACHE_VERSION = 7;
+const CACHE_VERSION = 8;
 const CACHE_NAME = `aurdour-v${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = 'aurdour-audio-v1';
 
@@ -46,6 +46,7 @@ const APP_SHELL = [
     '/dj/SmartRecommend.js',
     '/dj/SwitchPad.js',
     '/dj/ZaoCrate.js',
+    '/dj/SongChainn.js',
     '/dj/CloudSync.js',
     '/dj/PluginManager.js',
     '/dj/bpm-worker.js',

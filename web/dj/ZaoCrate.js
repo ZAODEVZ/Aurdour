@@ -4,6 +4,9 @@
 
 export const CRATE_HANDLES = ['IManAfrikah', 'WaveWarzAfrica'];
 
+// SongChainn artists in the crate. Add a name to bring in another artist's songs.
+export const SONGCHAINN_ARTISTS = ['IMan Afrikah'];
+
 // Tempo and key as the artist measured them (IMan Afrikah's song sheet for DJ Zaal, Oct 2026).
 // These win over what Audius guesses. Matched on the title with spaces and punctuation removed;
 // the longer names come first so "North-East vol 1" is not read as "East vol 1".
@@ -55,8 +58,21 @@ export class ZaoCrate {
                 console.warn(`[ZaoCrate] could not load ${handle}:`, e.message);
             }
         }
+        // SongChainn: the same artists' songs from songchainn.xyz. A song already found on Audius
+        // keeps its Audius copy, which comes with a tempo and key.
+        try {
+            if (this.dj.songchainn) all.push(...(await this.dj.songchainn.byArtists(SONGCHAINN_ARTISTS)));
+        } catch (e) {
+            console.warn('[ZaoCrate] could not load SongChainn:', e.message);
+        }
         const seen = new Set();
-        this.tracks = all.filter((t) => !seen.has(t.id) && seen.add(t.id)).map(applySheet);
+        const titles = new Set();
+        const nameOf = (t) => squash(t.title).replace(/^imanafrikah/, '');
+        this.tracks = all.filter((t) => {
+            if (seen.has(t.id) || titles.has(nameOf(t))) return false;
+            seen.add(t.id); titles.add(nameOf(t));
+            return true;
+        }).map(applySheet);
         lib.zaoTracks = this.tracks; // the switch pad reads this
         const count = document.getElementById('zao-crate-count');
         if (count) count.textContent = this.tracks.length ? ` ${this.tracks.length}` : '';
