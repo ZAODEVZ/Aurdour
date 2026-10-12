@@ -168,7 +168,7 @@ export class SwitchPad {
     _pool() {
         const lib = this.dj.library;
         if (!lib) return [];
-        return [...(lib.tracks || []), ...(lib.audiusTracks || []), ...(lib.soundcloudTracks || [])];
+        return [...(lib.zaoTracks || []), ...(lib.tracks || []), ...(lib.audiusTracks || []), ...(lib.soundcloudTracks || [])];
     }
 
     // Tap a button (or a pad). Returns the pick, or null with a message shown.

@@ -34,6 +34,7 @@ import { TwitchChat } from './dj/TwitchChat.js';
 import { YouTubeLive } from './dj/YouTubeLive.js';
 import { SmartRecommend } from './dj/SmartRecommend.js';
 import { SwitchPad } from './dj/SwitchPad.js';
+import { ZaoCrate } from './dj/ZaoCrate.js';
 import { CloudSync } from './dj/CloudSync.js';
 import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
@@ -130,6 +131,9 @@ class DJPlayer {
 
         // One-tap next-track switches (buttons under the crossfader, and the controller pads)
         this.switchPad = safeInit('SwitchPad', () => new SwitchPad(this));
+
+        // ZAO crate: ZAO artists' music from Audius, in the library and in the switch pad's pool
+        this.zaoCrate = safeInit('ZaoCrate', () => new ZaoCrate(this));
 
         // Cloud Sync
         this.cloudSync = safeInit('CloudSync', () => new CloudSync(this.storage));

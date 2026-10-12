@@ -35,6 +35,14 @@ ok('tracks already played are skipped', top('smooth', new Set(['1']))[0] !== 1);
 ok('current track with no tempo or key: no crash', Array.isArray(rankFor('smooth', { id: 'x', title: 'bare' }, pool, h)));
 ok('keys spelled out the Audius way are understood',
     h.getCamelot('E flat minor') === '2A' && h.getCamelot('F sharp major') === '2B' && h.getCamelot('C sharp minor') === '12A' && h.getCamelot('B flat major') === '6B');
+const { applySheet } = await import('./ZaoCrate.js');
+const ne = applySheet({ title: 'IMAN AFRIKAH - NORTH-EAST vol 1 (TRIBE-BASS)', bpm: 51, key: null });
+const ea = applySheet({ title: 'IMAN AFRIKAH - EAST vol 1 (TRIBE-BASS)' });
+const coc = applySheet({ title: 'C.O.C SONG', bpm: 107, key: 'B flat minor' });
+ok('song sheet: the artist\'s tempo and key win, and North-East vol 1 is not read as East vol 1',
+    ne.bpm === 102 && ne.key === 'F minor' && ea.bpm === 100 && ea.key === 'F major' && coc.bpm === 160.3 && coc.key === 'A# minor'
+    && applySheet({ title: 'Some other song', bpm: 90 }).bpm === 90);
+ok('sharp keys written long ("A# minor", "C# major") are understood', h.getCamelot('A# minor') === '3A' && h.getCamelot('C# major') === '3B' && h.getCamelot('Eb minor') === '2A');
 ok('eight modes for eight pads', SWITCH_MODES.length === 8);
 
 console.log(fail ? `${fail} failed` : 'all passed');
