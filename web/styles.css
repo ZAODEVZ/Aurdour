@@ -6273,3 +6273,27 @@ input[type="range"] {
 /* ZAO crate tab */
 .zao-crate-tab { font-weight: 800; letter-spacing: .08em; }
 #zao-crate-count { font-weight: 600; opacity: .7; }
+
+/* ── Front page fixes, Oct 2026 ───────────────────────────────── */
+/* Decks C and D and their mixer strips are built in the page but 4-deck mode is not finished
+   (there is no toggle function and no decks behind them), so they showed all the time and
+   pushed the library far down the page. Hidden until 4-deck mode exists. */
+.four-deck-only { display: none !important; }
+body.four-deck-mode .four-deck-only { display: revert !important; }
+#four-deck-toggle { display: none !important; }
+
+/* Switch pad as a full-width row under the decks */
+.switch-pad { margin: 0; border-radius: 0; border-left: 0; border-right: 0; padding: 10px 16px 12px; background: var(--bg-mixer); }
+.switch-pad-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.switch-btn { min-height: 58px; padding: 9px 10px 8px 26px; }
+.switch-btn-label { font-size: 12px; white-space: nowrap; }
+.switch-btn-hint { font-size: 11px; }
+.switch-btn-n { left: 9px; top: 10px; }
+.switch-pad-say { min-height: 20px; margin-top: 8px; color: var(--text-secondary); }
+@media (max-width: 1100px) { .switch-pad-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .switch-pad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .switch-btn-label { white-space: normal; } }
+
+/* Empty-deck hint: sat in the middle of the deck, on top of the jog wheel. Now a line at the bottom. */
+.deck-drop-hint { justify-content: flex-end; padding-bottom: 26px; gap: 4px; background: none; }
+.deck-drop-hint svg { display: none; }
+.deck-drop-hint span { font-size: 13px; }
