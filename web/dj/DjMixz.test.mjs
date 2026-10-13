@@ -1,5 +1,5 @@
 // Offline check of DJ MixZ's set planning.   node web/dj/DjMixz.test.mjs
-import { planSet, planTransition, energyOf, MOODS } from './DjMixz.js';
+import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes } from './DjMixz.js';
 import { HarmonicMixer } from './HarmonicMixer.js';
 
 const h = new HarmonicMixer();
@@ -44,6 +44,15 @@ ok('never the same move three times running', planTransition(T(28, 124, 'A minor
 const runs = warm.slice(1).map((p) => p.move.type);
 ok('a planned set never has three identical moves in a row', !runs.some((t, i) => i >= 2 && runs[i - 1] === t && runs[i - 2] === t));
 ok('duplicates in the playlist are played once', planSet([...pool, ...pool], 'party', h).length === 14);
+const sc = (id, artist) => ({ id: 'songchainn:' + id, title: 'S' + id, artist, source: 'songchainn', streamUrl: 'x', bpm: null, key: null, duration: 0 });
+const lib = { zaoTracks: [sc(1, 'IMan Afrikah'), sc(2, 'N3M3SIS'), sc(3, 'IMAN AFRIKAH ft SANTANA'), { id: 9, title: 'Audius one', artist: 'IMan Afrikah', source: 'audius', streamUrl: 'x' }, { id: 10, title: 'broken', artist: 'X', source: 'songchainn' }], tracks: pool.slice(0, 3), _displayedTracks: pool.slice(0, 2) };
+ok('pointed at SongChainn: only SongChainn songs, and only ones that can play', tracksFrom(lib, 'songchainn').length === 3 && tracksFrom(lib, 'songchainn').every((t) => t.source === 'songchainn'));
+ok('SongChainn, one artist: features count, other artists do not', tracksFrom(lib, 'songchainn-artist', 'iman afrikah').map((t) => t.id).join() === 'songchainn:1,songchainn:3' && tracksFrom(lib, 'songchainn-artist', '').length === 0);
+ok('the other sources still work', tracksFrom(lib, 'zao').length === 4 && tracksFrom(lib, 'local').length === 3 && tracksFrom(lib, 'view').length === 2);
+const many = Array.from({ length: 200 }, (_, i) => sc(100 + i, 'A' + (i % 9)));
+ok('session length: 1 hour of SongChainn is about 19 tracks, 4 hours about 75, never more than there are', tracksForMinutes(many, 60) === 19 && tracksForMinutes(many, 240) === 75 && tracksForMinutes(many.slice(0, 10), 240) === 10 && tracksForMinutes(many, 0) === 200);
+ok('session length uses real track lengths when the library has them', tracksForMinutes(Array.from({ length: 50 }, (_, i) => ({ id: i, duration: 120 })), 60) === 34);
+ok('a SongChainn set with no tempo or key on file still plans, every track once', planSet(many, 'journey', h, { maxTracks: 19 }).length === 19 && new Set(planSet(many, 'journey', h, { maxTracks: 19 }).map((p) => p.track.id)).size === 19);
 ok('five moods', MOODS.length === 5);
 
 console.log(fail ? `${fail} failed` : 'all passed');
