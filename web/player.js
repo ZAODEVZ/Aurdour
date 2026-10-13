@@ -15,6 +15,8 @@ import { FxFade } from './dj/FxFade.js';
 import { PadModes } from './dj/PadModes.js';
 import { Moves } from './dj/Moves.js';
 import { ProLayout } from './dj/ProLayout.js';
+import { RemoteHost } from './dj/RemoteLink.js';
+import { Install } from './dj/Install.js';
 import { BpmTap } from './dj/BpmTap.js';
 import { StreamBroadcast } from './dj/StreamBroadcast.js';
 import { FX } from './dj/FX.js';
@@ -84,6 +86,8 @@ class DJPlayer {
         this.padModes = safeInit('PadModes', () => new PadModes(this));
         this.proLayout = safeInit('ProLayout', () => new ProLayout());
         this.moves = safeInit('Moves', () => new Moves(this));
+        this.remote = safeInit('RemoteHost', () => new RemoteHost(this));
+        this.install = safeInit('Install', () => new Install({ button: document.getElementById('install-btn'), sheet: document.getElementById('install-sheet') }));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));
         this.setlist = safeInit('Setlist', () => new Setlist(this.library, (deckId, dataFile) => this._onLoadTrack(deckId, dataFile)));
