@@ -50,7 +50,7 @@ export class AudioRouter {
         // Route: masterGain → masterAnalyser → bypass → destination
         // When limiter enabled: masterGain → masterAnalyser → limiter → destination
         this.masterGain.connect(this.masterAnalyser);
-        this._limiterBypass.connect(this.ctx.destination);
+        this._limiterBypass.connect(this._outNode());
         this.masterAnalyser.connect(this._limiterBypass); // default: bypass (no limiter)
 
         // Both channels → master
@@ -628,6 +628,59 @@ export class AudioRouter {
         return this._eqKillState[deckId]?.[band] || false;
     }
 
+    // ===== CONTROLLER OUTPUTS =====
+
+    // Where the master bus ends up: straight to the speakers, or into the four channel
+    // split once a DJ controller's sound card is in use.
+    _outNode() {
+        return this._mainOut || this.ctx.destination;
+    }
+
+    // A DJ controller has four outputs: 1/2 feed the master sockets, 3/4 feed its headphone
+    // socket. Send the master bus to 1/2 and the cue bus to 3/4, so the headphone cue
+    // buttons and the cue mix knob work on the hardware. Returns false, and changes
+    // nothing, when the current output has only two channels.
+    enableControllerOutputs() {
+        const dest = this.ctx.destination;
+        if (this._mainOut) return true;
+        if (dest.maxChannelCount < 4) return false;
+        try {
+            dest.channelCount = 4;
+            dest.channelCountMode = 'explicit';
+            dest.channelInterpretation = 'discrete';
+        } catch (e) {
+            console.warn('[AUDIO:OUT] Could not open four channels:', e);
+            return false;
+        }
+        const stereo = () => {
+            const g = this.ctx.createGain();
+            g.channelCount = 2;
+            g.channelCountMode = 'explicit';
+            g.channelInterpretation = 'speakers';
+            return g;
+        };
+        const mainBus = stereo();
+        const cueBus = stereo();
+        const mainSplit = this.ctx.createChannelSplitter(2);
+        const cueSplit = this.ctx.createChannelSplitter(2);
+        const merger = this.ctx.createChannelMerger(4);
+        mainBus.connect(mainSplit);
+        mainSplit.connect(merger, 0, 0);
+        mainSplit.connect(merger, 1, 1);
+        this.cueOutput.connect(cueBus);
+        cueBus.connect(cueSplit);
+        cueSplit.connect(merger, 0, 2);
+        cueSplit.connect(merger, 1, 3);
+        merger.connect(dest);
+        // Move whichever of the two master paths is live off the plain destination.
+        for (const node of [this._limiterBypass, this.limiter]) {
+            try { node.disconnect(dest); node.connect(mainBus); } catch (e) { /* that path was not connected */ }
+        }
+        this._mainOut = mainBus;
+        console.log('[AUDIO:OUT] Four channel output: master on 1/2, headphone cue on 3/4');
+        return true;
+    }
+
     // ===== MASTER LIMITER =====
 
     setLimiterEnabled(enabled) {
@@ -644,12 +697,12 @@ export class AudioRouter {
         if (enabled) {
             // masterAnalyser → limiter → destination
             this.masterAnalyser.connect(this.limiter);
-            this.limiter.connect(this.ctx.destination);
+            this.limiter.connect(this._outNode());
             console.log('[AUDIO:LIMITER] Master limiter ENABLED (threshold: -3dB, ratio: 20:1)');
         } else {
             // masterAnalyser → bypass → destination
             this.masterAnalyser.connect(this._limiterBypass);
-            this._limiterBypass.connect(this.ctx.destination);
+            this._limiterBypass.connect(this._outNode());
             console.log('[AUDIO:LIMITER] Master limiter DISABLED');
         }
 

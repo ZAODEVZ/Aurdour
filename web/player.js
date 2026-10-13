@@ -10,6 +10,7 @@ import { Sampler } from './dj/Sampler.js';
 import { Recorder } from './dj/Recorder.js';
 import { Visualizer } from './dj/Visualizer.js';
 import { MidiController } from './dj/MidiController.js';
+import { ControllerLights } from './dj/ControllerLights.js';
 import { BpmTap } from './dj/BpmTap.js';
 import { StreamBroadcast } from './dj/StreamBroadcast.js';
 import { FX } from './dj/FX.js';
@@ -74,6 +75,7 @@ class DJPlayer {
         // Pro tools
         this.bpmTap = safeInit('BpmTap', () => new BpmTap());
         this.midi = safeInit('MidiController', () => new MidiController(this));
+        this.lights = safeInit('ControllerLights', () => new ControllerLights(this));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));
         this.setlist = safeInit('Setlist', () => new Setlist(this.library, (deckId, dataFile) => this._onLoadTrack(deckId, dataFile)));
@@ -195,6 +197,7 @@ class DJPlayer {
 
         // Audio output device selector
         this._initAudioOutput();
+        this._initControllerButtons();
 
         // UI bindings
         this._initTransportButtons();
@@ -1199,6 +1202,75 @@ class DJPlayer {
                 }
             });
         }
+    }
+
+    // Play the mix through the controller's own outputs (master on 1/2, headphones on 3/4).
+    // The DDJ is a sound card too; until the app picks it, the sound stays on the laptop.
+    // Returns 'four', 'stereo', 'hidden', 'not-found', 'blocked' or 'unsupported'.
+    async routeAudioToController(fromClick = false) {
+        const md = navigator.mediaDevices;
+        const ctx = this.audioRouter.getAudioContext();
+        if (!md?.enumerateDevices || !ctx.setSinkId) return 'unsupported';
+        const list = async () => (await md.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+        let outs = await list();
+        if (fromClick && outs.every(d => !d.label)) {
+            // The browser hides device names until the page has been allowed audio input once.
+            try {
+                const s = await md.getUserMedia({ audio: true });
+                s.getTracks().forEach(t => t.stop());
+                outs = await list();
+            } catch (e) {
+                return 'blocked';
+            }
+        }
+        const dev = outs.find(d => /ddj|pioneer/i.test(d.label));
+        if (!dev) return outs.some(d => d.label) ? 'not-found' : 'hidden';
+        try {
+            await ctx.setSinkId(dev.deviceId);
+        } catch (e) {
+            console.warn('[AudioOutput] Could not switch to the controller:', e);
+            return 'blocked';
+        }
+        const select = document.getElementById('audio-output-select');
+        if (select) select.value = dev.deviceId;
+        console.log('[AudioOutput] Playing through the controller:', dev.label);
+        return this.audioRouter.enableControllerOutputs() ? 'four' : 'stereo';
+    }
+
+    _initControllerButtons() {
+        const lightsBtn = document.getElementById('midi-lights');
+        const audioBtn = document.getElementById('midi-audio');
+        const paintLights = () => {
+            if (!lightsBtn) return;
+            const on = !!this.lights?.enabled;
+            lightsBtn.textContent = on ? 'LIGHTS ON' : 'LIGHTS OFF';
+            lightsBtn.classList.toggle('active', on);
+        };
+        lightsBtn?.addEventListener('click', () => { this.lights?.setEnabled(!this.lights.enabled); paintLights(); });
+        paintLights();
+        const said = {
+            four: 'DECK AUDIO ON', stereo: 'DECK AUDIO ON', hidden: 'DECK AUDIO', 'not-found': 'NO DECK FOUND',
+            blocked: 'AUDIO BLOCKED', unsupported: 'NOT SUPPORTED',
+        };
+        this._paintDeckAudio = (result) => {
+            if (!audioBtn) return;
+            audioBtn.textContent = said[result] || 'DECK AUDIO';
+            audioBtn.classList.toggle('active', result === 'four' || result === 'stereo');
+        };
+        audioBtn?.addEventListener('click', async () => {
+            if (audioBtn.classList.contains('active')) {
+                // Back to the laptop's own output. The four channel wiring only fits the
+                // controller, so the page reloads to rebuild a plain stereo path.
+                localStorage.setItem('mixz-deck-audio', 'off');
+                const ctx = this.audioRouter.getAudioContext();
+                try { await ctx.setSinkId(''); } catch (e) { /* already on the default */ }
+                if (this.audioRouter._mainOut) { location.reload(); return; }
+                this._paintDeckAudio('hidden');
+                return;
+            }
+            localStorage.setItem('mixz-deck-audio', 'on');
+            this._paintDeckAudio(await this.routeAudioToController(true));
+        });
     }
 
     _initAudioOutput() {

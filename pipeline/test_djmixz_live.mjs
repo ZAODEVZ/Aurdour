@@ -150,6 +150,14 @@ try {
     check('back to back: once the person lands their mix, DJ MixZ takes the decks back', !myTurn.human && myTurn.first === myTurn.mine && myTurn.flowDeck === myTurn.to, `"${myTurn.first}"`);
     const contest = await evalJs(`const p = window._djPlayer, m = p.djMixz; const bar1 = document.getElementById('djmixz-bar')?.innerText.replace(/\s+/g, ' '); const open = m._voteOpen; document.querySelector('#djmixz-bar [data-act="vote-human"]')?.click(); return { open, bar1, score: m.score, round: m.round, closed: !m._voteOpen, bar2: document.getElementById('djmixz-bar')?.innerText.replace(/\s+/g, ' ') };`);
     check('contest: when both have played, the room is asked who took the round, and the point is scored', contest.open && /Who took round 1/.test(contest.bar1 || '') && contest.score.human === 1 && contest.score.ai === 0 && contest.round === 2 && contest.closed, contest.bar2);
+    const hw = await evalJs(`const p = window._djPlayer, m = p.djMixz; p.midi.activeProfile = 'pioneer-ddj'; const before = m.human;
+        p.midi._handlePioneerDDJ(0xB0, 6, 0x1F, 64); p.midi._handlePioneerDDJ(0xB0, 6, 0x1F, 65); const jitter = m.human;   // a resting fader
+        p.midi._handlePioneerDDJ(0xB0, 6, 0x1F, 90); const moved = m.human;                                              // a real move
+        m.handBack(); const back = m.human;
+        p.midi._handlePioneerDDJ(0x90, 0, 0x0C, 127); const cue = m.human;                                               // CUE on deck 1
+        m.handBack();
+        return { before, jitter, moved, back, cue };`);
+    check('controller: moving the DDJ crossfader or pressing CUE takes over; a resting fader does not', !hw.before && !hw.jitter && hw.moved && !hw.back && hw.cue, JSON.stringify(hw));
     const errs = await evalJs('return window.__errs');
     check('no page errors during takeover and back to back', errs.length === 0, errs.join(' ; '));
 

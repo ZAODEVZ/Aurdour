@@ -180,6 +180,7 @@ export class Deck {
                     key: meta.key || null,
                     genre: meta.genre || null,
                     id: meta.id ?? null,
+                    artwork: meta.artwork || null,
                 },
                 audio_files: { mp3: audioUrl },
                 _source: meta.source || 'direct',
