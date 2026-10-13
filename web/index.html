@@ -23,7 +23,7 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='30' fill='%2306060c'/%3E%3Ctext x='90' y='105' font-size='60' text-anchor='middle' fill='%2300d4ff' font-family='sans-serif' font-weight='800'%3EDJ%3C/text%3E%3C/svg%3E">
 
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="mixz.css">
+    <link rel="stylesheet" href="mixz.css?v=19">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,80 +36,104 @@
         <header class="top-bar">
             <div class="logo">ZAO <span class="logo-accent">MixZ</span></div>
 
-            <div class="toolbar-group pro-only">
-                <!-- Recording -->
-                <button class="btn-toolbar" id="rec-btn" title="Record mix (R)">REC</button>
-                <span class="toolbar-text" id="rec-time">0:00</span>
-                <select class="toolbar-select" id="rec-format" title="Recording format">
-                    <option value="webm">WebM</option>
-                    <option value="ogg">OGG</option>
-                    <option value="mp4">M4A</option>
-                </select>
-                <span class="toolbar-text rec-track-count" id="rec-track-count"></span>
-
-                <!-- Visualizer -->
-                <button class="btn-toolbar" id="viz-toggle" title="Toggle visualizer (V)">VIZ</button>
-                <button class="btn-toolbar btn-sm" id="viz-mode" title="Visualizer mode">BARS</button>
-
-                <!-- Live & Chat -->
-                <button class="btn-toolbar" id="live-toggle" title="Go live">GO LIVE</button>
-                <button class="btn-toolbar btn-sm" id="obs-setup-btn" title="OBS overlay setup">OBS</button>
-                <button class="btn-toolbar" id="stream-chat-toggle" title="Toggle stream chat panel">CHAT</button>
-
-                <!-- Plugins & Suggest -->
-                <button class="btn-toolbar" id="plugins-btn" title="Plugin manager">PLUGINS</button>
-                <button class="btn-toolbar" id="suggest-toggle" title="AI suggestions">SUGGEST</button>
-
-                <!-- Auto Transition -->
-                <button class="btn-toolbar" id="auto-trans-btn" title="Auto crossfade transition">AUTO</button>
-                <select class="toolbar-select" id="auto-trans-duration" title="Transition duration">
-                    <option value="4">4s</option>
-                    <option value="8" selected>8s</option>
-                    <option value="16">16s</option>
-                    <option value="32">32s</option>
-                </select>
-                <select class="toolbar-select" id="auto-trans-type" title="Transition type">
-                    <option value="blend">Blend</option>
-                    <option value="echo-out">Echo Out</option>
-                    <option value="cut">Cut</option>
-                    <option value="filter-sweep">Filter Sweep</option>
-                </select>
-                <select class="toolbar-select" id="auto-trans-curve" title="Crossfader curve">
-                    <option value="equal-power">S-Curve</option>
-                    <option value="linear">Linear</option>
-                    <option value="cut">Cut</option>
-                </select>
+            <!-- PRO tools, grouped into four menus. Every control keeps its id. -->
+            <div class="toolbar-group tb-menu pro-only" data-menu="record">
+                <button class="btn-toolbar tb-menu-btn" title="Record the mix">RECORD</button>
+                <div class="tb-menu-panel">
+                    <div class="tb-menu-title">RECORD THE MIX</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="rec-btn" title="Record mix (R)">REC</button>
+                        <span class="toolbar-text" id="rec-time">0:00</span>
+                        <select class="toolbar-select" id="rec-format" title="Recording format">
+                            <option value="webm">WebM</option>
+                            <option value="ogg">OGG</option>
+                            <option value="mp4">M4A</option>
+                        </select>
+                        <span class="toolbar-text rec-track-count" id="rec-track-count"></span>
+                    </div>
+                </div>
             </div>
 
-            <div class="toolbar-group pro-only">
-                <!-- BPM Tap -->
-                <button class="btn-toolbar" id="bpm-tap-btn" title="Tap BPM (T)">TAP</button>
-                <span class="toolbar-text mono" id="bpm-tap-display">--- BPM</span>
-                <button class="btn-toolbar btn-sm" id="bpm-tap-reset" title="Reset BPM">RST</button>
+            <div class="toolbar-group tb-menu pro-only" data-menu="stream">
+                <button class="btn-toolbar tb-menu-btn" title="Go live, chat and visuals">STREAM</button>
+                <div class="tb-menu-panel">
+                    <div class="tb-menu-title">LIVE</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="live-toggle" title="Go live">GO LIVE</button>
+                        <button class="btn-toolbar btn-sm" id="obs-setup-btn" title="OBS overlay setup">OBS</button>
+                        <button class="btn-toolbar" id="stream-chat-toggle" title="Toggle stream chat panel">CHAT</button>
+                    </div>
+                    <div class="tb-menu-title">VISUALS</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="viz-toggle" title="Toggle visualizer (V)">VIZ</button>
+                        <button class="btn-toolbar btn-sm" id="viz-mode" title="Visualizer mode">BARS</button>
+                        <button class="btn-toolbar btn-sm" id="rgb-toggle" title="RGB waveform">RGB</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="toolbar-group pro-only">
-                <!-- MIDI -->
-                <span class="toolbar-label">MIDI</span>
-                <span class="toolbar-text" id="midi-status">--</span>
-                <span id="midi-devices"></span>
-                <button class="btn-toolbar btn-sm" id="midi-learn" title="MIDI learn">LEARN</button>
-                <button class="btn-toolbar btn-sm" id="midi-lights" title="Light the controller from the app: play, cue, pads, loops and levels">LIGHTS ON</button>
-                <button class="btn-toolbar btn-sm" id="midi-audio" title="Play the mix through the controller: master on its main outputs, cue on its headphones">DECK AUDIO</button>
+            <div class="toolbar-group tb-menu pro-only" data-menu="mix">
+                <button class="btn-toolbar tb-menu-btn" title="Auto transition, tempo tap and helpers">MIX TOOLS</button>
+                <div class="tb-menu-panel">
+                    <div class="tb-menu-title">AUTO TRANSITION</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="auto-trans-btn" title="Auto crossfade transition">AUTO</button>
+                        <select class="toolbar-select" id="auto-trans-duration" title="Transition duration">
+                            <option value="4">4s</option>
+                            <option value="8" selected>8s</option>
+                            <option value="16">16s</option>
+                            <option value="32">32s</option>
+                        </select>
+                        <select class="toolbar-select" id="auto-trans-type" title="Transition type">
+                            <option value="blend">Blend</option>
+                            <option value="echo-out">Echo Out</option>
+                            <option value="cut">Cut</option>
+                            <option value="filter-sweep">Filter Sweep</option>
+                        </select>
+                        <select class="toolbar-select" id="auto-trans-curve" title="Crossfader curve">
+                            <option value="equal-power">S-Curve</option>
+                            <option value="linear">Linear</option>
+                            <option value="cut">Cut</option>
+                        </select>
+                    </div>
+                    <div class="tb-menu-title">TEMPO</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="bpm-tap-btn" title="Tap BPM (T)">TAP</button>
+                        <span class="toolbar-text mono" id="bpm-tap-display">--- BPM</span>
+                        <button class="btn-toolbar btn-sm" id="bpm-tap-reset" title="Reset BPM">RST</button>
+                        <button class="btn-toolbar btn-sm" id="quantize-toggle" title="Quantize to beat grid">QTZ</button>
+                    </div>
+                    <div class="tb-menu-title">HELPERS</div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar" id="suggest-toggle" title="AI suggestions">SUGGEST</button>
+                        <button class="btn-toolbar" id="plugins-btn" title="Plugin manager">PLUGINS</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="toolbar-group pro-only">
-                <!-- RGB / Quantize -->
-                <button class="btn-toolbar btn-sm" id="rgb-toggle" title="RGB waveform">RGB</button>
-                <button class="btn-toolbar btn-sm" id="quantize-toggle" title="Quantize to beat grid">QTZ</button>
-            </div>
-
-            <div class="toolbar-group pro-only">
-                <!-- Performance Monitor -->
-                <span class="toolbar-label">PERF</span>
-                <span class="toolbar-text mono" id="perf-latency">--ms</span>
-                <span class="toolbar-text mono" id="perf-cpu">--%</span>
-                <span class="toolbar-text mono" id="perf-buffer">--</span>
+            <div class="toolbar-group tb-menu pro-only" data-menu="controller">
+                <button class="btn-toolbar tb-menu-btn" title="Your DJ controller: lights, sound and mapping">CONTROLLER</button>
+                <div class="tb-menu-panel">
+                    <div class="tb-menu-title">CONTROLLER</div>
+                    <div class="tb-menu-row">
+                        <span class="toolbar-label">MIDI</span>
+                        <span class="toolbar-text" id="midi-status">--</span>
+                        <span id="midi-devices"></span>
+                    </div>
+                    <div class="tb-menu-row">
+                        <button class="btn-toolbar btn-sm" id="midi-lights" title="Light the controller from the app: play, cue, pads, loops and levels">LIGHTS ON</button>
+                        <button class="btn-toolbar btn-sm" id="midi-audio" title="Play the mix through the controller: master on its main outputs, cue on its headphones">DECK AUDIO</button>
+                        <button class="btn-toolbar btn-sm" id="midi-learn" title="MIDI learn">LEARN</button>
+                        <button class="btn-toolbar btn-sm" id="guide-btn" title="What every pad and light on the controller does">GUIDE</button>
+                    </div>
+                    <div class="tb-menu-title">PERFORMANCE</div>
+                    <div class="tb-menu-row">
+                        <span class="toolbar-label">PERF</span>
+                        <span class="toolbar-text mono" id="perf-latency">--ms</span>
+                        <span class="toolbar-text mono" id="perf-cpu">--%</span>
+                        <span class="toolbar-text mono" id="perf-buffer">--</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Always-visible controls -->
@@ -147,6 +171,7 @@
             </div>
 
             <div class="toolbar-group">
+                <button class="btn-toolbar btn-sm btn-move" id="move-open" title="One small thing to try, one at a time">TRY A MOVE</button>
                 <button class="btn-toolbar btn-sm btn-help" id="shortcuts-btn" title="Keyboard shortcuts (? or H)">?</button>
                 <button class="btn-toolbar btn-sm" id="tutorial-restart" title="Restart tutorial" style="display:none"></button>
             </div>
@@ -1693,6 +1718,53 @@
         <div class="output-header">AUDIO OUTPUT</div>
         <select id="audio-output-select" class="toolbar-select" style="width:100%"></select>
         <button class="btn-toolbar btn-sm" id="audio-output-refresh">Refresh Devices</button>
+    </div>
+
+    <!-- ===== TRY A MOVE: one small thing to try at a time ===== -->
+    <div class="move-card hidden" id="move-card" role="status" aria-live="polite">
+        <span class="move-tag" id="move-tag">TRY THIS</span>
+        <span class="move-say" id="move-say"></span>
+        <button class="btn-toolbar btn-sm hidden" id="move-next">ANOTHER</button>
+        <button class="btn-toolbar btn-sm" id="move-skip" title="Show a different one">SKIP</button>
+        <button class="btn-toolbar btn-sm move-close" id="move-close" title="Close">X</button>
+    </div>
+
+    <!-- ===== CONTROLLER GUIDE ===== -->
+    <div class="shortcuts-overlay hidden" id="guide-overlay">
+        <div class="shortcuts-backdrop" id="guide-backdrop"></div>
+        <div class="shortcuts-panel">
+            <div class="shortcuts-header">
+                <span class="shortcuts-title">YOUR CONTROLLER</span>
+                <button class="btn-toolbar btn-sm shortcuts-close" id="guide-close">ESC</button>
+            </div>
+            <div class="shortcuts-body">
+                <div class="shortcuts-category">
+                    <h3 class="shortcuts-cat-title">What the lights mean</h3>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>PLAY</kbd></span><span class="shortcut-desc">Solid: playing. Slow blink: loaded and waiting. Fast flash: under 30 seconds left</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>CUE</kbd></span><span class="shortcut-desc">Solid: parked. Flashing: the beat of the playing track</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>SYNC</kbd></span><span class="shortcut-desc">Lit on both decks when the two tempos match</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>LOOP</kbd></span><span class="shortcut-desc">Pulses while a loop is running, so it is never forgotten</span></div>
+                </div>
+                <div class="shortcuts-category">
+                    <h3 class="shortcuts-cat-title">The four pad modes</h3>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>HOT CUE</kbd></span><span class="shortcut-desc">Press a pad to mark a spot. Press it again to jump back there</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>FX FADE</kbd></span><span class="shortcut-desc">Sends a playing deck out: high pass, low pass, loop, spin down. Top row quick, bottom row long</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>PAD SCRATCH</kbd></span><span class="shortcut-desc">The eight next track switches</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>SAMPLER</kbd></span><span class="shortcut-desc">Eight sample slots</span></div>
+                </div>
+                <div class="shortcuts-category">
+                    <h3 class="shortcuts-cat-title">Hold SHIFT for four more</h3>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>SHIFT</kbd> + <kbd>HOT CUE</kbd></span><span class="shortcut-desc">Beat jump. Top row back 1, 2, 4, 8 beats. Bottom row forward</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>SHIFT</kbd> + <kbd>FX FADE</kbd></span><span class="shortcut-desc">Loop roll, from a sixteenth of a beat up to 8 beats</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>SHIFT</kbd> + <kbd>PAD SCRATCH</kbd></span><span class="shortcut-desc">Slicer. The current 8 beats, one per pad. Play them like drums</span></div>
+                </div>
+                <div class="shortcuts-category">
+                    <h3 class="shortcuts-cat-title">DJ MixZ and you</h3>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>PADS</kbd></span><span class="shortcut-desc">While DJ MixZ is driving, the pads count the beats</span></div>
+                    <div class="shortcut-row"><span class="shortcut-keys"><kbd>CROSSFADER</kbd></span><span class="shortcut-desc">Move it, or press play, cue or load, and the decks are yours again</span></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ===== TOAST CONTAINER ===== -->

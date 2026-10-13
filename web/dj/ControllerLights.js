@@ -23,6 +23,8 @@ export const LIGHTS = {
     PAD_FXFADE_BASE: 0x10,
     PAD_SWITCH_BASE: 0x20,
     PAD_SAMPLER_BASE: 0x30,
+    PAD_BEATJUMP_BASE: 0x40,
+    PAD_SLICE_BASE: 0x60,
     // Pad mode buttons, on the deck channel
     MODE_NOTES: { hotcue: 0x1B, fxfade: 0x1E, switch: 0x20, sampler: 0x22 },
     CC_LEVEL: 0x02,            // channel level meter
@@ -130,6 +132,12 @@ export function lightsFor(state, t) {
             if (d.fxFadePad != null) on = i === d.fxFadePad && blink(t, 5);
             set(pad, L.PAD_FXFADE_BASE + i, on);
         }
+        // Beat jump pads are lit on a loaded deck. Slicer pads follow the beat, so the pad
+        // that is lit is the slice playing now.
+        for (let i = 0; i < 8; i++) {
+            set(pad, L.PAD_BEATJUMP_BASE + i, !!d.loaded);
+            set(pad, L.PAD_SLICE_BASE + i, !!(beat && beat.index % 8 === i));
+        }
         // Next track switches and sampler pads: lit, so the row can be found in the dark.
         for (let i = 0; i < 8; i++) {
             set(pad, L.PAD_SWITCH_BASE + i, true);
@@ -158,6 +166,11 @@ export class ControllerLights {
         this._bootAt = null;
         this._timer = setInterval(() => this._tick(), 40);
         window.addEventListener('pagehide', () => this._send(allOff(), true));
+    }
+
+    // Run the hello sweep again: used when a move has been pulled off.
+    celebrate() {
+        if (this._output) this._bootAt = performance.now();
     }
 
     setEnabled(on) {

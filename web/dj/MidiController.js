@@ -116,6 +116,8 @@ const PIONEER_DDJ = {
     PAD_ROLL_BASE: 0x50,    // 0x50–0x57 (beat loop roll mode, shift + FX FADE)
     PAD_SLICER_BASE: 0x20,  // 0x20–0x27 (slicer mode)
     PAD_SAMPLER_BASE: 0x30, // 0x30–0x37 (sampler mode)
+    PAD_BEATJUMP_BASE: 0x40, // 0x40–0x47 (beat jump, shift + HOT CUE)
+    PAD_SLICE_BASE: 0x60,   // 0x60–0x67 (slicer, shift + PAD SCRATCH)
 };
 
 export class MidiController {
@@ -367,6 +369,18 @@ export class MidiController {
                     const padIdx = data1 - P.PAD_SLICER_BASE;
                     _midiLog('note', `SWITCH PAD ${padIdx + 1} (from Deck ${padDeck} pads)`);
                     this.dj.switchPad?.trigger(padIdx);
+                    return;
+                }
+                // Beat jump pads (0x40–0x47)
+                if (data1 >= P.PAD_BEATJUMP_BASE && data1 <= P.PAD_BEATJUMP_BASE + 7) {
+                    const beats = this.dj.padModes?.beatJump(padDeck, data1 - P.PAD_BEATJUMP_BASE);
+                    _midiLog('note', `BEAT JUMP ${beats} — Deck ${padDeck}`);
+                    return;
+                }
+                // Slicer pads (0x60–0x67)
+                if (data1 >= P.PAD_SLICE_BASE && data1 <= P.PAD_SLICE_BASE + 7) {
+                    const slice = this.dj.padModes?.slice(padDeck, data1 - P.PAD_SLICE_BASE);
+                    _midiLog('note', `SLICE ${slice} — Deck ${padDeck}`);
                     return;
                 }
                 // Sampler pads (0x30–0x37)
