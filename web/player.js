@@ -11,6 +11,7 @@ import { Recorder } from './dj/Recorder.js';
 import { Visualizer } from './dj/Visualizer.js';
 import { MidiController } from './dj/MidiController.js';
 import { ControllerLights } from './dj/ControllerLights.js';
+import { FxFade } from './dj/FxFade.js';
 import { BpmTap } from './dj/BpmTap.js';
 import { StreamBroadcast } from './dj/StreamBroadcast.js';
 import { FX } from './dj/FX.js';
@@ -76,6 +77,7 @@ class DJPlayer {
         this.bpmTap = safeInit('BpmTap', () => new BpmTap());
         this.midi = safeInit('MidiController', () => new MidiController(this));
         this.lights = safeInit('ControllerLights', () => new ControllerLights(this));
+        this.fxFade = safeInit('FxFade', () => new FxFade(this));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));
         this.setlist = safeInit('Setlist', () => new Setlist(this.library, (deckId, dataFile) => this._onLoadTrack(deckId, dataFile)));

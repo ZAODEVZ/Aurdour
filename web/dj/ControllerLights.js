@@ -20,6 +20,11 @@ export const LIGHTS = {
     NOTE_RELOOP: 0x4D,
     NOTE_FX: 0x47,
     PAD_HOTCUE_BASE: 0x00,
+    PAD_FXFADE_BASE: 0x10,
+    PAD_SWITCH_BASE: 0x20,
+    PAD_SAMPLER_BASE: 0x30,
+    // Pad mode buttons, on the deck channel
+    MODE_NOTES: { hotcue: 0x1B, fxfade: 0x1E, switch: 0x20, sampler: 0x22 },
     CC_LEVEL: 0x02,            // channel level meter
     ON: 0x7F,
     OFF: 0x00,
@@ -74,6 +79,7 @@ export function lightsFor(state, t) {
             const step = Math.floor((t - state.bootAt) / (L.BOOT_MS / 32)) % 16;
             const mine = id === 'A' ? step : step - 8;
             for (let i = 0; i < 8; i++) set(pad, L.PAD_HOTCUE_BASE + i, i === mine);
+            for (const m of Object.keys(L.MODE_NOTES)) set(note, L.MODE_NOTES[m], m === 'hotcue');
             const flash = blink(t - state.bootAt, 4);
             for (const n of [L.NOTE_PLAY, L.NOTE_CUE, L.NOTE_SYNC]) set(note, n, flash);
             for (const n of [L.NOTE_PFL, L.NOTE_KEYLOCK, L.NOTE_SLIP, L.NOTE_LOOP_IN, L.NOTE_LOOP_OUT, L.NOTE_AUTO_LOOP, L.NOTE_RELOOP, L.NOTE_FX]) set(note, n, false);
@@ -113,6 +119,23 @@ export function lightsFor(state, t) {
             set(pad, L.PAD_HOTCUE_BASE + i, on);
         }
 
+        // The pad mode button that is in use stays lit.
+        const mode = d.padMode || 'hotcue';
+        for (const m of Object.keys(L.MODE_NOTES)) set(note, L.MODE_NOTES[m], m === mode);
+
+        // FX FADE pads: all eight lit while the deck plays, since each one is ready to fire.
+        // While a fade runs, its pad flashes and the rest go dark.
+        for (let i = 0; i < 8; i++) {
+            let on = !!(d.loaded && d.playing);
+            if (d.fxFadePad != null) on = i === d.fxFadePad && blink(t, 5);
+            set(pad, L.PAD_FXFADE_BASE + i, on);
+        }
+        // Next track switches and sampler pads: lit, so the row can be found in the dark.
+        for (let i = 0; i < 8; i++) {
+            set(pad, L.PAD_SWITCH_BASE + i, true);
+            set(pad, L.PAD_SAMPLER_BASE + i, true);
+        }
+
         // Channel level meter, in 16 steps so a steady signal does not flood the cable.
         const level = d.playing ? Math.max(0, Math.min(1, d.level || 0)) : 0;
         set(0xB0 | L.CH_DECK[id], L.CC_LEVEL, Math.min(127, Math.round(level * 16) * 8));
@@ -123,7 +146,7 @@ export function lightsFor(state, t) {
 // Everything dark. Sent when the page closes, so the controller is not left lit.
 export function allOff() {
     const dark = { loaded: false, playing: false, time: 0, duration: 0, hotCues: [] };
-    return lightsFor({ decks: { A: dark, B: dark } }, 0);
+    return new Map([...lightsFor({ decks: { A: dark, B: dark } }, 0).keys()].map(k => [k, 0]));
 }
 
 export class ControllerLights {
@@ -177,6 +200,8 @@ export class ControllerLights {
             slip: !!deck.slipMode,
             pfl: !!ch?.pfl,
             fx: !!fxBtn?.classList.contains('active'),
+            padMode: this.dj.midi?.padMode?.[id] || 'hotcue',
+            fxFadePad: this.dj.fxFade?.active?.[id]?.plan.pad ?? null,
             level,
         };
     }

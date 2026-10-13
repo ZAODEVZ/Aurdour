@@ -92,6 +92,9 @@ const PIONEER_DDJ = {
     NOTE_FX_TOGGLE: 0x47,
     NOTE_FX_SELECT: 0x4A,
 
+    // Note numbers — Pad mode buttons (channels 0/1). The second four are the shifted modes.
+    PAD_MODES: { 0x1B: 'hotcue', 0x1E: 'fxfade', 0x20: 'switch', 0x22: 'sampler', 0x69: 'beatjump', 0x6B: 'roll', 0x6D: 'slicer', 0x6E: 'trans' },
+
     // CC numbers — Global (channel 6)
     CC_CROSSFADER_MSB: 0x1F,
     CC_CROSSFADER_LSB: 0x3F,
@@ -109,7 +112,8 @@ const PIONEER_DDJ = {
 
     // Hot cue pad notes (channels 7/9)
     PAD_HOTCUE_BASE: 0x00,  // 0x00–0x07
-    PAD_ROLL_BASE: 0x10,    // 0x10–0x17 (beat loop roll mode)
+    PAD_FXFADE_BASE: 0x10,  // 0x10–0x17 (FX FADE mode on the DDJ-SB3)
+    PAD_ROLL_BASE: 0x50,    // 0x50–0x57 (beat loop roll mode, shift + FX FADE)
     PAD_SLICER_BASE: 0x20,  // 0x20–0x27 (slicer mode)
     PAD_SAMPLER_BASE: 0x30, // 0x30–0x37 (sampler mode)
 };
@@ -132,6 +136,9 @@ export class MidiController {
 
         // Jog wheel state
         this._jogTouch = { A: false, B: false };
+
+        // Which pad mode each deck is in. The controller starts on hot cues.
+        this.padMode = { A: 'hotcue', B: 'hotcue' };
 
         // Shift key state per deck
         this._shift = { 0: false, 1: false };
@@ -323,6 +330,11 @@ export class MidiController {
                         _midiLog('note', `FX TOGGLE — Deck ${deckId}`);
                         this._toggleFX(deckId); return;
                 }
+                if (P.PAD_MODES[data1]) {
+                    this.padMode[deckId] = P.PAD_MODES[data1];
+                    _midiLog('note', `PAD MODE ${this.padMode[deckId]} — Deck ${deckId}`);
+                    return;
+                }
                 _midiLog('note', `UNHANDLED note on Deck ${deckId}: note=${_hexByte(data1)} vel=${data2}`);
             }
 
@@ -335,7 +347,14 @@ export class MidiController {
                     this._deckAction(padDeck, 'hotcue', padIdx);
                     return;
                 }
-                // Beat loop roll pads (0x10–0x17)
+                // FX FADE pads (0x10–0x17): take this deck out with an effect and a fade
+                if (data1 >= P.PAD_FXFADE_BASE && data1 <= P.PAD_FXFADE_BASE + 7) {
+                    const padIdx = data1 - P.PAD_FXFADE_BASE;
+                    const result = this.dj.fxFade?.trigger(padDeck, padIdx);
+                    _midiLog('note', `FX FADE PAD ${padIdx + 1} — Deck ${padDeck}: ${result}`);
+                    return;
+                }
+                // Beat loop roll pads (0x50–0x57)
                 if (data1 >= P.PAD_ROLL_BASE && data1 <= P.PAD_ROLL_BASE + 7) {
                     const padIdx = data1 - P.PAD_ROLL_BASE;
                     const beats = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8][padIdx];
