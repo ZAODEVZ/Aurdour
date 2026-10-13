@@ -11,6 +11,10 @@ import { Recorder } from './dj/Recorder.js';
 import { Visualizer } from './dj/Visualizer.js';
 import { MidiController } from './dj/MidiController.js';
 import { ControllerLights } from './dj/ControllerLights.js';
+import { FxFade } from './dj/FxFade.js';
+import { PadModes } from './dj/PadModes.js';
+import { Moves } from './dj/Moves.js';
+import { ProLayout } from './dj/ProLayout.js';
 import { BpmTap } from './dj/BpmTap.js';
 import { StreamBroadcast } from './dj/StreamBroadcast.js';
 import { FX } from './dj/FX.js';
@@ -76,6 +80,10 @@ class DJPlayer {
         this.bpmTap = safeInit('BpmTap', () => new BpmTap());
         this.midi = safeInit('MidiController', () => new MidiController(this));
         this.lights = safeInit('ControllerLights', () => new ControllerLights(this));
+        this.fxFade = safeInit('FxFade', () => new FxFade(this));
+        this.padModes = safeInit('PadModes', () => new PadModes(this));
+        this.proLayout = safeInit('ProLayout', () => new ProLayout());
+        this.moves = safeInit('Moves', () => new Moves(this));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));
         this.setlist = safeInit('Setlist', () => new Setlist(this.library, (deckId, dataFile) => this._onLoadTrack(deckId, dataFile)));
@@ -1238,6 +1246,13 @@ class DJPlayer {
     }
 
     _initControllerButtons() {
+        const guide = document.getElementById('guide-overlay');
+        const showGuide = (on) => guide?.classList.toggle('hidden', !on);
+        document.getElementById('guide-btn')?.addEventListener('click', () => showGuide(true));
+        document.getElementById('guide-close')?.addEventListener('click', () => showGuide(false));
+        document.getElementById('guide-backdrop')?.addEventListener('click', () => showGuide(false));
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') showGuide(false); });
+
         const lightsBtn = document.getElementById('midi-lights');
         const audioBtn = document.getElementById('midi-audio');
         const paintLights = () => {

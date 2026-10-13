@@ -72,6 +72,13 @@ check('hello sweep starts on deck A pad 1', led(boot(0), PA, 0) === 127 && led(b
 check('hello sweep crosses to deck B', led(boot(L.BOOT_MS / 32 * 8 + 1), PB, 0) === 127 && led(boot(L.BOOT_MS / 32 * 8 + 1), PA, 0) === 0);
 check('after the sweep the real state returns', cues.every((c, i) => led(boot(L.BOOT_MS + 1), PA, i) === (c ? 127 : 0)));
 
+// Pad modes and FX FADE pads
+m = lightsFor({ decks: { A: deck({ padMode: 'fxfade', playing: true }), B: deck() } }, 0);
+check('the pad mode in use is the only mode button lit', led(m, NA, L.MODE_NOTES.fxfade) === 127 && led(m, NA, L.MODE_NOTES.hotcue) === 0 && led(m, NB, L.MODE_NOTES.hotcue) === 127);
+check('FX FADE pads are lit on a playing deck and dark on a stopped one', [0, 1, 2, 3, 4, 5, 6, 7].every(i => led(m, PA, 0x10 + i) === 127 && led(m, PB, 0x10 + i) === 0));
+m = lightsFor({ decks: { A: deck({ playing: true, fxFadePad: 2 }), B: deck() } }, 0);
+check('a running fade flashes its own pad and darkens the rest', led(m, PA, 0x12) === 127 && [0, 1, 3, 4, 5, 6, 7].every(i => led(m, PA, 0x10 + i) === 0) && led(lightsFor({ decks: { A: deck({ playing: true, fxFadePad: 2 }), B: deck() } }, 100), PA, 0x12) === 0);
+
 // Shape
 check('every value is a valid MIDI data byte', [...lightsFor({ decks: { A: deck({ playing: true, level: 0.7 }), B: deck() } }, 123).values()].every(v => Number.isInteger(v) && v >= 0 && v <= 127));
 check('beatAt: 120 BPM at 1.6 s is beat 3', beatAt({ bpm: 120, time: 1.6 }).index === 3);
