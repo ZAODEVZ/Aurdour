@@ -255,6 +255,24 @@ export class MidiController {
 
     _handlePioneerDDJ(type, channel, data1, data2) {
         const P = PIONEER_DDJ;
+
+        // A real hand on the controller takes the decks from DJ MixZ: moving the crossfader,
+        // pressing play or cue, or loading a track. A resting fader sends small jitters, so the
+        // crossfader has to move by more than 3 steps to count.
+        const mixz = this.dj.djMixz;
+        if (mixz?.running && !mixz.human) {
+            const noteOn = type === 0x90 && data2 > 0;
+            let grab = false;
+            if (type === 0xB0 && channel === P.CH_GLOBAL && data1 === P.CC_CROSSFADER_MSB) {
+                if (this._xfSeen != null && Math.abs(data2 - this._xfSeen) > 3) grab = true;
+                this._xfSeen = data2;
+            }
+            if (noteOn && (channel === P.CH_DECK1 || channel === P.CH_DECK2) && (data1 === P.NOTE_PLAY || data1 === P.NOTE_CUE)) grab = true;
+            if (noteOn && channel === P.CH_GLOBAL && (data1 === P.NOTE_LOAD_DECK1 || data1 === P.NOTE_LOAD_DECK2)) grab = true;
+            if (grab) mixz.takeOver('touch');
+        } else if (type === 0xB0 && channel === P.CH_GLOBAL && data1 === P.CC_CROSSFADER_MSB) {
+            this._xfSeen = data2;
+        }
         const deckId = channel === P.CH_DECK1 ? 'A' : channel === P.CH_DECK2 ? 'B' : null;
 
         // Note On

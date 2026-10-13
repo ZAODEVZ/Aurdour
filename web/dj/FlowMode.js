@@ -58,6 +58,7 @@ export class FlowMode {
                 bpm: track.bpm || null,
                 key: track.key || null,
                 genre: track.genre || null,
+                artwork: track.artwork || null,
                 source: track.source || 'stream',
                 id: track.id || track.sourceId || null,
             });

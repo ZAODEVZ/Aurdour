@@ -42,8 +42,27 @@ export class ZaoCrate {
     constructor(dj) {
         this.dj = dj;
         this.tracks = [];
+        this._watchCovers();
         this._buildTab();
         this.load();
+    }
+
+    // Cover art on the deck: the deck's letter badge wears the cover of the track loaded on it,
+    // so a song looks in MixZ the way it does on SongChainn or Audius.
+    _watchCovers() {
+        if (typeof document === 'undefined') return;
+        const shown = {};
+        setInterval(() => {
+            for (const id of ['A', 'B']) {
+                const art = this.dj.decks?.[id]?.metadata?.metadata?.artwork || '';
+                if (shown[id] === art) continue;
+                shown[id] = art;
+                const badge = document.querySelector(`#deck-${id.toLowerCase()} .deck-label`);
+                if (!badge) continue;
+                badge.classList.toggle('has-cover', !!art);
+                badge.style.backgroundImage = art ? `url("${String(art).replace(/"/g, '%22')}")` : '';
+            }
+        }, 700);
     }
 
     async load() {
