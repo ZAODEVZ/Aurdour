@@ -4,8 +4,12 @@
 
 export const CRATE_HANDLES = ['IManAfrikah', 'WaveWarzAfrica'];
 
-// SongChainn artists in the crate. Add a name to bring in another artist's songs.
-export const SONGCHAINN_ARTISTS = ['IMan Afrikah'];
+// SongChainn artists in the crate. '*' is every artist on SongChainn, so whatever anyone uploads
+// there turns up here. To limit it, list names instead: ['IMan Afrikah', 'N3M3SIS'].
+export const SONGCHAINN_ARTISTS = '*';
+
+// How often the crate looks for new uploads while the app is open.
+const REFRESH_MS = 5 * 60 * 1000;
 
 // Tempo and key as the artist measured them (IMan Afrikah's song sheet for DJ Zaal, Oct 2026).
 // These win over what Audius guesses. Matched on the title with spaces and punctuation removed;
@@ -42,7 +46,9 @@ export class ZaoCrate {
     constructor(dj) {
         this.dj = dj;
         this.tracks = [];
+        this._known = null;      // ids seen so far, to spot new uploads
         this._watchCovers();
+        if (typeof window !== 'undefined') setInterval(() => this.load(true), REFRESH_MS);
         this._buildTab();
         this.load();
     }
@@ -65,7 +71,14 @@ export class ZaoCrate {
         }, 700);
     }
 
-    async load() {
+    // fresh = true skips the five minute memory and reads SongChainn again.
+    async load(fresh = false) {
+        if (this._loading) return;
+        this._loading = true;
+        try { await this._load(fresh); } finally { this._loading = false; }
+    }
+
+    async _load(fresh) {
         const audius = this.dj.audius;
         const lib = this.dj.library;
         if (!audius || !audius.getUserTracks || !lib) return;
@@ -80,21 +93,39 @@ export class ZaoCrate {
         // SongChainn: the same artists' songs from songchainn.xyz. A song already found on Audius
         // keeps its Audius copy, which comes with a tempo and key.
         try {
-            if (this.dj.songchainn) all.push(...(await this.dj.songchainn.byArtists(SONGCHAINN_ARTISTS)));
+            if (this.dj.songchainn) all.push(...(await this.dj.songchainn.byArtists(SONGCHAINN_ARTISTS, fresh)));
         } catch (e) {
             console.warn('[ZaoCrate] could not load SongChainn:', e.message);
         }
+        // The same song can be on Audius and on SongChainn, sometimes titled "Artist - Song" and
+        // posted from another account. One copy stays: same artist and same song name.
+        const songKey = (t) => {
+            const parts = String(t.title || '').split(' - ');
+            const artist = parts.length > 1 ? parts[0] : t.artist;
+            const title = parts.length > 1 ? parts.slice(1).join(' - ') : t.title;
+            return squash(artist) + '|' + squash(title).replace(/tagged$/, '');
+        };
         const seen = new Set();
-        const titles = new Set();
-        const nameOf = (t) => squash(t.title).replace(/^imanafrikah/, '');
-        this.tracks = all.filter((t) => {
-            if (seen.has(t.id) || titles.has(nameOf(t))) return false;
-            seen.add(t.id); titles.add(nameOf(t));
+        const songs = new Set();
+        const next = all.filter((t) => {
+            const k = songKey(t);
+            if (seen.has(t.id) || songs.has(k)) return false;
+            seen.add(t.id); songs.add(k);
             return true;
         }).map(applySheet);
+        if (!next.length && this.tracks.length) return; // a failed read never empties the crate
+        this.tracks = next;
+        // New since the last look: say so, and keep the list on screen current
+        const ids = new Set(this.tracks.map((t) => t.id));
+        const added = this._known ? this.tracks.filter((t) => !this._known.has(t.id)) : [];
+        this._known = ids;
+        this.newest = added;
+        if (added.length && document.getElementById('zao-crate-tab')?.classList.contains('active')) this.show(true);
         lib.zaoTracks = this.tracks; // the switch pad reads this
         const count = document.getElementById('zao-crate-count');
         if (count) count.textContent = this.tracks.length ? ` ${this.tracks.length}` : '';
+        const tab = document.getElementById('zao-crate-tab');
+        if (tab) { tab.classList.toggle('has-new', added.length > 0); if (added.length) tab.title = `${added.length} new: ${added.slice(0, 3).map((t) => t.title).join(', ')}`; }
     }
 
     _buildTab() {
@@ -111,9 +142,10 @@ export class ZaoCrate {
     }
 
     // Show the crate in the library table. It rides on the Audius view, since that is what the tracks are.
-    show() {
+    show(quiet = false) {
         const lib = this.dj.library;
         if (!lib) return;
+        if (!quiet) { document.getElementById('zao-crate-tab')?.classList.remove('has-new'); this.load(true); } // opening the tab checks for new uploads
         document.querySelectorAll('.library-tab').forEach((t) => t.classList.remove('active'));
         document.getElementById('zao-crate-tab')?.classList.add('active');
         lib.activeTab = 'audius';

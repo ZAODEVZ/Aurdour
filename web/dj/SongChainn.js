@@ -11,21 +11,26 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 export class SongChainn {
     constructor() {
         this._all = null;
+        this._at = 0;
     }
 
-    // Every public song, newest first. Cached for the session.
-    async all() {
-        if (this._all) return this._all;
+    // Every public song, newest first. Kept for five minutes, then read again, so a song an
+    // artist has just uploaded shows up without anyone reloading the app. Pass true to read now.
+    async all(fresh = false) {
+        if (this._all && !fresh && Date.now() - this._at < 5 * 60 * 1000) return this._all;
         const resp = await fetch(`${ENDPOINT}?select=id,title,artist_name,cover_art_url,audio_url,created_at&order=created_at.desc&limit=1000&apikey=${ANON_KEY}`);
         if (!resp.ok) throw new Error(`SongChainn error: ${resp.status}`);
         this._all = (await resp.json()).filter((r) => r.audio_url).map((r) => this._normalizeTrack(r));
+        this._at = Date.now();
         return this._all;
     }
 
     // Songs by the artists named (matched anywhere in the artist line, so features count).
-    async byArtists(names) {
+    // '*' means everyone.
+    async byArtists(names, fresh = false) {
+        if (names === '*' || names.includes?.('*')) return this.all(fresh);
         const want = names.map((n) => n.toLowerCase());
-        return (await this.all()).filter((t) => want.some((n) => t.artist.toLowerCase().includes(n)));
+        return (await this.all(fresh)).filter((t) => want.some((n) => t.artist.toLowerCase().includes(n)));
     }
 
     _normalizeTrack(raw) {
