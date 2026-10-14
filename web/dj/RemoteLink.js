@@ -233,7 +233,7 @@ export class Relay {
         this.keys = await linkKeys(this.token);
         const listen = `${this.keys.channel}/${this.role === 'host' ? 'up' : 'down'}`;
         for (const url of BROKERS) {
-            const client = window.mqtt.connect(url, { clean: true, keepalive: 20, reconnectPeriod: 2500, connectTimeout: 12000, clientId: `mz${hex(crypto.getRandomValues(new Uint8Array(8)))}` });
+            const client = window.mqtt.connect(url, { clean: true, keepalive: 10, reconnectPeriod: 1000, connectTimeout: 8000, clientId: `mz${hex(crypto.getRandomValues(new Uint8Array(8)))}` });
             client.on('connect', () => { client.subscribe(listen, { qos: 0 }); this.onStatus?.(true); });
             client.on('close', () => this.onStatus?.(this.online));
             client.on('error', () => { /* the other broker carries on */ });
@@ -333,6 +333,8 @@ export class RemoteHost {
             this._openPanel();
             return;
         }
+        // Round trip check, so the phone can show how quick the link is.
+        if (msg.t === 'ping' && phone.allowed) { this.relay.send({ t: 'pong', to: device, n: msg.n }); return; }
         if (msg.t !== 'cmd' || !phone.allowed) return;
         const cmd = cleanCommand(msg);
         if (!cmd) return;
@@ -345,6 +347,9 @@ export class RemoteHost {
         }
         if (cmd.a === 'listen') { this._listen(phone, cmd.on, msg.peer); return; }
         try { applyCommand(this.dj, cmd, this); } catch (e) { console.warn('[Remote] command failed', cmd, e); }
+        // Answer straight away instead of at the next tick, so a tap shows on the phone at once.
+        clearTimeout(this._echo);
+        this._echo = setTimeout(() => this._broadcast(), 60);
     }
 
     _allow(phone) {

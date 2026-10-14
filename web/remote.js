@@ -22,6 +22,7 @@ if (!/^[a-f0-9]{24}$/.test(device || '')) {
 const phoneName = /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android phone' : 'Phone';
 
 let relay = null, ready = false, state = null, lastState = 0, listening = false, peer = null, call = null;
+let pingN = 0, pingAt = 0, rtt = 0;
 const held = {};   // sliders being dragged right now: the desk's value must not fight the thumb
 
 function status(text, live = false) {
@@ -38,6 +39,16 @@ function gate(title, text) {
     $('nav').classList.add('hidden');
     $('listen').classList.add('hidden');
 }
+// No decks to reach? The phone can still DJ by itself, in the touch layout of the full app.
+function offerPhoneMix() {
+    if ($('phone-mix')) return;
+    const b = document.createElement('button');
+    b.id = 'phone-mix'; b.className = 'big go'; b.textContent = 'MIX ON THIS PHONE';
+    b.style.marginTop = '14px';
+    b.onclick = () => { location.href = '/?mode=travel'; };
+    $('gate').appendChild(b);
+}
+
 function enter() {
     if (ready) return;
     ready = true;
@@ -63,6 +74,7 @@ async function connect() {
     hello();
     setInterval(hello, 2000);
     setInterval(watch, 1000);
+    setInterval(() => { if (ready) { pingN++; pingAt = Date.now(); relay.send({ t: 'ping', device, n: pingN }); } }, 3000);
 }
 // The desk sends the set five times a second. Silence means it is closed or offline.
 let askedSince = Date.now();
@@ -72,7 +84,8 @@ function watch() {
         status('Reconnecting');
         askedSince = Date.now();
     } else if (!ready && relay?.online && $('status').textContent === 'Looking for the desk' && Date.now() - askedSince > 8000) {
-        gate('Your decks are not online', 'Open ZAO MixZ on the computer and switch PHONE on. This page keeps trying.');
+        gate('Your decks are not online', 'Open ZAO MixZ on the computer and switch PHONE on. This page keeps trying. Or mix right here on the phone:');
+        offerPhoneMix();
     }
 }
 
@@ -82,8 +95,9 @@ function onData(msg) {
     if (msg.t === 'wait') { if (!ready) { gate('Almost there', 'Tap ALLOW on the computer. You only do this once for this phone.'); status('Waiting for the desk'); } }
     else if (msg.t === 'denied') { gate('The desk said no', 'Ask whoever is at the computer to allow this phone.'); status('Not allowed'); }
     else if (msg.t === 'welcome') { lastState = Date.now(); enter(); status('Live', true); }
-    else if (msg.t === 'state') { if (!ready) return; state = msg; lastState = Date.now(); status('Live', true); draw(); }
+    else if (msg.t === 'state') { if (!ready) return; state = msg; lastState = Date.now(); if (!rtt) status('Live', true); draw(); }
     else if (msg.t === 'tracks') drawTracks(msg.list || []);
+    else if (msg.t === 'pong' && msg.n === pingN) { rtt = Date.now() - pingAt; if (ready) status(`Live  ${rtt} ms`, true); }
 }
 
 // ── Drawing ──
@@ -167,6 +181,7 @@ document.querySelectorAll('[data-cues]').forEach(grid => {
 document.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.cmd === 'play' && state?.[b.dataset.d]?.loaded) b.textContent = state[b.dataset.d].playing ? 'PLAY' : 'PAUSE';
     if (b.dataset.cmd) send(b.dataset.cmd, { d: b.dataset.d, ...(b.dataset.n != null ? { n: Number(b.dataset.n) } : {}) });
     else if (b.dataset.loop) send('loop', { d: b.dataset.loop, beats: state?.[b.dataset.loop]?.loop ? 0 : 4 });
     else if (b.dataset.next) send('next', { mode: b.dataset.next });
