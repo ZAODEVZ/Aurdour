@@ -20,10 +20,11 @@
     <meta name="screen-orientation" content="landscape">
 
     <!-- PWA Icon fallbacks for iOS -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='30' fill='%2306060c'/%3E%3Ctext x='90' y='105' font-size='60' text-anchor='middle' fill='%2300d4ff' font-family='sans-serif' font-weight='800'%3EDJ%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="icons/mixz-apple-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/mixz-192.png">
 
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="mixz.css?v=19">
+    <link rel="stylesheet" href="mixz.css?v=21">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -171,6 +172,8 @@
             </div>
 
             <div class="toolbar-group">
+                <button class="btn-toolbar btn-sm btn-install hidden" id="install-btn">INSTALL</button>
+                <button class="btn-toolbar btn-sm btn-phone" id="remote-open" title="Run this set from your phone, from anywhere">PHONE</button>
                 <button class="btn-toolbar btn-sm btn-move" id="move-open" title="One small thing to try, one at a time">TRY A MOVE</button>
                 <button class="btn-toolbar btn-sm btn-help" id="shortcuts-btn" title="Keyboard shortcuts (? or H)">?</button>
                 <button class="btn-toolbar btn-sm" id="tutorial-restart" title="Restart tutorial" style="display:none"></button>
@@ -1718,6 +1721,31 @@
         <div class="output-header">AUDIO OUTPUT</div>
         <select id="audio-output-select" class="toolbar-select" style="width:100%"></select>
         <button class="btn-toolbar btn-sm" id="audio-output-refresh">Refresh Devices</button>
+    </div>
+
+    <!-- ===== INSTALL: the step by step version, for browsers with no install box ===== -->
+    <div class="install-sheet hidden" id="install-sheet" role="dialog" aria-labelledby="install-title">
+        <div class="install-title" id="install-title" data-install-title></div>
+        <ol class="install-steps" data-install-steps></ol>
+        <button class="btn-toolbar btn-sm" data-install-close>GOT IT</button>
+    </div>
+
+    <!-- ===== PHONE: run the set from a phone ===== -->
+    <div class="remote-panel hidden" id="remote-panel">
+        <div class="remote-head">
+            <span class="remote-title">RUN THE SET FROM YOUR PHONE</span>
+            <button class="btn-toolbar btn-sm" id="remote-close">X</button>
+        </div>
+        <div class="remote-qr" id="remote-qr"></div>
+        <div class="remote-status" id="remote-status">Off</div>
+        <div class="remote-link" id="remote-link"></div>
+        <div class="remote-phones" id="remote-phones"></div>
+        <div class="remote-row">
+            <button class="btn-toolbar btn-sm" id="remote-copy" title="Copy the link to send to your own phone">COPY LINK</button>
+            <button class="btn-toolbar btn-sm" id="remote-new" title="Make a new link. Every phone has to be allowed again">NEW LINK</button>
+            <button class="btn-toolbar btn-sm" id="remote-off">TURN OFF</button>
+        </div>
+        <p class="remote-note">Scan with your phone camera. Works from anywhere while this page stays open. The first time, press ALLOW here. Treat the link like a key: anyone you allow can run the set.</p>
     </div>
 
     <!-- ===== TRY A MOVE: one small thing to try at a time ===== -->

@@ -710,6 +710,8 @@ export class AudioRouter {
         try { this.masterAnalyser.connect(this.boothGain); } catch (e) {}
         // Re-connect cue master gain from masterAnalyser
         try { this.masterAnalyser.connect(this.cueMasterGain); } catch (e) {}
+        // Re-connect the feed a phone is listening to (MixZ Remote)
+        if (this._remoteMonitor) { try { this.masterAnalyser.connect(this._remoteMonitor); } catch (e) {} }
     }
 
     getLimiterReduction() {

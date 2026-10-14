@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#07080c">
+    <meta name="robots" content="noindex">
+    <title>ZAO MixZ Remote</title>
+    <link rel="manifest" href="remote.webmanifest">
+    <link rel="apple-touch-icon" href="icons/remote-apple-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/remote-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MixZ Remote">
+    <style>
+        :root { --bg: #07080c; --panel: #0f1118; --hi: #161924; --line: rgba(255,255,255,.1); --text: #f1f3f8; --muted: #8a90a6; --a: #00d4ff; --b: #ff6b35; --play: #2bff9a; --cue: #ffc533; --sync: #c77dff; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; overscroll-behavior: none; }
+        body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom); user-select: none; -webkit-user-select: none; }
+        button { font: inherit; color: var(--text); background: var(--hi); border: 1px solid var(--line); border-radius: 12px; padding: 0; min-height: 48px; touch-action: manipulation; }
+        button:active { transform: scale(.97); filter: brightness(1.3); }
+        button.on { border-color: currentColor; }
+        .hidden { display: none !important; }
+        header { display: flex; align-items: center; gap: 10px; padding: 12px 0 8px; }
+        .logo { font-weight: 800; letter-spacing: .04em; }
+        .logo span { color: var(--a); }
+        .dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; }
+        .dot.live { background: var(--play); box-shadow: 0 0 10px var(--play); }
+        #status { flex: 1; font-size: .78rem; color: var(--muted); }
+        #listen { min-height: 36px; padding: 0 14px; font-size: .72rem; letter-spacing: .1em; color: var(--muted); }
+        #listen.on { color: var(--play); }
+        main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+        .gate { margin: auto; text-align: center; max-width: 320px; line-height: 1.5; color: var(--muted); }
+        .gate b { display: block; color: var(--text); font-size: 1.15rem; margin-bottom: 8px; }
+        .deck { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+        .deck.A { border-top: 2px solid var(--a); } .deck.B { border-top: 2px solid var(--b); }
+        .deck.live { box-shadow: 0 0 0 1px rgba(43,255,154,.25); }
+        .who { display: flex; align-items: baseline; gap: 8px; }
+        .tag { font-weight: 800; } .A .tag { color: var(--a); } .B .tag { color: var(--b); }
+        .title { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bpm { font-variant-numeric: tabular-nums; font-size: .78rem; color: var(--muted); }
+        .artist { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.1em; }
+        .bar { height: 6px; border-radius: 3px; background: var(--hi); margin: 9px 0 4px; overflow: hidden; }
+        .bar i { display: block; height: 100%; width: 0; background: currentColor; }
+        .A .bar { color: var(--a); } .B .bar { color: var(--b); }
+        .time { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .row { display: grid; gap: 8px; margin-top: 10px; }
+        .row.t { grid-template-columns: 1fr 1.4fr 1fr; }
+        .row.t button { min-height: 58px; font-weight: 800; letter-spacing: .08em; }
+        .b-cue { color: var(--cue); } .b-play { color: var(--play); font-size: 1.3rem; } .b-sync { color: var(--sync); }
+        .row.x { grid-template-columns: repeat(3, 1fr); }
+        .row.x button { font-size: .7rem; letter-spacing: .08em; color: var(--muted); }
+        .row.x button.on { color: var(--cue); }
+        .xf { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px 14px; }
+        .xf label { display: flex; justify-content: space-between; font-size: .7rem; letter-spacing: .12em; color: var(--muted); margin-bottom: 4px; }
+        input[type=range] { width: 100%; height: 44px; -webkit-appearance: none; appearance: none; background: transparent; margin: 0; touch-action: none; }
+        input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: var(--hi); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 44px; height: 34px; margin-top: -13px; border-radius: 9px; background: var(--text); border: 0; }
+        input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--hi); }
+        input[type=range]::-moz-range-thumb { width: 44px; height: 34px; border-radius: 9px; background: var(--text); border: 0; }
+        .grid8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .grid8 button { min-height: 56px; font-weight: 700; }
+        .grid8 button.set { border-color: var(--cue); color: var(--cue); }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+        .card h2 { margin: 0 0 10px; font-size: .68rem; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid2 button { font-size: .78rem; font-weight: 700; letter-spacing: .04em; }
+        .big { width: 100%; min-height: 60px; font-weight: 800; letter-spacing: .08em; }
+        .big.go { color: var(--play); } .big.stop { color: var(--b); }
+        #search { width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--hi); color: var(--text); font: inherit; padding: 0 12px; margin-bottom: 8px; }
+        .track { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+        .track div { flex: 1; min-width: 0; }
+        .track b, .track small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track small { color: var(--muted); }
+        .track button { min-width: 46px; min-height: 42px; font-weight: 800; }
+        .track .la { color: var(--a); } .track .lb { color: var(--b); }
+        nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 0 10px; }
+        nav button { min-height: 46px; font-size: .7rem; letter-spacing: .12em; color: var(--muted); }
+        nav button.on { color: var(--text); border-color: var(--text); }
+        .hint { font-size: .74rem; color: var(--muted); margin: 8px 2px 0; }
+        #install-btn { min-height: 36px; padding: 0 12px; font-size: .72rem; letter-spacing: .1em; color: var(--play); border-color: rgba(43,255,154,.4); }
+        .install-sheet { position: fixed; left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 20; max-width: 420px; margin: 0 auto; background: var(--panel); border: 1px solid rgba(43,255,154,.4); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+        .install-sheet ol { margin: 10px 0 12px; padding-left: 20px; color: var(--muted); line-height: 1.5; font-size: .9rem; }
+        .install-sheet button { width: 100%; font-weight: 700; }
+
+        /* ===== Fit every screen: the MIX view is one screen, never a scroll ===== */
+        html, body { height: 100dvh; }
+        body { max-width: 980px; margin: 0 auto; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+        header { padding: clamp(6px, 1.4dvh, 12px) 0 clamp(4px, 1dvh, 8px); }
+        main { min-height: 0; gap: clamp(6px, 1.2dvh, 10px); padding-bottom: clamp(4px, 1dvh, 10px); }
+        main:has(#tab-mix:not(.hidden)) { overflow: hidden; }
+        #tab-mix { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr); gap: clamp(6px, 1.2dvh, 10px); }
+        #tab-mix .deck { min-height: 0; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(8px, 1.4dvh, 12px); overflow: hidden; }
+        .title { font-size: clamp(.9rem, 2.3dvh, 1.1rem); }
+        .artist { font-size: clamp(.68rem, 1.7dvh, .8rem); }
+        .bar { margin: clamp(4px, 1dvh, 9px) 0 3px; }
+        .row { gap: clamp(6px, 1.6vw, 10px); margin-top: clamp(5px, 1.1dvh, 10px); }
+        .row.t button { min-height: clamp(42px, 8.2dvh, 72px); font-size: clamp(.8rem, 2.1dvh, 1rem); }
+        .row.t .b-play { font-size: clamp(1rem, 2.8dvh, 1.35rem); }
+        .row.x button { min-height: clamp(34px, 5.6dvh, 50px); font-size: clamp(.6rem, 1.5dvh, .72rem); }
+        .xf { padding: clamp(5px, 1dvh, 10px) 12px clamp(7px, 1.4dvh, 14px); }
+        .xf input[type=range] { height: clamp(34px, 5.5dvh, 48px); }
+        nav { padding: clamp(5px, 1dvh, 8px) 0 clamp(6px, 1.2dvh, 10px); }
+        nav button { min-height: clamp(38px, 5.6dvh, 48px); }
+        .grid8 button { min-height: clamp(48px, 8dvh, 72px); }
+
+        /* Very short screens (small phones, split screen): drop the second row of deck buttons. */
+        @media (max-height: 560px) and (orientation: portrait) { #tab-mix .row.x { display: none; } .artist { display: none; } }
+
+        /* Sideways: the two decks sit next to each other with the crossfader under both, like a real mixer. */
+        @media (orientation: landscape) and (max-height: 540px) {
+            header { padding: 4px 0; }
+            #tab-mix { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+            #tab-mix .deck.A { grid-column: 1; grid-row: 1; }
+            #tab-mix .deck.B { grid-column: 2; grid-row: 1; }
+            #tab-mix .xf { grid-column: 1 / -1; grid-row: 2; padding: 2px 12px 6px; }
+            #tab-mix .xf label { display: none; }
+            .row.t button { min-height: clamp(38px, 15dvh, 64px); }
+            .row.x button { min-height: clamp(30px, 10dvh, 44px); }
+            .xf input[type=range] { height: clamp(30px, 11dvh, 44px); }
+            nav { padding: 3px 0 5px; }
+            nav button { min-height: clamp(30px, 9dvh, 40px); }
+            #tab-pads, #tab-tracks, #tab-auto { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+            #tab-pads > .card, #tab-tracks > .card, #tab-auto > .card { margin-top: 0 !important; }
+            #tab-pads .hint { grid-column: 1 / -1; }
+        }
+        @media (orientation: landscape) and (max-height: 360px) { #tab-mix .row.x, .artist { display: none; } }
+
+        /* Tablets and wide screens: decks side by side with room to breathe. */
+        @media (min-width: 760px) and (min-height: 541px) {
+            #tab-mix { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+            #tab-mix .deck.A { grid-column: 1; grid-row: 1; }
+            #tab-mix .deck.B { grid-column: 2; grid-row: 1; }
+            #tab-mix .xf { grid-column: 1 / -1; grid-row: 2; }
+            #tab-pads, #tab-tracks, #tab-auto { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+            #tab-pads > .card, #tab-tracks > .card, #tab-auto > .card { margin-top: 0 !important; }
+            #tab-pads .hint { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ZAO <span>MixZ</span></div>
+        <div class="dot" id="dot"></div>
+        <div id="status">Connecting</div>
+        <button id="install-btn" class="hidden">INSTALL</button>
+        <button id="listen" class="hidden">LISTEN</button>
+    </header>
+
+    <main>
+        <div class="gate" id="gate"><b>Finding your decks</b>Keep ZAO MixZ open on the computer with PHONE switched on.</div>
+
+        <section id="tab-mix" class="hidden">
+            <div class="deck A" data-deck="A"></div>
+            <div class="xf">
+                <label><span>A</span><span>CROSSFADER</span><span>B</span></label>
+                <input type="range" id="xf" min="0" max="1000" value="500">
+            </div>
+            <div class="deck B" data-deck="B"></div>
+        </section>
+
+        <section id="tab-pads" class="hidden">
+            <div class="card"><h2>DECK A HOT CUES</h2><div class="grid8" data-cues="A"></div></div>
+            <div class="card" style="margin-top:10px"><h2>DECK B HOT CUES</h2><div class="grid8" data-cues="B"></div></div>
+            <div class="card" style="margin-top:10px"><h2>BEAT JUMP</h2>
+                <div class="grid2">
+                    <button data-cmd="jump" data-d="A" data-n="2">A back 4</button><button data-cmd="jump" data-d="A" data-n="6">A forward 4</button>
+                    <button data-cmd="jump" data-d="B" data-n="2">B back 4</button><button data-cmd="jump" data-d="B" data-n="6">B forward 4</button>
+                </div>
+            </div>
+            <p class="hint">Tap an empty pad while the track plays to mark that spot. Tap it again to jump back.</p>
+        </section>
+
+        <section id="tab-tracks" class="hidden">
+            <div class="card"><h2>NEXT TRACK, PICKED FOR YOU</h2>
+                <div class="grid2">
+                    <button data-next="smooth">SAME VIBE</button><button data-next="up">ENERGY UP</button>
+                    <button data-next="down">COOL DOWN</button><button data-next="key">KEY LIFT</button>
+                    <button data-next="mood">MOOD FLIP</button><button data-next="genre">NEW GENRE</button>
+                    <button data-next="double">HALF / 2X</button><button data-next="wild">SURPRISE</button>
+                </div>
+                <p class="hint">Loads the pick on the deck that is not playing.</p>
+            </div>
+            <div class="card" style="margin-top:10px"><h2>THE CRATE</h2>
+                <input id="search" type="search" placeholder="Search tracks" autocomplete="off">
+                <div id="tracks"></div>
+            </div>
+        </section>
+
+        <section id="tab-auto" class="hidden">
+            <div class="card"><h2>DJ MIXZ</h2>
+                <button class="big go" id="mixz-go">MIX SONGCHAINN NOW</button>
+                <div class="grid2" style="margin-top:8px">
+                    <button id="mixz-take">TAKE THE DECKS</button><button id="mixz-back">HAND BACK</button>
+                </div>
+                <button class="big stop hidden" id="mixz-stop" style="margin-top:8px">STOP DJ MIXZ</button>
+                <p class="hint" id="mixz-say">DJ MixZ is off.</p>
+            </div>
+            <div class="card" style="margin-top:10px"><h2>LEVELS</h2>
+                <div class="xf" style="border:0;padding:0"><label><span>MASTER</span></label><input type="range" id="master" min="0" max="1000" value="800"></div>
+                <div class="xf" style="border:0;padding:0"><label><span>DECK A</span></label><input type="range" id="vol-A" min="0" max="1000" value="800"></div>
+                <div class="xf" style="border:0;padding:0"><label><span>DECK B</span></label><input type="range" id="vol-B" min="0" max="1000" value="800"></div>
+            </div>
+        </section>
+    </main>
+
+    <nav id="nav" class="hidden">
+        <button data-tab="mix" class="on">MIX</button>
+        <button data-tab="pads">PADS</button>
+        <button data-tab="tracks">TRACKS</button>
+        <button data-tab="auto">AUTO</button>
+    </nav>
+
+    <div class="install-sheet hidden" id="install-sheet" role="dialog">
+        <b data-install-title></b>
+        <ol data-install-steps></ol>
+        <button data-install-close>GOT IT</button>
+    </div>
+
+    <audio id="monitor" autoplay playsinline></audio>
+    <script type="module" src="remote.js"></script>
+</body>
+</html>

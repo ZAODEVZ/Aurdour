@@ -1,0 +1,37 @@
+{
+    "name": "ZAO MixZ Remote",
+    "short_name": "MixZ Remote",
+    "description": "Run your ZAO MixZ set from your phone, from anywhere.",
+    "start_url": "/remote.html",
+    "scope": "/",
+    "id": "/remote.html",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#07080c",
+    "theme_color": "#07080c",
+    "categories": [
+        "music",
+        "entertainment"
+    ],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/remote-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/remote-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/remote-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
