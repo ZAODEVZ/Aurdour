@@ -65,7 +65,7 @@ export function cleanCommand(raw) {
             return { a: 'stream', src: TRACK_SOURCES.includes(raw.src) && raw.src !== 'view' ? raw.src : (raw.src === 'view' ? 'view' : 'songchainn'), mood: MOOD_IDS.includes(raw.mood) ? raw.mood : 'journey', minutes: SET_MINUTES.includes(raw.minutes) ? raw.minutes : 60, endless: !!raw.endless };
         case 'skip': case 'share':
             return { a: raw.a };
-        case 'endless': case 'live':
+        case 'endless': case 'live': case 'deadair':
             return { a: raw.a, on: !!raw.on };
         case 'mixz':
             return { a: 'mixz', on: !!raw.on };
@@ -81,6 +81,8 @@ export function cleanCommand(raw) {
 // Commands that mean a person has their hands on the mix. They take the decks from DJ MixZ,
 // the same as touching the real controller does.
 export const HANDS_ON = new Set(['play', 'cue', 'crossfader', 'load']);
+// What a phone that is only watching may ask for.
+export const VIEWER_OK = new Set(['listen', 'share']);
 
 const idOfTrack = t => String(t?.id ?? t?.sourceId ?? t?.dataFile ?? t?.streamUrl ?? t?.title ?? '');
 
@@ -111,6 +113,7 @@ export function snapshot(dj) {
         vol: { A: slider('vol-a', 0.8), B: slider('vol-b', 0.8) }, master: slider('master-volume', 0.8),
         live_deck: liveDeck(dj.decks, dj.audioRouter?._lastCrossfadePosition ?? 0.5),
         live: !!dj.broadcast?.isLive, liveSince: dj.broadcast?.liveSince || 0,
+        deadair: !!dj.deadAir?.on,
         mixz: {
             running: !!m.running, human: !!m.human, endless: !!m.endless, mood: m.mood || 'journey',
             index: m.index || 0, total: m.plan?.length || 0, minutes: m.minutes || 0, source: m._lastBuild?.sourceId || '',
@@ -161,6 +164,7 @@ export function applyCommand(dj, cmd, host = null) {
         case 'skip': dj.flowMode?.skip?.(); return 'skip';
         case 'endless': if (mixz) mixz.endless = cmd.on; return 'endless';
         case 'live': { const b = document.getElementById('live-toggle'); if (b && !!dj.broadcast?.isLive !== cmd.on) b.click(); return 'live'; }
+        case 'deadair': dj.deadAir?.set?.(cmd.on); return 'deadair';
         default: return 'ignored';
     }
 }
@@ -359,6 +363,9 @@ export class RemoteHost {
         phone.seen = Date.now();
         if (msg.t === 'hello') {
             if (typeof msg.name === 'string') phone.name = msg.name.slice(0, 40);
+            const viewer = msg.role === 'viewer';
+            if (viewer !== !!phone.viewer) { phone.viewer = viewer; if (!viewer) phone.allowed = this._allowed().includes(device); }
+            if (viewer) { phone.allowed = true; this.relay.send({ t: 'welcome', to: device, role: 'viewer' }); this._render(); return; }
             if (phone.allowed) { this.relay.send({ t: 'welcome', to: device }); this._render(); return; }
             // Not known yet: ask at the desk, and tell the phone it is waiting (not more than
             // once every few seconds, the phone says hello often).
@@ -372,6 +379,7 @@ export class RemoteHost {
         if (msg.t !== 'cmd' || !phone.allowed) return;
         const cmd = cleanCommand(msg);
         if (!cmd) return;
+        if (phone.viewer && !VIEWER_OK.has(cmd.a)) return;
         if (cmd.a === 'share') {
             const url = this.dj.setlist?.mixLink?.() || '';
             this.relay.send({ t: 'mix', to: device, url, n: this.dj.setlist?.history?.length || 0 });
@@ -468,7 +476,7 @@ export class RemoteHost {
         const linkEl = document.getElementById('remote-link');
         if (linkEl && linkEl.textContent !== url) linkEl.textContent = url;
         const list = document.getElementById('remote-phones');
-        const sig = asking.map(p => 'ask:' + p.device).concat(live.map(p => 'live:' + p.device + (p.call ? ':l' : ''))).join('|');
+        const sig = asking.map(p => 'ask:' + p.device).concat(live.map(p => 'live:' + p.device + (p.call ? ':l' : '') + (p.viewer ? ':v' : ''))).join('|');
         if (list && list.dataset.sig !== sig) {
             list.dataset.sig = sig;
             list.textContent = '';
@@ -485,7 +493,7 @@ export class RemoteHost {
             for (const p of live) {
                 const row = document.createElement('div');
                 row.className = 'remote-phone';
-                row.textContent = `${p.name}: connected${p.call ? ', listening' : ''}`;
+                row.textContent = `${p.name}: ${p.viewer ? 'watching' : 'connected'}${p.call ? ', listening' : ''}`;
                 list.appendChild(row);
             }
         }

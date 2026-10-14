@@ -32,6 +32,7 @@ import { CrashRecovery } from './dj/CrashRecovery.js';
 import { NowPlaying } from './dj/NowPlaying.js';
 import { LibrarySheet } from './dj/LibrarySheet.js';
 import { TestList } from './dj/TestList.js';
+import { DeadAir } from './dj/DeadAir.js';
 import { WaveformCache } from './dj/WaveformCache.js';
 import { Playlists } from './dj/Playlists.js';
 import { PerfMonitor } from './dj/PerfMonitor.js';
@@ -160,6 +161,7 @@ class DJPlayer {
 
         // DJ MixZ: the bot DJ. Plans a set from a playlist and a mood, then mixes it.
         this.djMixz = safeInit('DjMixz', () => new DjMixz(this));
+        this.deadAir = safeInit('DeadAir', () => new DeadAir(this));
 
         // Cloud Sync
         this.cloudSync = safeInit('CloudSync', () => new CloudSync(this.storage));

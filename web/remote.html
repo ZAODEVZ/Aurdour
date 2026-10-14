@@ -84,6 +84,13 @@
         nav button.on { color: var(--text); border-color: var(--text); }
         nav button.air { color: var(--play); }
         .hint { font-size: .74rem; color: var(--muted); margin: 8px 2px 0; }
+        #role-btn { min-height: 36px; padding: 0 12px; font-size: .72rem; letter-spacing: .1em; color: var(--muted); }
+        #role-btn.viewer { color: var(--cue); border-color: rgba(255,197,51,.4); }
+        body.viewer .dj-only { display: none !important; }
+        body.viewer #nav { display: none; }
+        .roles { display: grid; gap: 10px; margin-top: 16px; }
+        .roles button { min-height: 58px; font-weight: 800; letter-spacing: .08em; }
+        .roles small { display: block; font-weight: 400; letter-spacing: 0; color: var(--muted); font-size: .74rem; margin-top: 3px; }
         #install-btn { min-height: 36px; padding: 0 12px; font-size: .72rem; letter-spacing: .1em; color: var(--play); border-color: rgba(43,255,154,.4); }
         .install-sheet { position: fixed; left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 20; max-width: 420px; margin: 0 auto; background: var(--panel); border: 1px solid rgba(43,255,154,.4); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
         .install-sheet ol { margin: 10px 0 12px; padding-left: 20px; color: var(--muted); line-height: 1.5; font-size: .9rem; }
@@ -169,6 +176,7 @@
         <div class="logo">ZAO <span>MixZ</span></div>
         <div class="dot" id="dot"></div>
         <div id="status">Connecting</div>
+        <button id="role-btn" class="hidden" title="Switch between DJ and viewer">DJ</button>
         <button id="install-btn" class="hidden">INSTALL</button>
         <button id="listen" class="hidden">LISTEN</button>
     </header>
@@ -218,10 +226,10 @@
 
         <section id="tab-stream" class="hidden">
             <div class="card">
-                <div class="air"><span class="pill" id="air-pill">OFF AIR</span><span class="pill b" id="mixz-pill">DJ MIXZ OFF</span><span style="flex:1"></span><button id="live-btn" style="min-height:40px;padding:0 14px;font-size:.72rem;font-weight:800;letter-spacing:.1em">GO LIVE</button></div>
+                <div class="air"><span class="pill" id="air-pill">OFF AIR</span><span class="pill b" id="mixz-pill">DJ MIXZ OFF</span><span style="flex:1"></span><button id="live-btn" class="dj-only" style="min-height:40px;padding:0 14px;font-size:.72rem;font-weight:800;letter-spacing:.1em">GO LIVE</button></div>
                 <div class="np"><b id="np-title">Nothing playing</b><small id="np-artist"></small><div class="prog"><i id="np-prog"></i></div><div class="next" id="np-next"></div></div>
             </div>
-            <div class="card" style="margin-top:10px"><h2>DJ MIXZ, FROM HERE</h2>
+            <div class="card dj-only" style="margin-top:10px"><h2>DJ MIXZ, FROM HERE</h2>
                 <select id="st-source">
                     <option value="songchainn" selected>SongChainn, every artist</option>
                     <option value="zao">ZAO crate: SongChainn and Audius</option>
@@ -235,6 +243,7 @@
                     <option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="0">Everything it has</option>
                 </select>
                 <button class="toggle" id="st-endless"><span>Keep going when the set ends</span><b>ENDLESS OFF</b></button>
+                <button class="toggle" id="st-deadair"><span>Auto play if silent for 5 seconds</span><b>OFF</b></button>
                 <button class="big go" id="st-start">START THE STREAM</button>
                 <div class="grid2" style="margin-top:8px">
                     <button id="st-skip">SKIP TRACK</button><button class="stop" id="st-stop" style="color:var(--b)">STOP DJ MIXZ</button>
@@ -246,7 +255,7 @@
                 <button class="big" id="st-share">SHARE THE MIX</button>
                 <div class="sharebox hidden" id="st-sharebox"></div>
             </div>
-            <div class="card" style="margin-top:10px"><h2>LEVELS</h2>
+            <div class="card dj-only" style="margin-top:10px"><h2>LEVELS</h2>
                 <div class="xf" style="border:0;padding:0"><label><span>MASTER</span></label><input type="range" id="master" min="0" max="1000" value="800"></div>
                 <div class="xf" style="border:0;padding:0"><label><span>DECK A</span></label><input type="range" id="vol-A" min="0" max="1000" value="800"></div>
                 <div class="xf" style="border:0;padding:0"><label><span>DECK B</span></label><input type="range" id="vol-B" min="0" max="1000" value="800"></div>

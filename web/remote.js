@@ -22,6 +22,26 @@ if (!/^[a-f0-9]{24}$/.test(device || '')) {
     localStorage.setItem('mixz-remote-device', device);
 }
 const phoneName = /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android phone' : 'Phone';
+// DJ or viewer. A viewer watches the set and can listen; the desk never asks to allow one.
+// Chosen once on this phone, switched any time with the button in the header.
+let role = localStorage.getItem('mixz-remote-role') || '';
+function setRole(r) {
+    role = r;
+    localStorage.setItem('mixz-remote-role', r);
+    document.body.classList.toggle('viewer', r === 'viewer');
+    $('role-btn').textContent = r === 'viewer' ? 'VIEWER' : 'DJ';
+    $('role-btn').classList.toggle('viewer', r === 'viewer');
+    if (r === 'viewer') { showTab('stream'); } else if (ready) { showTab(localStorage.getItem('mixz-remote-tab') || 'mix'); }
+}
+function askRole() {
+    gate('How are you here?', 'The DJ runs the decks from this phone. A viewer watches the set and can listen.');
+    const box = document.createElement('div'); box.className = 'roles';
+    const dj = document.createElement('button'); dj.className = 'go'; dj.innerHTML = 'I AM THE DJ<small>Decks, pads, tracks and the stream. The desk allows this phone once.</small>';
+    const vw = document.createElement('button'); vw.innerHTML = 'JUST WATCHING<small>See what plays and listen in. Nothing to allow.</small>';
+    dj.onclick = () => { setRole('dj'); $('gate').innerHTML = ''; status('Connecting'); connect(); };
+    vw.onclick = () => { setRole('viewer'); $('gate').innerHTML = ''; status('Connecting'); connect(); };
+    box.append(dj, vw); $('gate').appendChild(box);
+}
 
 let relay = null, ready = false, state = null, lastState = 0, peer = null, call = null;
 let pingN = 0, pingAt = 0, rtt = 0;
@@ -58,10 +78,13 @@ function enter() {
     $('gate').classList.add('hidden');
     $('nav').classList.remove('hidden');
     $('listen').classList.remove('hidden');
-    showTab(localStorage.getItem('mixz-remote-tab') || 'mix');
+    $('role-btn').classList.remove('hidden');
+    showTab(role === 'viewer' ? 'stream' : (localStorage.getItem('mixz-remote-tab') || 'mix'));
     keepAwake();
 }
+const VIEWER_OK = new Set(['listen', 'share']);
 function send(a, extra = {}) {
+    if (role === 'viewer' && !VIEWER_OK.has(a)) return;
     if (ready) relay?.send({ t: 'cmd', device, a, ...extra });
     if (navigator.vibrate) navigator.vibrate(8);
 }
@@ -73,7 +96,7 @@ async function connect() {
     relay = new Relay({ token, role: 'phone', onMessage: onData, onStatus: up => { if (!up) status('No internet'); else if (!ready) status('Looking for the desk'); } });
     try { await relay.open(); } catch (e) { gate('No internet', 'This page keeps trying.'); setTimeout(connect, 4000); return; }
     // Say hello now and every two seconds: that is also how the desk knows this phone is still here.
-    const hello = () => relay.send({ t: 'hello', device, name: phoneName });
+    const hello = () => relay.send({ t: 'hello', device, name: phoneName, role: role === 'viewer' ? 'viewer' : 'dj' });
     hello();
     setInterval(hello, 2000);
     setInterval(watch, 1000);
@@ -167,6 +190,8 @@ function draw() {
     $('st-skip').classList.toggle('hidden', !m.running);
     $('st-start').textContent = m.running ? 'RESTART WITH THESE SETTINGS' : 'START THE STREAM';
     if (!$('st-endless').dataset.touched) setEndless(!!m.endless, false);
+    $('st-deadair').classList.toggle('on', !!state.deadair);
+    $('st-deadair').querySelector('b').textContent = state.deadair ? 'ON' : 'OFF';
     $('mixz-say').textContent = !m.running ? 'DJ MixZ is off. Pick the music and a mood, then START: it builds the set and plays it on the desk while you are away.'
         : m.human ? 'You have the decks. DJ MixZ is watching and takes over again on HAND BACK.'
             : `DJ MixZ is mixing ${m.total} tracks${m.minutes ? ` for about ${m.minutes} minutes` : ''}. ${m.endless ? 'When the set ends it builds the next one by itself.' : 'When the set ends it stops.'}`;
@@ -194,6 +219,7 @@ function showTab(name) {
     localStorage.setItem('mixz-remote-tab', name);
     if (name === 'tracks') askTracks();
 }
+$('role-btn').onclick = () => { const next = role === 'viewer' ? 'dj' : 'viewer'; setRole(next); relay?.send({ t: 'hello', device, name: phoneName, role: next }); if (next === 'dj') status('Switching to DJ: the desk may ask to allow this phone'); };
 function askTracks() { send('tracks', { q: $('search').value, src: trackSrc }); }
 function showMixLink(msg) {
     const box = $('st-sharebox');
@@ -262,6 +288,7 @@ $('st-start').onclick = () => {
     send('stream', { src: $('st-source').value, mood, minutes: Number($('st-length').value), endless: !!$('st-endless').dataset.on });
     $('mixz-say').textContent = 'Asking the desk to build the set';
 };
+$('st-deadair').onclick = () => send('deadair', { on: !state?.deadair });
 $('st-stop').onclick = () => send('mixz', { on: false });
 $('st-skip').onclick = () => send('skip');
 $('mixz-take').onclick = () => send('takeover');
@@ -334,4 +361,4 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 new Install({ button: $('install-btn'), sheet: $('install-sheet'), appName: 'ZAO MixZ Remote' });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-connect();
+if (role === 'dj' || role === 'viewer') { setRole(role); connect(); } else if (validToken(token)) askRole(); else connect();

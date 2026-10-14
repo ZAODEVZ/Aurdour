@@ -834,3 +834,9 @@ body.lib-open .library { max-height: none; }
 .test-send { color: var(--mz-sync); border-color: rgba(199, 125, 255, 0.5); }
 .test-say { padding: 0 16px 12px; color: var(--mz-muted); font-size: 0.8rem; min-height: 1.2em; }
 @media (max-width: 700px) { .test-panel { left: 8px; right: 8px; width: auto; top: 56px; } }
+
+/* ── Auto play if silent (DeadAir) ── */
+.deadair-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 8px 0 4px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--mz-line-hi); background: var(--mz-inset); color: var(--mz-muted); font: inherit; font-size: 0.82rem; cursor: pointer; text-align: left; }
+.deadair-toggle b { font-family: var(--font-display); font-size: 0.66rem; letter-spacing: 0.14em; color: var(--mz-dim); }
+.deadair-toggle.on { border-color: rgba(43, 255, 154, 0.45); color: var(--mz-text); }
+.deadair-toggle.on b { color: var(--mz-play); }

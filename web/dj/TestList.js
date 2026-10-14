@@ -24,6 +24,8 @@ export const ITEMS = [
     { g: 'The phone', id: 'endless', t: 'ENDLESS on: when the set ends the desk builds the next one and keeps playing' },
     { g: 'The phone', id: 'ptracks', t: 'TRACKS tab: SONGCHAINN, ZAO CRATE and ON THE DESK list songs; load to A or B works' },
     { g: 'The phone', id: 'pshare', t: 'SHARE THE MIX on the phone shows the link, COPY and SEND work' },
+    { g: 'The phone', id: 'viewer', t: 'JUST WATCHING: the phone shows what plays and can LISTEN, no ALLOW at the desk, no controls; the header button switches back to DJ' },
+    { g: 'DJ MixZ', id: 'deadair', t: 'Auto play if silent: pause everything for 5 seconds and DJ MixZ jumps in; the switch turns it off' },
     { g: 'DJ MixZ', id: 'mixz', t: 'MIX SONGCHAINN NOW plays a set; touching the controller takes over; HAND BACK returns it' },
     { g: 'Install', id: 'install', t: 'INSTALL puts the app on the PC and the phone; it opens without the browser bar' },
 ];
