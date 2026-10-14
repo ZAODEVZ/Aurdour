@@ -1,8 +1,10 @@
 // remote.js — the phone side of MixZ Remote
 // Opens from the link or QR code shown by PHONE on the desktop. Connects straight to that
-// desktop, draws the set five times a second, and sends taps and slides back.
+// desktop, draws the set five times a second, and sends taps and slides back. The STREAM tab
+// runs DJ MixZ on the desk from here, and LISTEN brings the sound to the phone.
 
-import { validToken, Relay, loadPeer } from './dj/RemoteLink.js';
+import { validToken, Relay, loadPeer, ICE_SERVERS } from './dj/RemoteLink.js';
+import { PlayAlong } from './dj/PlayAlong.js';
 import { Install } from './dj/Install.js';
 
 const $ = id => document.getElementById(id);
@@ -21,9 +23,10 @@ if (!/^[a-f0-9]{24}$/.test(device || '')) {
 }
 const phoneName = /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android phone' : 'Phone';
 
-let relay = null, ready = false, state = null, lastState = 0, listening = false, peer = null, call = null;
+let relay = null, ready = false, state = null, lastState = 0, peer = null, call = null;
 let pingN = 0, pingAt = 0, rtt = 0;
 const held = {};   // sliders being dragged right now: the desk's value must not fight the thumb
+let trackSrc = 'songchainn';
 
 function status(text, live = false) {
     $('status').textContent = text;
@@ -35,7 +38,7 @@ function gate(title, text) {
     $('gate').innerHTML = '';
     const b = document.createElement('b'); b.textContent = title;
     $('gate').append(b, document.createTextNode(text));
-    for (const t of ['mix', 'pads', 'tracks', 'auto']) $(`tab-${t}`).classList.add('hidden');
+    for (const t of ['mix', 'pads', 'tracks', 'stream']) $(`tab-${t}`).classList.add('hidden');
     $('nav').classList.add('hidden');
     $('listen').classList.add('hidden');
 }
@@ -55,7 +58,7 @@ function enter() {
     $('gate').classList.add('hidden');
     $('nav').classList.remove('hidden');
     $('listen').classList.remove('hidden');
-    showTab('mix');
+    showTab(localStorage.getItem('mixz-remote-tab') || 'mix');
     keepAwake();
 }
 function send(a, extra = {}) {
@@ -95,8 +98,9 @@ function onData(msg) {
     if (msg.t === 'wait') { if (!ready) { gate('Almost there', 'Tap ALLOW on the computer. You only do this once for this phone.'); status('Waiting for the desk'); } }
     else if (msg.t === 'denied') { gate('The desk said no', 'Ask whoever is at the computer to allow this phone.'); status('Not allowed'); }
     else if (msg.t === 'welcome') { lastState = Date.now(); enter(); status('Live', true); }
-    else if (msg.t === 'state') { if (!ready) return; state = msg; lastState = Date.now(); if (!rtt) status('Live', true); draw(); }
+    else if (msg.t === 'state') { if (!ready) return; state = msg; lastState = Date.now(); if (!rtt) status('Live', true); draw(); listenTick(); }
     else if (msg.t === 'tracks') drawTracks(msg.list || []);
+    else if (msg.t === 'mix') showMixLink(msg);
     else if (msg.t === 'pong' && msg.n === pingN) { rtt = Date.now() - pingAt; if (ready) status(`Live  ${rtt} ms`, true); }
 }
 
@@ -120,6 +124,7 @@ function buildDeck(el) {
             <button data-cmd="fxfade" data-d="${d}" data-n="3">SPIN DOWN</button>
         </div>`;
 }
+const MOOD_NAMES = { warmup: 'WARM UP', peak: 'PEAK TIME', journey: 'JOURNEY', sunset: 'SUNSET', party: 'PARTY' };
 function draw() {
     if (!state) return;
     for (const d of ['A', 'B']) {
@@ -141,14 +146,35 @@ function draw() {
     if (!held.xf) $('xf').value = Math.round(state.xf * 1000);
     if (!held.master) $('master').value = Math.round(state.master * 1000);
     for (const d of ['A', 'B']) if (!held[`vol-${d}`]) $(`vol-${d}`).value = Math.round(state.vol[d] * 1000);
-    const m = state.mixz;
-    $('mixz-stop').classList.toggle('hidden', !m.running);
-    $('mixz-say').textContent = !m.running ? 'DJ MixZ is off.' : m.human ? 'You have the decks. DJ MixZ is watching.' : 'DJ MixZ is mixing.';
+
+    // STREAM tab: what the room hears, and DJ MixZ
+    const m = state.mixz || {};
+    const liveDeck = state.live_deck;
+    const s = liveDeck ? state[liveDeck] : null;
+    if (s?.loaded) { $('np-title').textContent = s.title || 'Untitled'; $('np-artist').textContent = s.artist; }
+    else if (m.running && m.now?.title) { $('np-title').textContent = `Loading: ${m.now.title}`; $('np-artist').textContent = m.now.artist || ''; }
+    else { $('np-title').textContent = 'Nothing playing'; $('np-artist').textContent = ''; }
+    $('np-prog').style.width = s?.dur ? `${Math.min(100, s.time / s.dur * 100)}%` : '0';
+    $('np-next').innerHTML = '';
+    if (m.running && m.next?.title) { const em = document.createElement('em'); em.textContent = m.next.title + (m.next.artist ? ', ' + m.next.artist : ''); $('np-next').append(`Next: `, em, ` (${m.index + 1} of ${m.total})`); }
+    else if (m.running) $('np-next').textContent = `Last track of the set (${m.index + 1} of ${m.total})`;
+    $('air-pill').textContent = state.live ? 'ON AIR' : 'OFF AIR';
+    $('air-pill').classList.toggle('on', !!state.live);
+    $('live-btn').textContent = state.live ? 'END LIVE' : 'GO LIVE';
+    $('nav-stream').classList.toggle('air', !!state.live);
+    $('mixz-pill').textContent = !m.running ? 'DJ MIXZ OFF' : m.human ? 'YOU HAVE THE DECKS' : `DJ MIXZ ${MOOD_NAMES[m.mood] || ''}${m.endless ? ' · ENDLESS' : ''}`;
+    $('st-stop').classList.toggle('hidden', !m.running);
+    $('st-skip').classList.toggle('hidden', !m.running);
+    $('st-start').textContent = m.running ? 'RESTART WITH THESE SETTINGS' : 'START THE STREAM';
+    if (!$('st-endless').dataset.touched) setEndless(!!m.endless, false);
+    $('mixz-say').textContent = !m.running ? 'DJ MixZ is off. Pick the music and a mood, then START: it builds the set and plays it on the desk while you are away.'
+        : m.human ? 'You have the decks. DJ MixZ is watching and takes over again on HAND BACK.'
+            : `DJ MixZ is mixing ${m.total} tracks${m.minutes ? ` for about ${m.minutes} minutes` : ''}. ${m.endless ? 'When the set ends it builds the next one by itself.' : 'When the set ends it stops.'}`;
 }
 function drawTracks(list) {
     const box = $('tracks');
     box.textContent = '';
-    if (!list.length) { box.textContent = 'Nothing here. Open a crate on the computer, or search.'; return; }
+    if (!list.length) { box.textContent = trackSrc === 'songchainn' ? 'SongChainn has not been read on the desk yet. Open the ZAO tab there once, or start DJ MixZ from the STREAM tab.' : 'Nothing here.'; return; }
     for (const t of list) {
         const row = document.createElement('div'); row.className = 'track';
         const info = document.createElement('div');
@@ -162,9 +188,24 @@ function drawTracks(list) {
     }
 }
 function showTab(name) {
-    for (const t of ['mix', 'pads', 'tracks', 'auto']) $(`tab-${t}`).classList.toggle('hidden', t !== name);
+    if (!['mix', 'pads', 'tracks', 'stream'].includes(name)) name = 'mix';
+    for (const t of ['mix', 'pads', 'tracks', 'stream']) $(`tab-${t}`).classList.toggle('hidden', t !== name);
     document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
-    if (name === 'tracks') send('tracks', { q: $('search').value });
+    localStorage.setItem('mixz-remote-tab', name);
+    if (name === 'tracks') askTracks();
+}
+function askTracks() { send('tracks', { q: $('search').value, src: trackSrc }); }
+function showMixLink(msg) {
+    const box = $('st-sharebox');
+    box.classList.remove('hidden');
+    box.textContent = '';
+    if (!msg.url) { box.textContent = 'Nothing to share yet: no track has played on the desk.'; return; }
+    const a = document.createElement('a'); a.href = msg.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `The mix so far: ${msg.n} ${msg.n === 1 ? 'song' : 'songs'}. Open it`;
+    box.append(a, document.createTextNode('  '));
+    const copy = document.createElement('button'); copy.textContent = 'COPY'; copy.style.cssText = 'min-height:36px;padding:0 12px;font-size:.7rem;margin-left:8px';
+    copy.onclick = () => { navigator.clipboard?.writeText(msg.url).then(() => { copy.textContent = 'COPIED'; }).catch(() => {}); };
+    box.append(copy);
+    if (navigator.share) { const sh = document.createElement('button'); sh.textContent = 'SEND'; sh.style.cssText = 'min-height:36px;padding:0 12px;font-size:.7rem;margin-left:8px'; sh.onclick = () => navigator.share({ title: 'The mix on ZAO MixZ', url: msg.url }).catch(() => {}); box.append(sh); }
 }
 
 // ── Wiring ──
@@ -186,6 +227,8 @@ document.addEventListener('click', e => {
     else if (b.dataset.loop) send('loop', { d: b.dataset.loop, beats: state?.[b.dataset.loop]?.loop ? 0 : 4 });
     else if (b.dataset.next) send('next', { mode: b.dataset.next });
     else if (b.dataset.tab) showTab(b.dataset.tab);
+    else if (b.dataset.src) { trackSrc = b.dataset.src; document.querySelectorAll('#sources button').forEach(x => x.classList.toggle('on', x === b)); askTracks(); }
+    else if (b.dataset.mood) { document.querySelectorAll('#st-moods button').forEach(x => x.classList.toggle('on', x === b)); }
 });
 // Sliders send while they move, at most 25 times a second.
 function slider(id, make) {
@@ -205,40 +248,82 @@ slider('xf', v => ({ a: 'crossfader', v }));
 slider('master', v => ({ a: 'master', v }));
 slider('vol-A', v => ({ a: 'volume', d: 'A', v }));
 slider('vol-B', v => ({ a: 'volume', d: 'B', v }));
-$('mixz-go').onclick = () => send('songchainn');
-$('mixz-stop').onclick = () => send('mixz', { on: false });
+
+// STREAM tab
+function setEndless(on, touched = true) {
+    $('st-endless').classList.toggle('on', on);
+    $('st-endless').querySelector('b').textContent = on ? 'ENDLESS ON' : 'ENDLESS OFF';
+    $('st-endless').dataset.on = on ? '1' : '';
+    if (touched) $('st-endless').dataset.touched = '1';
+}
+$('st-endless').onclick = () => { const on = !$('st-endless').dataset.on; setEndless(on); if (state?.mixz?.running) send('endless', { on }); };
+$('st-start').onclick = () => {
+    const mood = document.querySelector('#st-moods button.on')?.dataset.mood || 'journey';
+    send('stream', { src: $('st-source').value, mood, minutes: Number($('st-length').value), endless: !!$('st-endless').dataset.on });
+    $('mixz-say').textContent = 'Asking the desk to build the set';
+};
+$('st-stop').onclick = () => send('mixz', { on: false });
+$('st-skip').onclick = () => send('skip');
 $('mixz-take').onclick = () => send('takeover');
 $('mixz-back').onclick = () => send('handback');
+$('live-btn').onclick = () => send('live', { on: !state?.live });
+$('st-share').onclick = () => { $('st-sharebox').classList.remove('hidden'); $('st-sharebox').textContent = 'Asking the desk'; send('share'); };
 let searchTimer = null;
-$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => send('tracks', { q: $('search').value }), 300); });
+$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(askTracks, 300); });
+
+// ── LISTEN: the mix on this phone ──
+// First a direct call from the desk (the real mix). If no sound arrives in a few seconds,
+// the phone plays along: the same songs, at the desk's position, mixed with its faders.
+let listening = false, direct = false;
+const along = new PlayAlong({ elements: { A: $('pa-A'), B: $('pa-B') }, origin: location.origin });
+let fallbackTimer = null;
+function listenSay(text, warn = false) { $('listen').textContent = text; $('listen').classList.toggle('warn', warn); }
+function startPlayAlong() {
+    direct = false;
+    try { call?.close(); } catch (e) { /* gone */ }
+    $('monitor').srcObject = null;
+    send('listen', { on: false });
+    along.start();
+    listenSay('LISTENING · PLAY ALONG');
+}
+function listenTick() {
+    if (!listening || direct || !along.on) return;
+    along.update(state, rtt);
+    if (along.say) listenSay(`PLAY ALONG · ${along.say.toUpperCase()}`, true);
+    else listenSay('LISTENING · PLAY ALONG');
+}
 $('listen').onclick = async () => {
     listening = !listening;
     $('listen').classList.toggle('on', listening);
+    clearTimeout(fallbackTimer);
     if (!listening) {
-        $('listen').textContent = 'LISTEN';
+        listenSay('LISTEN');
         try { call?.close(); } catch (e) { /* gone */ }
         $('monitor').srcObject = null;
+        along.stop();
+        direct = false;
         send('listen', { on: false });
         return;
     }
-    $('listen').textContent = 'CALLING';
+    listenSay('CALLING THE DESK');
     $('monitor').play().catch(() => {});   // this tap is what lets the phone play sound
+    along.start(); along.stop();            // same tap unlocks the play-along players
     try {
         await loadPeer();
         if (!peer || peer.destroyed) {
-            peer = new window.Peer();
+            peer = new window.Peer({ config: { iceServers: ICE_SERVERS } });
             peer.on('call', incoming => {
                 call = incoming;
                 incoming.answer();
-                incoming.on('stream', stream => { $('monitor').srcObject = stream; $('monitor').play().catch(() => {}); $('listen').textContent = 'LISTENING'; });
+                incoming.on('stream', stream => { if (!listening) return; direct = true; clearTimeout(fallbackTimer); along.stop(); $('monitor').srcObject = stream; $('monitor').play().catch(() => {}); listenSay('LISTENING · LIVE MIX'); });
+                incoming.on('close', () => { if (listening && direct) { direct = false; startPlayAlong(); } });
             });
             await new Promise((resolve, reject) => { peer.on('open', resolve); peer.on('error', reject); });
         }
         send('listen', { on: true, peer: peer.id });
-        // Sound needs a direct line between the two networks. Some networks refuse it.
-        setTimeout(() => { if (listening && $('listen').textContent === 'CALLING') { $('listen').textContent = 'NO SOUND LINK'; } }, 12000);
+        fallbackTimer = setTimeout(() => { if (listening && !direct) startPlayAlong(); }, 9000);
     } catch (e) {
-        $('listen').textContent = 'NO SOUND LINK';
+        if (listening) startPlayAlong();
     }
 };
 

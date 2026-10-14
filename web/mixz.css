@@ -803,3 +803,34 @@ body.lib-open .bottom-row > .library, body.lib-open .bottom-row > .playlists-sid
 body.lib-open .library-resize-handle { display: none; }
 body.lib-open .library { max-height: none; }
 @media (max-height: 860px) { body.lib-open .bottom-row { top: 50px; } }
+
+/* ── TEST: what to try this round, and feedback, in the app ── */
+.btn-test { color: var(--mz-sync); border-color: rgba(199, 125, 255, 0.4); }
+.btn-test.has-bad { color: var(--mz-b); border-color: rgba(var(--mz-b-rgb), 0.5); }
+.test-panel {
+    position: fixed; top: 64px; right: 16px; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 80px); z-index: 120;
+    display: flex; flex-direction: column; background: var(--mz-panel); border: 1px solid rgba(199, 125, 255, 0.35); border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7); overflow: hidden;
+}
+.test-panel.hidden { display: none; }
+.test-head { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--mz-line); background: #0b0c12; }
+.test-head > div { flex: 1; }
+.test-title { font-family: var(--font-display); font-weight: 800; font-size: 1rem; color: var(--mz-text); }
+.test-sub { color: var(--mz-muted); font-size: 0.8rem; margin-top: 3px; line-height: 1.4; }
+.test-list { overflow: auto; padding: 6px 16px; }
+.test-group { font-family: var(--font-display); font-size: 0.62rem; letter-spacing: 0.2em; color: var(--mz-sync); font-weight: 800; padding: 12px 0 4px; }
+.test-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 8px 0; border-top: 1px solid var(--mz-line); align-items: center; }
+.test-text { font-size: 0.86rem; line-height: 1.35; color: var(--mz-text); }
+.test-row.is-ok .test-text { color: var(--mz-muted); }
+.test-row.is-bad .test-text { color: var(--mz-b); }
+.test-marks { display: flex; gap: 6px; }
+.test-mark { height: 32px; min-width: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--mz-line-hi); background: var(--mz-inset); color: var(--mz-muted); font-family: var(--font-display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
+.test-mark.ok.on { background: var(--mz-play); color: #05060a; border-color: transparent; }
+.test-mark.bad.on { background: var(--mz-b); color: #05060a; border-color: transparent; }
+.test-note { grid-column: 1 / -1; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--mz-line); background: var(--mz-inset); color: var(--mz-text); font: inherit; font-size: 0.8rem; }
+.test-note::placeholder { color: var(--mz-dim); }
+.test-extra { margin: 8px 16px 0; min-height: 70px; padding: 10px; border-radius: 10px; border: 1px solid var(--mz-line); background: var(--mz-inset); color: var(--mz-text); font: inherit; font-size: 0.84rem; resize: vertical; }
+.test-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; }
+.test-send { color: var(--mz-sync); border-color: rgba(199, 125, 255, 0.5); }
+.test-say { padding: 0 16px 12px; color: var(--mz-muted); font-size: 0.8rem; min-height: 1.2em; }
+@media (max-width: 700px) { .test-panel { left: 8px; right: 8px; width: auto; top: 56px; } }

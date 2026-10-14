@@ -534,6 +534,16 @@ export class Setlist {
     // ====== SHARE LINK ======
 
     // "This was the mix today": one link with every song so far, in order. See MixPage.js.
+    // The link alone, for the phone and anything else that is not the clipboard.
+    mixLink() {
+        if (this.history.length === 0) return '';
+        let name = '';
+        try { name = localStorage.getItem('mixz-mix-name') || ''; } catch (e) { /* no storage */ }
+        let dj = '';
+        try { dj = localStorage.getItem('mixz-dj-name') || ''; } catch (e) { /* no storage */ }
+        return mixUrl(window.location.origin, buildMix(this.history, { name, dj }));
+    }
+
     shareMix() {
         if (this.history.length === 0) { this._showToast('Nothing to share yet. Play a track first.'); return null; }
         let name = '';

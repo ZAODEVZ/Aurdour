@@ -31,6 +31,7 @@ import { DragDrop } from './dj/DragDrop.js';
 import { CrashRecovery } from './dj/CrashRecovery.js';
 import { NowPlaying } from './dj/NowPlaying.js';
 import { LibrarySheet } from './dj/LibrarySheet.js';
+import { TestList } from './dj/TestList.js';
 import { WaveformCache } from './dj/WaveformCache.js';
 import { Playlists } from './dj/Playlists.js';
 import { PerfMonitor } from './dj/PerfMonitor.js';
@@ -91,6 +92,7 @@ class DJPlayer {
         this.remote = safeInit('RemoteHost', () => new RemoteHost(this));
         this.nowPlaying = safeInit('NowPlaying', () => new NowPlaying(this));
         this.librarySheet = safeInit('LibrarySheet', () => new LibrarySheet(this));
+        this.testList = safeInit('TestList', () => new TestList(this));
         this.install = safeInit('Install', () => new Install({ button: document.getElementById('install-btn'), sheet: document.getElementById('install-sheet') }));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));

@@ -22,6 +22,7 @@ export class StreamBroadcast {
         if (liveBtn) {
             liveBtn.addEventListener('click', () => {
                 this.isLive = !this.isLive;
+                this.liveSince = this.isLive ? Date.now() : 0;
                 liveBtn.classList.toggle('live', this.isLive);
                 liveBtn.textContent = this.isLive ? 'ON AIR' : 'GO LIVE';
                 this._broadcast({ type: 'live_status', isLive: this.isLive });
