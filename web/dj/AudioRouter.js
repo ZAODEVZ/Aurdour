@@ -559,6 +559,9 @@ export class AudioRouter {
     }
 
     setChannelVolume(deckId, level) {
+        // An FX fade is steering this deck's volume. A fader touch (or a fader that jitters)
+        // would cut its curve dead, so the value is kept and applied when the fade ends.
+        if (this._fxBusy?.[deckId]) { this._fxPending = this._fxPending || {}; (this._fxPending[deckId] = this._fxPending[deckId] || {}).volume = level; return; }
         let gain;
         if (this.faderCurve === 'logarithmic') {
             // Logarithmic curve: more natural feel, gradual at low end
@@ -579,6 +582,7 @@ export class AudioRouter {
     setFilter(deckId, position) {
         const ch = this.channels[deckId];
         if (!ch) return;
+        if (this._fxBusy?.[deckId]) { this._fxPending = this._fxPending || {}; (this._fxPending[deckId] = this._fxPending[deckId] || {}).filter = position; return; }
         const filter = ch.filter;
 
         if (position < 0.48) {

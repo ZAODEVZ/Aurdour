@@ -17,6 +17,13 @@ export const FX_FADES = [
 ];
 
 const MIN_SECONDS = 0.4;
+
+// Equal power fade from `start` to silence: cos(t * pi / 2), 64 points.
+export function fadeCurve(start, points = 64) {
+    const c = new Float32Array(points);
+    for (let i = 0; i < points; i++) c[i] = Math.max(0.0001, start * Math.cos((i / (points - 1)) * Math.PI / 2));
+    return c;
+}
 const MAX_SECONDS = 20;
 
 // How a pad plays out for a track at this tempo. A track with no BPM is treated as 120.
@@ -65,11 +72,15 @@ export class FxFade {
             loopWasActive: !!deck.loop?.active,
         };
         this.active[deckId] = run;
+        router._fxBusy = router._fxBusy || {};
+        router._fxBusy[deckId] = true;
 
-        // Volume: hold, then down to silence by the last beat.
+        // Volume: hold, then an equal power curve down to silence by the last beat. A straight
+        // line sounds like it drops out early; this one stays full longer and lands softly.
         gain.cancelScheduledValues(now);
-        gain.setValueAtTime(run.gain, now + plan.seconds * plan.fadeFrom);
-        gain.linearRampToValueAtTime(0.0001, end);
+        gain.setValueAtTime(run.gain, now);
+        const from = now + plan.seconds * plan.fadeFrom;
+        gain.setValueCurveAtTime(fadeCurve(run.gain), Math.max(from, now + 0.01), Math.max(0.05, end - Math.max(from, now + 0.01)));
 
         if (plan.filter) {
             const top = Math.min(ctx.sampleRate / 2 * 0.95, 22000);
@@ -98,10 +109,12 @@ export class FxFade {
     }
 
     // The fade ran to its end: stop the deck, then put its controls back for the next track.
+    // The deck stops while silent, and only then does the volume come back, so nothing pops.
     _finish(deckId) {
         const deck = this.dj.decks?.[deckId];
         try { deck?.pause(); } catch (e) { /* already stopped */ }
-        this._restore(deckId);
+        const run = this.active[deckId];
+        if (run) run.timers.push(setTimeout(() => this._restore(deckId), 120));
     }
 
     // Stopped part way: everything goes back and the deck keeps playing.
@@ -118,14 +131,23 @@ export class FxFade {
         const router = this.dj.audioRouter;
         const ch = router?.channels?.[deckId];
         const now = router.getAudioContext().currentTime;
+        if (router?._fxBusy) router._fxBusy[deckId] = false;
+        const pending = router?._fxPending?.[deckId] || {};
+        if (router?._fxPending) delete router._fxPending[deckId];
         if (ch) {
-            ch.channelGain.gain.cancelScheduledValues(now);
-            ch.channelGain.gain.setValueAtTime(run.gain, now);
+            // Back to where it was, over 60 ms so there is no click.
+            const g = ch.channelGain.gain;
+            g.cancelScheduledValues(now);
+            g.setValueAtTime(Math.max(0.0001, g.value), now);
+            g.linearRampToValueAtTime(run.gain, now + 0.06);
             ch.filter.frequency.cancelScheduledValues(now);
             ch.filter.type = run.filter.type;
             ch.filter.frequency.setValueAtTime(run.filter.frequency, now);
             ch.filter.Q.value = run.filter.q;
         }
+        // Anything the DJ moved while the fade ran is applied now.
+        if (pending.volume != null) setTimeout(() => router.setChannelVolume(deckId, pending.volume), 70);
+        if (pending.filter != null) router.setFilter(deckId, pending.filter);
         if (!deck) return;
         if (run.plan.type === 'loop' && deck.loop?.active && !run.loopWasActive) deck.toggleLoop();
         if (run.plan.type === 'spin') {
