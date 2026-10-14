@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "id": "jango-uu-stay-solid",
+    "title": "Stay Solid",
+    "artist": "Jango UU",
+    "duration": 235,
+    "genre": "Rage pop",
+    "bpm": null,
+    "key": null,
+    "description": "Stay Solid by Jango UU",
+    "tags": [],
+    "source": "add_music"
+  },
+  "audio_files": {
+    "mp3": "music/jango-uu/stay-solid.mp3"
+  },
+  "markers": [],
+  "social": {
+    "share_url": "",
+    "download_enabled": false,
+    "comments_enabled": false
+  }
+}

@@ -89,6 +89,416 @@
       "key": "F major",
       "duration": 116,
       "genre": "Tribe Bass"
+    },
+    {
+      "id": "jango-uu-aimh",
+      "dataFile": "data/jango-uu-aimh.json",
+      "title": "AIMH",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 162,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-all-my-opps-finna-fall-before-me",
+      "dataFile": "data/jango-uu-all-my-opps-finna-fall-before-me.json",
+      "title": "All My Opps Finna Fall Before Me",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 200,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-ashes-2-ashes",
+      "dataFile": "data/jango-uu-ashes-2-ashes.json",
+      "title": "Ashes 2 Ashes",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 272,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-before-i-blitz-in-the-wraith",
+      "dataFile": "data/jango-uu-before-i-blitz-in-the-wraith.json",
+      "title": "Before I Blitz / In the Wraith",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 191,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-bezos-feat-andrew-kelly",
+      "dataFile": "data/jango-uu-bezos-feat-andrew-kelly.json",
+      "title": "Bezos (feat. Andrew Kelly)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 213,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-cured-ailments",
+      "dataFile": "data/jango-uu-cured-ailments.json",
+      "title": "Cured Ailments (x JKim Beats)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 191,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-december-35th",
+      "dataFile": "data/jango-uu-december-35th.json",
+      "title": "December 35th (x Raavi)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 171,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-deep-within",
+      "dataFile": "data/jango-uu-deep-within.json",
+      "title": "Deep Within",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 193,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-demise",
+      "dataFile": "data/jango-uu-demise.json",
+      "title": "Demise",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 219,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-dont-appreciate-the-journey",
+      "dataFile": "data/jango-uu-dont-appreciate-the-journey.json",
+      "title": "Dont Appreciate the Journey (interlude, x Raavi)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 101,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-dual-wield",
+      "dataFile": "data/jango-uu-dual-wield.json",
+      "title": "Dual Wield",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 150,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-fuck-it-bet",
+      "dataFile": "data/jango-uu-fuck-it-bet.json",
+      "title": "Fuck It Bet",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 135,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-glpf",
+      "dataFile": "data/jango-uu-glpf.json",
+      "title": "GLPF",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 201,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-gucci-shit-remix",
+      "dataFile": "data/jango-uu-gucci-shit-remix.json",
+      "title": "Gucci Shit (remix)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 142,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-gucci-shit",
+      "dataFile": "data/jango-uu-gucci-shit.json",
+      "title": "Gucci Shit",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 141,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-iii",
+      "dataFile": "data/jango-uu-iii.json",
+      "title": "III",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 184,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-nbtss-rough-mix",
+      "dataFile": "data/jango-uu-nbtss-rough-mix.json",
+      "title": "NBTSS (rough mix)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 199,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-neil-feat-ultrasonic",
+      "dataFile": "data/jango-uu-neil-feat-ultrasonic.json",
+      "title": "Neil (feat. Ultrasonic)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 165,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-never-been-the-same-since",
+      "dataFile": "data/jango-uu-never-been-the-same-since.json",
+      "title": "Never Been the Same Since (x Raavi x Saph)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 199,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-on-god-rough",
+      "dataFile": "data/jango-uu-on-god-rough.json",
+      "title": "On God (rough)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 218,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-psychic",
+      "dataFile": "data/jango-uu-psychic.json",
+      "title": "Psychic",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 162,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-real-one",
+      "dataFile": "data/jango-uu-real-one.json",
+      "title": "Real One",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 235,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-real-playas",
+      "dataFile": "data/jango-uu-real-playas.json",
+      "title": "Real Playas",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 180,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-reset",
+      "dataFile": "data/jango-uu-reset.json",
+      "title": "Reset",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 134,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-rnr-single",
+      "dataFile": "data/jango-uu-rnr-single.json",
+      "title": "RNR (single mix)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 181,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-rnr",
+      "dataFile": "data/jango-uu-rnr.json",
+      "title": "RNR",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 184,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-same-pace",
+      "dataFile": "data/jango-uu-same-pace.json",
+      "title": "Same Pace",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 146,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-secrets",
+      "dataFile": "data/jango-uu-secrets.json",
+      "title": "Secrets",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 170,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-shatterpoint",
+      "dataFile": "data/jango-uu-shatterpoint.json",
+      "title": "Shatterpoint",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 151,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-south-of-the-city-2023-reimagined",
+      "dataFile": "data/jango-uu-south-of-the-city-2023-reimagined.json",
+      "title": "South of the City 2023 (reimagined)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 220,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-south-of-the-city-2023",
+      "dataFile": "data/jango-uu-south-of-the-city-2023.json",
+      "title": "South of the City 2023",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 220,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-south-of-the-city",
+      "dataFile": "data/jango-uu-south-of-the-city.json",
+      "title": "South of the City",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 222,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-stay-solid",
+      "dataFile": "data/jango-uu-stay-solid.json",
+      "title": "Stay Solid",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 235,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-stone-cold",
+      "dataFile": "data/jango-uu-stone-cold.json",
+      "title": "Stone Cold",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 183,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-sunrider",
+      "dataFile": "data/jango-uu-sunrider.json",
+      "title": "Sunrider",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 161,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-talkin-fly",
+      "dataFile": "data/jango-uu-talkin-fly.json",
+      "title": "Talkin Fly",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 146,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-the-damn-principle",
+      "dataFile": "data/jango-uu-the-damn-principle.json",
+      "title": "The Damn Principle",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 141,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-the-muse-that-keeps-on-giving",
+      "dataFile": "data/jango-uu-the-muse-that-keeps-on-giving.json",
+      "title": "The Muse That Keeps on Giving (x Raavi)",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 157,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-want-it-like-me",
+      "dataFile": "data/jango-uu-want-it-like-me.json",
+      "title": "Want It Like Me",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 150,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-when-im-high",
+      "dataFile": "data/jango-uu-when-im-high.json",
+      "title": "When Im High",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 156,
+      "genre": "Rage pop"
+    },
+    {
+      "id": "jango-uu-wide-awake",
+      "dataFile": "data/jango-uu-wide-awake.json",
+      "title": "Wide Awake",
+      "artist": "Jango UU",
+      "bpm": null,
+      "key": null,
+      "duration": 180,
+      "genre": "Rage pop"
     }
   ]
 }

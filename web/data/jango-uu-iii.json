@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "id": "jango-uu-iii",
+    "title": "III",
+    "artist": "Jango UU",
+    "duration": 184,
+    "genre": "Synth rock",
+    "bpm": null,
+    "key": null,
+    "description": "III by Jango UU",
+    "tags": [],
+    "source": "add_music"
+  },
+  "audio_files": {
+    "mp3": "music/jango-uu/iii.mp3"
+  },
+  "markers": [],
+  "social": {
+    "share_url": "",
+    "download_enabled": false,
+    "comments_enabled": false
+  }
+}

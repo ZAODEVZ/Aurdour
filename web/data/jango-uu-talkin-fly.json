@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "id": "jango-uu-talkin-fly",
+    "title": "Talkin Fly",
+    "artist": "Jango UU",
+    "duration": 146,
+    "genre": "Rage pop",
+    "bpm": null,
+    "key": null,
+    "description": "Talkin Fly by Jango UU",
+    "tags": [],
+    "source": "add_music"
+  },
+  "audio_files": {
+    "mp3": "music/jango-uu/talkin-fly.mp3"
+  },
+  "markers": [],
+  "social": {
+    "share_url": "",
+    "download_enabled": false,
+    "comments_enabled": false
+  }
+}
