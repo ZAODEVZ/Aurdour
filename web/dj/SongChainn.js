@@ -5,8 +5,8 @@
 // Note: the audio sits on Cloudflare R2. The DJ decks decode audio in the browser, so those
 // buckets must allow cross-origin reads (a CORS rule allowing GET), or a track will not load.
 
-const ENDPOINT = 'https://wsjhbfmzbonxmxaaassu.supabase.co/rest/v1/songchainn_public_songs';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzamhiZm16Ym9ueG14YWFhc3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyMTAyNDgsImV4cCI6MjA4Mjc4NjI0OH0.AlniOnpK7BGYaYBIJvuGj4FrDdX-0OZfV8LYUNzq-fs';
+export const ENDPOINT = 'https://wsjhbfmzbonxmxaaassu.supabase.co/rest/v1/songchainn_public_songs';
+export const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzamhiZm16Ym9ueG14YWFhc3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyMTAyNDgsImV4cCI6MjA4Mjc4NjI0OH0.AlniOnpK7BGYaYBIJvuGj4FrDdX-0OZfV8LYUNzq-fs';
 
 export class SongChainn {
     constructor() {

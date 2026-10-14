@@ -29,6 +29,8 @@ import { BpmDetector } from './dj/BpmDetector.js';
 import { JogWheel } from './dj/JogWheel.js';
 import { DragDrop } from './dj/DragDrop.js';
 import { CrashRecovery } from './dj/CrashRecovery.js';
+import { NowPlaying } from './dj/NowPlaying.js';
+import { LibrarySheet } from './dj/LibrarySheet.js';
 import { WaveformCache } from './dj/WaveformCache.js';
 import { Playlists } from './dj/Playlists.js';
 import { PerfMonitor } from './dj/PerfMonitor.js';
@@ -87,6 +89,8 @@ class DJPlayer {
         this.proLayout = safeInit('ProLayout', () => new ProLayout());
         this.moves = safeInit('Moves', () => new Moves(this));
         this.remote = safeInit('RemoteHost', () => new RemoteHost(this));
+        this.nowPlaying = safeInit('NowPlaying', () => new NowPlaying(this));
+        this.librarySheet = safeInit('LibrarySheet', () => new LibrarySheet(this));
         this.install = safeInit('Install', () => new Install({ button: document.getElementById('install-btn'), sheet: document.getElementById('install-sheet') }));
         this.harmonic = safeInit('HarmonicMixer', () => new HarmonicMixer());
         this.autoTransition = safeInit('AutoTransition', () => new AutoTransition(this.audioRouter, this.mixer, this.decks));
@@ -1433,7 +1437,8 @@ class DJPlayer {
 
         // Log to setlist with full metadata
         if (this.setlist) {
-            this.setlist.logPlay(trackName, '', bpm, key, deckId);
+            const known = (this.library?.tracks || []).find(t => t.dataFile === dataFile);
+            this.setlist.logPlay(known?.title || trackName, known?.artist || '', bpm, key, deckId, { source: 'local', id: dataFile, artwork: known?.artwork || null });
         }
 
         // Log to recorder cue sheet
@@ -1463,7 +1468,8 @@ class DJPlayer {
                 meta.artist || '',
                 meta.bpm || null,
                 meta.key || null,
-                deckId
+                deckId,
+                { source: meta.source || 'direct', id: meta.id ?? null, artwork: meta.artwork || null, streamUrl }
             );
         }
 

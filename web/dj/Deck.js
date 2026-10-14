@@ -1,4 +1,5 @@
 // Deck.js — Single deck: WaveSurfer instance, hot cues, loops, transport, stems
+import { cleanTitle } from './NowPlaying.js';
 
 export class Deck {
     constructor(id, waveformId, overviewId, options = {}) {
@@ -521,7 +522,7 @@ export class Deck {
         const bpmEl = document.getElementById(`${prefix}-bpm`);
         const keyEl = document.getElementById(`${prefix}-key`);
 
-        if (titleEl) titleEl.textContent = m.title || 'Unknown';
+        if (titleEl) titleEl.textContent = cleanTitle(m.title, m.artist);
         if (artistEl) artistEl.textContent = m.artist || '';
         if (bpmEl) bpmEl.textContent = m.bpm ? `${m.bpm} BPM` : '--- BPM';
         if (keyEl) keyEl.textContent = m.key || '--';

@@ -1,6 +1,8 @@
 // Setlist.js — Track queue manager, play history, export, share, and session stats
 // Supports export to TXT, JSON, M3U, CSV, PNG image, clipboard, and shareable URL
 
+import { buildMix, mixUrl } from './MixPage.js';
+
 export class Setlist {
     constructor(library, loadTrackCallback) {
         this.queue = []; // { id, title, artist, dataFile }
@@ -21,6 +23,7 @@ export class Setlist {
         const exportBtn = document.getElementById('setlist-export');
         const clearBtn = document.getElementById('setlist-clear');
         const copyBtn = document.getElementById('setlist-copy');
+        document.getElementById('share-mix-btn')?.addEventListener('click', () => this.shareMix());
         const exportDropdown = document.getElementById('setlist-export-dropdown');
 
         if (exportBtn) {
@@ -113,7 +116,7 @@ export class Setlist {
      * Log a track play to session history with full metadata.
      * Called from player.js whenever a track is loaded to a deck.
      */
-    logPlay(title, artist, bpm, key, deck) {
+    logPlay(title, artist, bpm, key, deck, extra = {}) {
         if (!this.sessionStart) {
             this.sessionStart = Date.now();
         }
@@ -140,6 +143,10 @@ export class Setlist {
             timestamp: new Date(now).toISOString(),
             startTime: now,
             durationPlayed: null, // filled when next track loads on same deck
+            src: extra.source || 'local',   // where it came from, so the mix page can find it again
+            sid: extra.id ?? null,
+            art: extra.artwork || null,
+            url: extra.streamUrl || null,
         };
 
         this.history.push(entry);
@@ -525,6 +532,23 @@ export class Setlist {
     }
 
     // ====== SHARE LINK ======
+
+    // "This was the mix today": one link with every song so far, in order. See MixPage.js.
+    shareMix() {
+        if (this.history.length === 0) { this._showToast('Nothing to share yet. Play a track first.'); return null; }
+        let name = '';
+        try { name = localStorage.getItem('mixz-mix-name') || ''; } catch (e) { /* no storage */ }
+        let dj = '';
+        try { dj = localStorage.getItem('mixz-dj-name') || ''; } catch (e) { /* no storage */ }
+        const url = mixUrl(window.location.origin, buildMix(this.history, { name, dj }));
+        try {
+            const mixes = JSON.parse(localStorage.getItem('mixz-mixes') || '[]');
+            mixes.unshift({ at: Date.now(), n: this.history.length, url });
+            localStorage.setItem('mixz-mixes', JSON.stringify(mixes.slice(0, 30)));
+        } catch (e) { /* no storage */ }
+        navigator.clipboard?.writeText(url).then(() => this._showToast(`Mix link copied: ${this.history.length} ${this.history.length === 1 ? 'song' : 'songs'} so far. Paste it anywhere.`)).catch(() => prompt('Link to this mix:', url));
+        return url;
+    }
 
     _generateShareLink() {
         if (this.history.length === 0) {

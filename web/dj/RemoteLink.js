@@ -12,6 +12,8 @@
 // This file is shared by the desktop (RemoteHost below) and the phone page (remote.js).
 // The top half is pure and runs under node: see RemoteLink.test.mjs.
 
+import { cleanTitle } from './NowPlaying.js';
+
 export const STATE_HZ = 5;
 export const NEXT_MODES = ['smooth', 'up', 'down', 'key', 'mood', 'genre', 'double', 'wild'];
 
@@ -72,7 +74,7 @@ export function snapshot(dj) {
         const m = d?.metadata?.metadata || {};
         return {
             loaded: !!d?.isLoaded, playing: !!d?.isPlaying,
-            title: String(m.title || '').slice(0, 80), artist: String(m.artist || '').slice(0, 60),
+            title: cleanTitle(m.title, m.artist).slice(0, 80), artist: String(m.artist || '').slice(0, 60),
             bpm: d?.getBPM?.() || null, rate: d?.currentRate || 1,
             time: Math.round((d?.getCurrentTime?.() || 0) * 10) / 10, dur: Math.round(d?.getDuration?.() || 0),
             cues: (d?.hotCues || []).map(c => !!c), loop: !!d?.loop?.active,
