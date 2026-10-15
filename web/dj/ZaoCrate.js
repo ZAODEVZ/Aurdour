@@ -34,12 +34,40 @@ export const SHEET = [
 
 const squash = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// Kept out of the crate on Zaal's word (15 Oct 2026). NDA put his Vol 1 and 2 out on other
+// services too, and a YouTube copyright claim blocked a stream over "Still", so NDA's and
+// 7ROO7H's Vol 1 and 2 stay off air, wherever the copy comes from. Keys as songKey makes them:
+// artist and song name with spaces and punctuation removed.
+export const OFF_AIR = [
+    // NDA Vol 1
+    ['nda', 'shadowwork'], ['nda', 'ancestralfrequency'], ['nda', 'copperblood'], ['nda', 'serpentfrequency'],
+    ['nda', 'theawakening'], ['nda', 'therebirthcode'], ['nda', 'venomvirtue'],
+    // NDA Vol 2
+    ['nda', 'calm'], ['nda', 'cantmatch'], ['nda', 'comehome'], ['nda', 'fuego'], ['nda', 'money'],
+    ['nda', 'preach'], ['nda', 'still'],
+    // 7ROO7H Vol 1
+    ['7roo7h', 'evesdaughter'], ['7roo7h', 'evesdaughteraltmix'], ['7roo7h', 'ounce'], ['7roo7h', 'me'],
+    ['7roo7h', 'alreadylost'], ['7roo7h', '7'], ['7roo7h', 'godssin'],
+    // 7ROO7H Vol 2
+    ['7roo7h', 'superbased'], ['7roo7h', 'discord'], ['7roo7h', 'drunk'], ['7roo7h', 'itry'],
+    ['7roo7h', 'incompatible'], ['7roo7h', 'neveragain'], ['7roo7h', 'onchain'],
+].map(([a, t]) => a + '|' + t);
+
 // Returns the track with the sheet's tempo and key when its title is on the sheet.
 export function applySheet(track) {
     const t = squash(track.title);
     const row = SHEET.find(([name]) => t.includes(name));
     if (!row) return track;
     return { ...track, bpm: row[1], key: row[2], fromSheet: true };
+}
+
+// One key per song: artist and song name, squashed. An "Artist - Song" title (a song posted from
+// another account) counts as that artist's song.
+export function songKey(t) {
+    const parts = String(t.title || '').split(' - ');
+    const artist = parts.length > 1 ? parts[0] : t.artist;
+    const title = parts.length > 1 ? parts.slice(1).join(' - ') : t.title;
+    return squash(artist) + '|' + squash(title).replace(/tagged$/, '');
 }
 
 export class ZaoCrate {
@@ -98,18 +126,14 @@ export class ZaoCrate {
             console.warn('[ZaoCrate] could not load SongChainn:', e.message);
         }
         // The same song can be on Audius and on SongChainn, sometimes titled "Artist - Song" and
-        // posted from another account. One copy stays: same artist and same song name.
-        const songKey = (t) => {
-            const parts = String(t.title || '').split(' - ');
-            const artist = parts.length > 1 ? parts[0] : t.artist;
-            const title = parts.length > 1 ? parts.slice(1).join(' - ') : t.title;
-            return squash(artist) + '|' + squash(title).replace(/tagged$/, '');
-        };
+        // posted from another account. One copy stays: same artist and same song name. A song on
+        // OFF_AIR never gets in.
+        const offAir = new Set(OFF_AIR);
         const seen = new Set();
         const songs = new Set();
         const next = all.filter((t) => {
             const k = songKey(t);
-            if (seen.has(t.id) || songs.has(k)) return false;
+            if (seen.has(t.id) || songs.has(k) || offAir.has(k)) return false;
             seen.add(t.id); songs.add(k);
             return true;
         }).map(applySheet);
