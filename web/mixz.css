@@ -803,3 +803,30 @@ body.lib-open .bottom-row > .library, body.lib-open .bottom-row > .playlists-sid
 body.lib-open .library-resize-handle { display: none; }
 body.lib-open .library { max-height: none; }
 @media (max-height: 860px) { body.lib-open .bottom-row { top: 50px; } }
+
+/* ── SIMPLE / PRO switch ────────────────────────────────────── */
+/* One control, always in the same place beside the name, showing both views and which is on.
+   It was a dim PRO button that scrolled off the end of the PRO toolbar. */
+.top-bar .logo { order: -2; flex: 0 0 auto; }
+.top-bar .toolbar-group:has(#pro-mode-toggle) { order: -1; flex: 0 0 auto; position: sticky; left: 0; z-index: 2; }
+#pro-mode-toggle {
+    height: 34px; padding: 3px; gap: 0;
+    display: inline-flex; align-items: stretch;
+    border-radius: 9px; border: 1px solid var(--mz-line-hi);
+    background: var(--mz-inset);
+    font-family: var(--font-display); font-weight: 800; font-size: 0.68rem; letter-spacing: 0.12em;
+    opacity: 1;
+}
+#pro-mode-toggle svg { display: none; }
+#pro-mode-toggle::before, #pro-mode-toggle .pro-btn-label {
+    display: grid; place-items: center; padding: 0 13px; border-radius: 6px;
+    color: var(--mz-muted); transition: background 0.15s, color 0.15s;
+}
+#pro-mode-toggle::before { content: "SIMPLE"; }
+body:not(.pro-mode) #pro-mode-toggle::before { color: #05060a; background: linear-gradient(180deg, #6fe8ff, var(--mz-a)); }
+body.pro-mode #pro-mode-toggle .pro-btn-label { color: #05060a; background: linear-gradient(180deg, #ffd874, var(--mz-cue)); }
+#pro-mode-toggle:hover { border-color: rgba(255, 255, 255, 0.3); }
+#pro-mode-toggle:focus-visible { outline: 2px solid var(--mz-a); outline-offset: 2px; }
+body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
+
+
