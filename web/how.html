@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How ZAO MixZ works</title>
+<meta name="description" content="Every part of ZAO MixZ in one page. Copy it into any AI to learn how to use it.">
+<style>
+  :root { --bg: #0d0f14; --panel: #161a22; --text: #e8eaf0; --muted: #9aa3b5; --accent: #ffb020; --line: #262c38; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; letter-spacing: 0.02em; }
+  header a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  button { background: var(--accent); color: #111; border: 0; border-radius: 6px; padding: 9px 16px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  button.done { background: #3ddc84; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  .tip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .tip a { color: var(--accent); }
+  #doc h2 { color: var(--accent); font-size: 17px; margin: 28px 0 8px; }
+  #doc p, #doc li { color: var(--text); }
+  #doc ul, #doc ol { padding-left: 22px; }
+  #doc a { color: var(--accent); }
+  #doc strong { color: #fff; }
+  #raw { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>How ZAO MixZ works</h1>
+  <a href="./">Back to the decks</a>
+  <button id="copy">COPY ALL</button>
+</header>
+<main>
+  <div class="tip">Paste this whole page into any AI (ChatGPT, Claude, Gemini) and ask it how to do something in MixZ. The same text is at <a href="llms.txt">zaomixz.vercel.app/llms.txt</a> for AIs that can read links.</div>
+  <div id="doc">Loading…</div>
+  <textarea id="raw" aria-hidden="true"></textarea>
+</main>
+<script>
+  // Shows llms.txt as a page. Only the bits of Markdown it uses: headings, lists, bold, links.
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1">$1</a>');
+  function render(md) {
+    const out = []; let list = null;
+    const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+    for (const line of md.split(/\r?\n/)) {
+      let m;
+      if ((m = line.match(/^#\s+(.*)/))) { close(); continue; } // the page header already says it
+      if ((m = line.match(/^##\s+(.*)/))) { close(); out.push(`<h2>${inline(m[1])}</h2>`); continue; }
+      if ((m = line.match(/^-\s+(.*)/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+      if ((m = line.match(/^\d+\.\s+(.*)/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+      close();
+      if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+    }
+    close();
+    return out.join('\n');
+  }
+  let text = '';
+  fetch('llms.txt').then((r) => r.text()).then((t) => { text = t; document.getElementById('doc').innerHTML = render(t); document.getElementById('raw').value = t; })
+    .catch(() => { document.getElementById('doc').textContent = 'Could not load the guide. Open llms.txt instead.'; });
+  document.getElementById('copy').addEventListener('click', async () => {
+    const btn = document.getElementById('copy');
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) { const raw = document.getElementById('raw'); raw.style.display = 'block'; raw.select(); document.execCommand('copy'); raw.style.display = 'none'; }
+    btn.textContent = 'COPIED'; btn.classList.add('done');
+    setTimeout(() => { btn.textContent = 'COPY ALL'; btn.classList.remove('done'); }, 2000);
+  });
+</script>
+</body>
+</html>

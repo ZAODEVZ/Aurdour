@@ -1,0 +1,122 @@
+# ZAO MixZ
+
+ZAO MixZ is a DJ app that runs in a web browser: https://zaomixz.vercel.app
+It is made by The ZAO, a community of independent musicians. It plays music from ZAO artists (from SongChainn and Audius) and from WaveWarZ music battles, lets anyone mix it like a DJ, and can play a whole set by itself. Nothing to install, no account needed. It works on a laptop, a tablet and a phone, and with a Pioneer DDJ-SB3 controller.
+
+This page explains every part of the app, so you (or an AI you paste it into) can understand how to use it. Paste this whole page into any AI and ask it questions like "how do I mix two songs" or "how do I run a set from my phone".
+
+## The idea in one paragraph
+
+There are two turntables on screen, called deck A (left) and deck B (right). You load a song on each. While one plays to the room, you get the next one ready on the other, then slide the crossfader from one side to the other so the music never stops. That is DJing. If you would rather not do it yourself, press DJ MIXZ and the built-in auto DJ plays a whole set, mixing song to song like a person would. You can take over from it at any time and hand it back.
+
+## Every song carries the artist's OK
+
+Every song the decks play has a licence: who the artist is, and what they allow (streaming, DJ mixing, radio). Songs without one are refused, and the deck shows NOT LICENSED for a few seconds. Songs from Audius and SongChainn play under those platforms' terms. A file you drop in from your own computer always plays, because it is yours.
+
+## The top bar
+
+- **ZAO MixZ** (the name): the app.
+- **SIMPLE | PRO**: one switch. SIMPLE shows only what you need to play music. PRO shows every DJ tool. Start with SIMPLE.
+- **DJ MIXZ**: opens the auto DJ (see "DJ MixZ" below).
+- **AUTO MIX**: the older auto mix. It picks the next song and mixes it in when the current one ends.
+- **LIBRARY**: opens the music library over the decks, full screen. Close it to see the decks again.
+- **PHONE**: shows a QR code. Scan it with your phone and the phone becomes a remote: run the set, move the crossfader, listen along, from anywhere.
+- **TRY A MOVE**: shows one small DJ move to try, with a light when you get it right. Ten moves, one at a time.
+- **TEST**: a checklist of what to test this round, with a way to send what you found.
+- **INSTALL**: puts MixZ on your home screen or desktop like an app.
+- **TRAVEL**: a big-button view for tablets.
+- **?**: keyboard shortcuts.
+- The number (like 80): the master volume.
+
+## A deck (A on the left, B on the right)
+
+- **The platter** (the big circle): the spinning record. Drag it to scratch or nudge the song.
+- **Title and artist**: what is loaded. The cover art shows on the deck's label.
+- **Waveform**: the shape of the song. Click anywhere on it to jump there.
+- **LOAD**: load a song file from your computer.
+- **Play** (the triangle): start or pause.
+- **CUE**: sets a starting point. Tap it while stopped to mark the spot; hold it to listen from there.
+- **SYNC**: matches this deck's speed to the other deck, so the beats line up.
+- **< and >**: nudge the song a little behind or ahead, to line up beats by hand.
+- **BPM and key**: the song's speed (beats per minute) and musical key. Songs close in speed and key mix best.
+
+In PRO view a deck also has:
+- **TEMPO** slider and **+-8%**: speed the song up or down, and how far the slider goes.
+- **KEY** (key lock): keep the key the same when you change the speed.
+- **SLIP**: scratch or loop, and the song carries on underneath as if you had not.
+- **BEAT GRID / GRID**: the beat markers on the waveform.
+- **LOOPS**: IN and OUT set a loop by hand; 1/2, x2 halve or double it; 1, 2, 4, 8, 16 loop that many beats.
+- **HOT CUES**: 8 pads, each remembers a spot in the song. Tap an empty pad to save the spot, tap it again to jump there.
+- **FX**: effects such as echo, with two knobs and a dry/wet amount. STOP! turns them off.
+- **KEY - and +**: move the song's key down or up.
+- **STEMS**: a rough split of the song by frequency (bass, mids where voices sit, highs) so you can turn a part down. It is not true vocal or drum separation.
+
+## The mixer (between the decks)
+
+- **Volume faders**: one per deck, how loud each deck is.
+- **Crossfader**: the slider at the bottom. Left plays deck A, right plays deck B, the middle plays both. Sliding it is how you mix from one song to the next.
+- **EQ knobs (HIGH, MID, LOW)** in PRO: treble, middle and bass for each deck. A common move is to turn down the bass of the incoming song, then swap the bass over.
+- **K**: kills that band completely.
+- **PFL / HEADPHONES** in PRO: listen to a deck in your headphones before the room hears it (needs a second audio output).
+- **FADER TOOLS** in PRO: how the crossfader curve behaves, a limiter to stop distortion, and automatic gain.
+
+## The switch pad (under the decks)
+
+Eight buttons that each load a good next song on the deck that is not playing:
+1 SAME VIBE (closest speed and key), 2 ENERGY UP (a bit faster), 3 COOL DOWN (a bit slower), 4 KEY LIFT (a new key that still fits), 5 MOOD FLIP (minor to major or back), 6 NEW GENRE (different style, same pace), 7 HALF / 2X (half or double time), 8 SURPRISE.
+On the DDJ-SB3 the same eight are the pads in Pad Scratch mode.
+
+## The library
+
+Tabs across the top:
+- **LOCAL**: songs that come with the app.
+- **RECENT**: what you played lately. **LIKED**: songs you hearted. **PLAYLISTS**: your own playlists.
+- **AUDIUS**: search all of Audius, the open music platform.
+- **ZAO**: the ZAO crate. Songs from ZAO artists on SongChainn and Audius. New uploads appear by themselves.
+- **BATTLES**: every song from the latest night of WaveWarZ quick battles, with who won. The picker beside it goes back to earlier battle nights.
+- **SOUNDCLOUD, SPOTIFY**: search only. Their songs do not play on the decks (no licence).
+
+On each song: **A** or **B** loads it on that deck, **+** adds it to the queue, the heart likes it, the list icon saves it to a playlist. The search box filters what the tab shows.
+
+## DJ MixZ, the auto DJ
+
+Press DJ MIXZ in the top bar.
+1. Pick where the songs come from: SongChainn (every artist or one artist), the ZAO crate, last night's WaveWarZ battle songs, or whatever the library is showing.
+2. Pick a mood: WARM UP, PEAK TIME, JOURNEY (build to a peak, then come down), SUNSET, or PARTY (waves).
+3. Pick how long: 15 minutes to 4 hours, or endless.
+4. Press start. It plans the set, then mixes each song into the next: blends, quick cuts and echo outs, chosen to fit the songs.
+
+- **MIX SONGCHAINN NOW**: one press, a whole set from SongChainn.
+- **Auto play if silent for 5 seconds**: if nothing is playing for 5 seconds, DJ MixZ starts by itself, so the stream never goes quiet.
+- **Take over**: touch the decks (or move the crossfader on a controller) and you are the DJ. DJ MixZ waits. Press HAND BACK and it carries on from what you left playing.
+- **Back to back**: you and DJ MixZ take turns, a set number of songs each.
+- **AI vs live**: back to back as a contest. After each round the room votes who mixed it better.
+
+## Your phone as a remote (PHONE)
+
+Scan the QR code. Choose **I AM THE DJ** to control the set (the computer asks you to allow the phone once), or **JUST WATCHING** to only listen and see what is playing. From the phone you can run DJ MixZ, move the crossfader, skip, go endless, and listen along. If the computer is off, **MIX ON THIS PHONE** plays a set on the phone itself.
+
+## Sharing a set
+
+- **NOW PLAYING** strip: the song on air, with OPEN THE SONG (go to it on Audius or SongChainn) and SHARE THE MIX (a link to everything played so far, so anyone can play the mix again).
+- **EXPORT SET** in the set list: the set as text, a playlist file, a picture or a link.
+
+## Going live and recording (PRO, top bar menus)
+
+- **RECORD**: record the mix to a file.
+- **GO LIVE / OBS / STREAM**: send the mix to a stream. For now this works through OBS: the OBS button gives an overlay link to add as a browser source. CHAT shows Twitch or YouTube chat inside the app.
+- **SHARE MIX**: same as on the NOW PLAYING strip.
+
+## Using a DDJ-SB3 controller
+
+Plug it in by USB and open MixZ in Chrome. The jog wheels, play, cue, sync, faders, crossfader, EQ, filter knobs and pads work. **LIGHTS ON** turns on the controller's button lights. **DECK AUDIO** sends sound through the controller's headphone output. Pad modes: HOT CUE (mark a spot, jump back to it), FX FADE (sends a playing song out: high pass, low pass, loop, spin down), PAD SCRATCH (the eight switch pad picks) and SAMPLER (eight sample slots). Hold SHIFT for more: SHIFT + HOT CUE jumps 1 to 8 beats back or forward, SHIFT + FX FADE is a loop roll, SHIFT + PAD SCRATCH is the slicer (the current 8 beats, one per pad, played like drums). Moving the crossfader or pressing CUE takes over from DJ MixZ.
+
+## Keyboard
+
+Press ? to see every shortcut. The main ones: Space plays or pauses (Shift + Space for deck B), Q plays deck A, and the left and right arrows move the crossfader.
+
+## Getting help
+
+- **TRY A MOVE**: learn one move at a time.
+- **GUIDE**: labels every part of the screen.
+- **TEST**: report what works and what does not.
