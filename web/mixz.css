@@ -884,3 +884,12 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 
 /* ZM: the ZAO Music community link in the top bar. */
 .btn-zm { color: #ffb020; border-color: rgba(255,176,32,0.6); }
+
+/* Ask before MIDI: the note shown before the browser's MIDI prompt (MidiAsk.js). */
+.midi-ask { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.midi-ask-card { max-width: 420px; background: #161a22; color: #e8eaf0; border: 1px solid #2a3140; border-radius: 10px; padding: 18px 20px; font-size: 14px; line-height: 1.5; }
+.midi-ask-title { font-weight: 700; font-size: 16px; margin-bottom: 8px; color: #ffb020; }
+.midi-ask-later { color: #9aa3b5; font-size: 13px; }
+.midi-ask-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.midi-ask-yes { border-color: #ffb020 !important; color: #ffb020 !important; }
+.midi-connect { border-color: rgba(255,176,32,0.6); color: #ffb020; }

@@ -1,4 +1,5 @@
 // MidiController.js — Web MIDI API support for hardware DJ controllers
+import { shouldAutoConnect, midiPermission, askToConnect, describeDevices, showFound } from './MidiAsk.js';
 // Built-in Pioneer DDJ Serato mappings + MIDI learn fallback
 
 // ── DEBUG HELPERS ───────────────────────────────────────────────
@@ -149,7 +150,27 @@ export class MidiController {
         this._outputs = [];
 
         this._initUI();
-        this._requestMIDI();
+        this._connectIfAllowed();
+    }
+
+    // No MIDI prompt on load. Reconnect quietly where the browser already said yes;
+    // everyone else connects from CONNECT CONTROLLER, after a short note (MidiAsk.js).
+    async _connectIfAllowed() {
+        this._updateStatus('Not connected');
+        const btn = document.getElementById('midi-connect');
+        if (btn) btn.addEventListener('click', () => this.connect());
+        if (shouldAutoConnect(await midiPermission())) this._requestMIDI();
+    }
+
+    // CONNECT CONTROLLER: explain first, then ask the browser.
+    async connect() {
+        if (!this.midiAccess) {
+            if (!(await askToConnect())) { this._updateStatus('Not connected'); return; }
+            await this._requestMIDI();
+            if (!this.midiAccess) return; // the browser said no
+        } else this._onMIDISuccess();
+        // Say what was found, and what to do with a controller MixZ has no map for
+        showFound(describeDevices(this.devices, (n) => PIONEER_DDJ.detect(n)));
     }
 
     async _requestMIDI() {
@@ -166,6 +187,7 @@ export class MidiController {
             _midiLog('info', 'MIDI access GRANTED');
             _midiLog('info', `Inputs: ${this.midiAccess.inputs.size}, Outputs: ${this.midiAccess.outputs.size}`);
             this._onMIDISuccess();
+            const cb = document.getElementById('midi-connect'); if (cb) { cb.textContent = 'CHECK CONTROLLERS'; cb.title = 'See what is connected, or look again after plugging one in'; }
             this.midiAccess.onstatechange = (e) => {
                 _midiLog('info', `MIDI state change: port="${e.port.name}" type=${e.port.type} state=${e.port.state} connection=${e.port.connection}`);
                 this._onMIDISuccess();
@@ -981,9 +1003,10 @@ export class MidiController {
                 span.className = 'midi-device';
                 span.textContent = d;
                 if (this.activeProfile === 'pioneer-ddj' && PIONEER_DDJ.detect(d)) {
-                    span.textContent += ' (Auto-mapped)';
+                    span.textContent += ' (ready)';
                     span.style.color = '#00ff88';
                 }
+                if (!(this.activeProfile === 'pioneer-ddj' && PIONEER_DDJ.detect(d))) span.textContent += ' (use LEARN)';
                 el.appendChild(span);
             });
         } else {
