@@ -50,3 +50,37 @@ export function askToConnect(doc = document) {
         box.querySelector('#midi-ask-yes').focus();
     });
 }
+
+// What the connect found, in words (Tom, 16 Oct: "will there be clear recognition of what
+// devices are found and connected?"). known(name) says whether MixZ has a built-in map.
+export function describeDevices(names = [], known = () => false) {
+    const devices = [...new Set(names.filter(Boolean))].map((name) => known(name)
+        ? { name, ready: true, line: `${name}: ready, every control is mapped.` }
+        : { name, ready: false, line: `${name}: found. MixZ has no built-in map for it yet, so use LEARN: press LEARN, pick what to control, then move the knob or pad.` });
+    if (!devices.length) {
+        return { devices, title: 'No controller found', lines: [
+            'Plug it in by USB, switch it on, then press CONNECT CONTROLLER again.',
+            'Most controllers (Pioneer, AKAI, Novation, Numark) need no driver on a computer.',
+            'If it still does not show, close other DJ or music apps that may be holding it, or try another USB port.',
+        ] };
+    }
+    return { devices, title: devices.length === 1 ? 'Found 1 controller' : `Found ${devices.length} controllers`, lines: devices.map((d) => d.line) };
+}
+
+// Shows the summary with an OK.
+export function showFound(summary, doc = document) {
+    doc.getElementById('midi-ask')?.remove();
+    const box = doc.createElement('div');
+    box.id = 'midi-ask';
+    box.className = 'midi-ask';
+    box.setAttribute('role', 'dialog');
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    box.innerHTML = `<div class="midi-ask-card">
+        <div class="midi-ask-title">${esc(summary.title)}</div>
+        ${summary.lines.map((l) => `<p>${esc(l)}</p>`).join('')}
+        <div class="midi-ask-row"><button class="btn-toolbar midi-ask-yes" id="midi-ask-ok">OK</button></div></div>`;
+    doc.body.appendChild(box);
+    const close = () => box.remove();
+    box.querySelector('#midi-ask-ok').addEventListener('click', close);
+    box.addEventListener('click', (e) => { if (e.target === box) close(); });
+}
