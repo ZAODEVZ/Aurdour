@@ -1,4 +1,5 @@
 // MidiController.js — Web MIDI API support for hardware DJ controllers
+import { shouldAutoConnect, midiPermission, askToConnect } from './MidiAsk.js';
 // Built-in Pioneer DDJ Serato mappings + MIDI learn fallback
 
 // ── DEBUG HELPERS ───────────────────────────────────────────────
@@ -149,7 +150,23 @@ export class MidiController {
         this._outputs = [];
 
         this._initUI();
-        this._requestMIDI();
+        this._connectIfAllowed();
+    }
+
+    // No MIDI prompt on load. Reconnect quietly where the browser already said yes;
+    // everyone else connects from CONNECT CONTROLLER, after a short note (MidiAsk.js).
+    async _connectIfAllowed() {
+        this._updateStatus('Not connected');
+        const btn = document.getElementById('midi-connect');
+        if (btn) btn.addEventListener('click', () => this.connect());
+        if (shouldAutoConnect(await midiPermission())) this._requestMIDI();
+    }
+
+    // CONNECT CONTROLLER: explain first, then ask the browser.
+    async connect() {
+        if (this.midiAccess) { this._onMIDISuccess(); return; }
+        if (!(await askToConnect())) { this._updateStatus('Not connected'); return; }
+        await this._requestMIDI();
     }
 
     async _requestMIDI() {
@@ -166,6 +183,7 @@ export class MidiController {
             _midiLog('info', 'MIDI access GRANTED');
             _midiLog('info', `Inputs: ${this.midiAccess.inputs.size}, Outputs: ${this.midiAccess.outputs.size}`);
             this._onMIDISuccess();
+            document.getElementById('midi-connect')?.classList.add('hidden');
             this.midiAccess.onstatechange = (e) => {
                 _midiLog('info', `MIDI state change: port="${e.port.name}" type=${e.port.type} state=${e.port.state} connection=${e.port.connection}`);
                 this._onMIDISuccess();
