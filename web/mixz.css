@@ -867,3 +867,6 @@ body.pro-mode #pro-mode-toggle .pro-btn-label { color: #05060a; background: line
 body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 
 
+
+/* A track refused for having no licence: the deck says so for a few seconds. */
+.licence-refused { color: #ff5a5a !important; font-weight: 700; letter-spacing: 0.04em; }

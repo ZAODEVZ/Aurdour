@@ -1431,8 +1431,11 @@ class DJPlayer {
         if (deckEl) deckEl.classList.add('loading');
 
         this.audioRouter.resume();
-        deck.loadTrack(dataFile);
+        deck.loadTrack(dataFile).then((ok) => { if (ok) this._logLocalLoad(deckId, deck, dataFile); });
+    }
 
+    // Logged only once the deck took the track: a refused (unlicensed) track is not in the set.
+    _logLocalLoad(deckId, deck, dataFile) {
         const trackName = dataFile.split('/').pop().replace('.json', '');
 
         // Extract metadata from deck (BPM/key may be populated later by auto-detect)
@@ -1463,7 +1466,7 @@ class DJPlayer {
         if (deckEl) deckEl.classList.add('loading');
 
         this.audioRouter.resume();
-        deck.loadDirect(streamUrl, meta);
+        if (deck.loadDirect(streamUrl, meta) === false) return;
 
         // Log to setlist with full metadata
         if (this.setlist) {

@@ -2,6 +2,8 @@
 // Auto-mixes tracks with smart suggestions, one-button play, clean overlay UI
 // Supports both local tracks (dataFile) and streaming tracks (streamUrl)
 
+import { canPlay } from './Licence.js';
+
 export class FlowMode {
     constructor(djPlayer) {
         this.dj = djPlayer;
@@ -62,13 +64,15 @@ export class FlowMode {
                 source: track.source || 'stream',
                 id: track.id || track.sourceId || null,
             };
-            deck.loadDirect(streamUrl, meta);
+            if (deck.loadDirect(streamUrl, meta) === false) return false;
             // The setlist (and so the mix link) must see what DJ MixZ and Flow play, not only hand loads.
             this.dj.setlist?.logPlay(meta.title, meta.artist, meta.bpm, meta.key, deck.id, { ...meta, streamUrl });
             this.dj.recorder?.logTrackChange?.(deck.id, meta.title, meta.artist);
             return true;
         } else if (track.dataFile) {
-            // Local track — use loadTrack
+            // Local track — use loadTrack. The manifest entry carries the licence, so an
+            // unlicensed track is skipped here rather than refused after the handover started.
+            if (!canPlay(track).ok) return false;
             deck.loadTrack(track.dataFile);
             this.dj.setlist?.logPlay(track.title || track.dataFile.split('/').pop().replace('.json', ''), track.artist || '', track.bpm || null, track.key || null, deck.id, { source: 'local', id: track.dataFile, artwork: track.artwork || null });
             this.dj.recorder?.logTrackChange?.(deck.id, track.title || 'Unknown', track.artist || '');
@@ -215,8 +219,15 @@ export class FlowMode {
         if (incoming.isPlaying) { try { incoming.pause(); } catch (e) { /* not fatal */ } }
         incoming.isLoaded = false;
 
-        // Load next track to idle deck (handles both local and streaming)
-        this._loadTrackToDeck(incoming, nextTrack);
+        // Load next track to idle deck (handles both local and streaming).
+        // A refused track (no licence) leaves the queue and the current song keeps playing.
+        if (this._loadTrackToDeck(incoming, nextTrack) === false) {
+            this.queue.shift();
+            this._transitioning = false;
+            this._autoFillQueue();
+            this._updateUI();
+            return;
+        }
 
         // Wait for deck to be ready, then start transition
         let retries = 0;
@@ -272,7 +283,8 @@ export class FlowMode {
             all.push(...lib.spotifyTracks);
         }
 
-        return all;
+        // Only tracks with a licence go into the auto DJ's pool (Zaal, 16 Oct 2026).
+        return all.filter((t) => canPlay(t).ok);
     }
 
     _suggestNext() {
