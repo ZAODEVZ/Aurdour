@@ -1,6 +1,7 @@
 // Deck.js — Single deck: WaveSurfer instance, hot cues, loops, transport, stems
 import { cleanTitle } from './NowPlaying.js';
 import { resolveAudio } from './MusicSource.js';
+import { canPlay, licenceLine } from './Licence.js';
 
 export class Deck {
     constructor(id, waveformId, overviewId, options = {}) {
@@ -159,7 +160,12 @@ export class Deck {
     async loadTrack(jsonPath) {
         try {
             const response = await fetch(jsonPath);
-            this.metadata = await response.json();
+            const json = await response.json();
+            // Hosted music plays only with a licence (Zaal, 16 Oct 2026).
+            const verdict = canPlay(json);
+            if (!verdict.ok) return this._refuse(json?.metadata, verdict.reason);
+            this.metadata = json;
+            this.licence = verdict.licence;
             const audioFile = resolveAudio(jsonPath, this.metadata.audio_files?.mp3);
             if (!audioFile) throw new Error('No MP3 file in metadata');
             this.metadata.audio_files.mp3 = audioFile;
@@ -167,14 +173,19 @@ export class Deck {
             this._resetState();
             this.wavesurfer.load(audioFile);
             this._updateDeckUI();
+            return true;
         } catch (error) {
             console.error(`Deck ${this.id}: Failed to load track:`, error);
+            return false;
         }
     }
 
     // Load a track directly from a URL + metadata object (e.g. from Audius)
     loadDirect(audioUrl, meta) {
+        const verdict = canPlay(meta);
+        if (!verdict.ok) return this._refuse(meta, verdict.reason);
         try {
+            this.licence = verdict.licence;
             this.metadata = {
                 metadata: {
                     title: meta.title || 'Unknown',
@@ -193,9 +204,29 @@ export class Deck {
             this._resetState();
             this.wavesurfer.load(audioUrl);
             this._updateDeckUI();
+            return true;
         } catch (error) {
             console.error(`Deck ${this.id}: Failed to load direct track:`, error);
+            return false;
         }
+    }
+
+    // A track without a licence never reaches the deck. Whatever was loaded stays loaded;
+    // the deck says why the new one was refused.
+    _refuse(meta, reason) {
+        console.warn(`Deck ${this.id}: refused:`, reason);
+        const prefix = `deck-${this.id.toLowerCase()}`;
+        document.getElementById(prefix)?.classList.remove('loading');
+        const el = document.getElementById(`${prefix}-licence`) || document.getElementById(`${prefix}-artist`);
+        if (el) {
+            const before = el.textContent;
+            el.textContent = 'NOT LICENSED';
+            el.title = reason;
+            el.classList.add('licence-refused');
+            setTimeout(() => { el.textContent = el.id.endsWith('-licence') ? licenceLine(this.licence) : before; el.classList.remove('licence-refused'); }, 4000);
+        }
+        this.onRefused?.(this, reason, meta);
+        return false;
     }
 
     _resetState() {
@@ -528,6 +559,7 @@ export class Deck {
         if (artistEl) artistEl.textContent = m.artist || '';
         if (bpmEl) bpmEl.textContent = m.bpm ? `${m.bpm} BPM` : '--- BPM';
         if (keyEl) keyEl.textContent = m.key || '--';
+        if (artistEl) artistEl.title = licenceLine(this.licence);
     }
 
     _updatePadUI(padIndex) {
