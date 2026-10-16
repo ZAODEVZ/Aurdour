@@ -76,6 +76,10 @@ export class Audius {
             playCount: raw.play_count || 0,
             source: 'audius',
             streamUrl: this.getStreamUrl(raw.id),
+            // The licence the artist set on Audius (often blank) and whose page it is on;
+            // Licence.js reads both.
+            audiusLicense: raw.license || null,
+            uploader: raw.user?.handle || null,
         };
     }
 }

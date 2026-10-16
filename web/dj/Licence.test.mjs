@@ -1,5 +1,5 @@
 // node web/dj/Licence.test.mjs
-import { cleanLicence, licenceOf, canPlay, licenceLine, SOURCE_LICENCES } from './Licence.js';
+import { cleanLicence, licenceOf, canPlay, licenceLine, SOURCE_LICENCES, SIGNED, signedFor, audiusCreativeCommons } from './Licence.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -35,6 +35,18 @@ check('platform licences do not allow commercial use', !canPlay({ title: 'a', so
 
 check('deck line names holder and uses', licenceLine(cleanLicence(grant)) === 'IMan Afrikah: stream, dj, radio');
 check('no licence, empty line', licenceLine(null) === '');
+
+const note = SIGNED['iman afrikah'].terms;
+check('IMan on SongChainn carries his note', licenceOf({ title: 'Song', artist: 'IMan Afrikah', source: 'songchainn' })?.terms === note);
+check('IMan on his own Audius page carries his note', licenceOf({ title: 'x', artist: 'IMan Afrikah', uploader: 'IManAfrikah', source: 'audius' })?.terms === note);
+check('IMan song on the WaveWarZ Africa page carries his note', licenceOf({ title: 'IMan Afrikah - 10 10', artist: 'WaveWarZ Africa', uploader: 'WaveWarzAfrica', source: 'audius' })?.terms === note);
+check('a collab with IMan carries his note', licenceOf({ title: 'N3M3SIS x IMan Afrikah - TAKE OVER', artist: 'WaveWarZ Africa', uploader: 'WaveWarzAfrica', source: 'audius' })?.terms === note);
+check('IMAN AFRIKAH ft SANTANA still counts', !!signedFor({ title: 't', artist: 'IMAN AFRIKAH ft SANTANA' }));
+check('another artist on the WaveWarZ Africa page does not get his note', licenceOf({ title: 'CHILL N3M by N3M3SIS', artist: 'WaveWarZ Africa', uploader: 'WaveWarzAfrica', source: 'audius' })?.terms === SOURCE_LICENCES.audius.terms);
+check('Audius Creative Commons is read', audiusCreativeCommons('Creative Commons Attribution')?.uses.commercial === true);
+check('Audius CC non-commercial is not commercial', audiusCreativeCommons('Creative Commons Attribution-NonCommercial')?.uses.commercial === false);
+check('All rights reserved is not CC', audiusCreativeCommons('All rights reserved') === null && audiusCreativeCommons(null) === null);
+check('an Audius CC track carries the CC terms', licenceOf({ title: 'a', artist: 'b', source: 'audius', audiusLicense: 'Creative Commons Attribution' })?.terms.includes('creativecommons'));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
