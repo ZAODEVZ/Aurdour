@@ -1,6 +1,10 @@
 {
   "buildCommand": "echo 'No build required'",
   "outputDirectory": "web",
+  "rewrites": [
+    { "source": "/feedback", "destination": "/feedback.html" },
+    { "source": "/how", "destination": "/how.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZAO MixZ Feedback</title>
+<meta name="description" content="Tell the ZAO MixZ team what works, what broke, and what you want next.">
+<style>
+  :root { --bg: #0d0f14; --panel: #161a22; --text: #e8eaf0; --muted: #9aa3b5; --accent: #ffb020; --line: #262c38; --ok: #3ddc84; --bad: #ff5a5a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  header a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  .label { font-size: 13px; color: var(--muted); margin: 18px 0 8px; display: block; }
+  .kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+  .kinds button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .kinds button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  textarea, input { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; }
+  textarea { min-height: 150px; resize: vertical; }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hp { position: absolute; left: -9999px; }
+  .send { margin-top: 20px; width: 100%; background: var(--accent); color: #111; border: 0; border-radius: 8px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .send:disabled { opacity: 0.6; cursor: default; }
+  .note { margin-top: 14px; font-size: 14px; color: var(--muted); min-height: 1.5em; }
+  .note.ok { color: var(--ok); } .note.bad { color: var(--bad); }
+  .fallback { display: none; margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  .fallback p { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+  .fallback .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fallback button, .fallback a { flex: 1; text-align: center; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; min-width: 140px; }
+  .playing { font-size: 13px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ZAO MixZ Feedback</h1>
+  <a href="./">Back to the decks</a>
+</header>
+<main>
+  <p class="lead">What worked, what broke, what you want next. Every message goes straight to the people building MixZ.</p>
+
+  <form id="form" novalidate>
+    <span class="label" id="kind-label">What is it about?</span>
+    <div class="kinds" role="group" aria-labelledby="kind-label">
+      <button type="button" aria-pressed="true">Bug</button>
+      <button type="button" aria-pressed="false">Idea</button>
+      <button type="button" aria-pressed="false">Love it</button>
+      <button type="button" aria-pressed="false">Song request</button>
+      <button type="button" aria-pressed="false">Other</button>
+    </div>
+
+    <label class="label" for="message">Tell us</label>
+    <textarea id="message" maxlength="2000" placeholder="What happened, or what you'd like. If something broke, say what you pressed just before." required></textarea>
+    <div class="playing" id="playing"></div>
+
+    <label class="label" for="contact">Your name or handle, if you want a reply (optional)</label>
+    <input id="contact" maxlength="120" placeholder="@yourname" autocomplete="nickname">
+
+    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+    <button class="send" id="send" type="submit">SEND FEEDBACK</button>
+    <div class="note" id="note" role="status"></div>
+
+    <div class="fallback" id="fallback">
+      <p>It didn't go through from here. Send it one of these ways instead:</p>
+      <div class="row">
+        <button type="button" id="copy">COPY IT</button>
+        <a id="issue" href="#" target="_blank" rel="noopener">OPEN AS GITHUB ISSUE</a>
+      </div>
+    </div>
+  </form>
+</main>
+<script>
+  const q = new URLSearchParams(location.search);
+  const nowPlaying = (q.get('now') || '').slice(0, 200);
+  if (nowPlaying) document.getElementById('playing').textContent = `Playing when you opened this: ${nowPlaying}`;
+  let kind = 'Bug';
+  document.querySelectorAll('.kinds button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.kinds button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true'); kind = b.textContent;
+  }));
+  const device = () => `${navigator.platform || ''} ${/Mobi/.test(navigator.userAgent) ? 'phone' : 'computer'}, ${innerWidth}x${innerHeight}`.trim();
+  const say = (t, cls = '') => { const n = document.getElementById('note'); n.textContent = t; n.className = `note ${cls}`; };
+  const text = () => [`ZAO MixZ feedback: ${kind}`, '', document.getElementById('message').value.trim(), '', document.getElementById('contact').value.trim() ? `From: ${document.getElementById('contact').value.trim()}` : '', nowPlaying ? `Playing: ${nowPlaying}` : '', `Device: ${device()}`].filter((l, i) => l || i < 4).join('\n');
+  const showFallback = () => {
+    const msg = document.getElementById('message').value.trim();
+    document.getElementById('issue').href = `https://github.com/bettercallzaal/ZAOMixZ/issues/new?labels=feedback&title=${encodeURIComponent(`${kind}: ${msg.split('\n')[0].slice(0, 70)}`)}&body=${encodeURIComponent(text())}`;
+    document.getElementById('fallback').style.display = 'block';
+  };
+  document.getElementById('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(text()); say('Copied. Paste it to the ZAO team on Telegram or anywhere they will see it.', 'ok'); }
+    catch (e) { say('Could not copy here. Use OPEN AS GITHUB ISSUE.', 'bad'); }
+  });
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = document.getElementById('message').value.trim();
+    if (message.length < 3) { say('Write a few words first.', 'bad'); document.getElementById('message').focus(); return; }
+    const btn = document.getElementById('send');
+    btn.disabled = true; say('Sending…');
+    try {
+      const res = await fetch('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind, message, contact: document.getElementById('contact').value.trim(), nowPlaying, device: device(), page: location.pathname, website: document.getElementById('website').value }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || res.status);
+      say('Sent. Thank you, the team will see it.', 'ok');
+      document.getElementById('message').value = '';
+      document.getElementById('fallback').style.display = 'none';
+    } catch (err) {
+      say('');
+      showFallback();
+    } finally { btn.disabled = false; }
+  });
+</script>
+</body>
+</html>
