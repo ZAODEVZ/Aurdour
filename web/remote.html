@@ -28,8 +28,9 @@
         .dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; }
         .dot.live { background: var(--play); box-shadow: 0 0 10px var(--play); }
         #status { flex: 1; font-size: .78rem; color: var(--muted); }
-        #listen { min-height: 36px; padding: 0 14px; font-size: .72rem; letter-spacing: .1em; color: var(--muted); }
-        #listen.on { color: var(--play); }
+        #listen { min-height: 40px; padding: 0 14px; font-size: .74rem; font-weight: 800; letter-spacing: .1em; color: var(--play); border-color: rgba(43,255,154,.45); }
+        #listen.on { background: rgba(43,255,154,.12); }
+        #listen.warn { color: var(--cue); border-color: rgba(255,197,51,.5); }
         main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
         .gate { margin: auto; text-align: center; max-width: 320px; line-height: 1.5; color: var(--muted); }
         .gate b { display: block; color: var(--text); font-size: 1.15rem; margin-bottom: 8px; }
@@ -69,6 +70,9 @@
         .big { width: 100%; min-height: 60px; font-weight: 800; letter-spacing: .08em; }
         .big.go { color: var(--play); } .big.stop { color: var(--b); }
         #search { width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--hi); color: var(--text); font: inherit; padding: 0 12px; margin-bottom: 8px; }
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .chips button { min-height: 36px; padding: 0 12px; font-size: .7rem; letter-spacing: .08em; color: var(--muted); border-radius: 999px; }
+        .chips button.on { color: var(--text); border-color: var(--text); }
         .track { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
         .track div { flex: 1; min-width: 0; }
         .track b, .track small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -78,11 +82,42 @@
         nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 0 10px; }
         nav button { min-height: 46px; font-size: .7rem; letter-spacing: .12em; color: var(--muted); }
         nav button.on { color: var(--text); border-color: var(--text); }
+        nav button.air { color: var(--play); }
         .hint { font-size: .74rem; color: var(--muted); margin: 8px 2px 0; }
+        #role-btn { min-height: 36px; padding: 0 12px; font-size: .72rem; letter-spacing: .1em; color: var(--muted); }
+        #role-btn.viewer { color: var(--cue); border-color: rgba(255,197,51,.4); }
+        body.viewer .dj-only { display: none !important; }
+        body.viewer #nav { display: none; }
+        .roles { display: grid; gap: 10px; margin-top: 16px; }
+        .roles button { min-height: 58px; font-weight: 800; letter-spacing: .08em; }
+        .roles small { display: block; font-weight: 400; letter-spacing: 0; color: var(--muted); font-size: .74rem; margin-top: 3px; }
         #install-btn { min-height: 36px; padding: 0 12px; font-size: .72rem; letter-spacing: .1em; color: var(--play); border-color: rgba(43,255,154,.4); }
         .install-sheet { position: fixed; left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 20; max-width: 420px; margin: 0 auto; background: var(--panel); border: 1px solid rgba(43,255,154,.4); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
         .install-sheet ol { margin: 10px 0 12px; padding-left: 20px; color: var(--muted); line-height: 1.5; font-size: .9rem; }
         .install-sheet button { width: 100%; font-weight: 700; }
+
+        /* The STREAM tab: run the whole set from here */
+        .air { display: flex; align-items: center; gap: 10px; }
+        .air .pill { font-size: .66rem; letter-spacing: .14em; font-weight: 800; padding: 5px 9px; border-radius: 999px; background: var(--hi); color: var(--muted); }
+        .air .pill.on { background: var(--play); color: #05060a; box-shadow: 0 0 14px rgba(43,255,154,.5); }
+        .air .pill.b { background: rgba(255,107,53,.18); color: var(--b); }
+        .np { margin-top: 10px; }
+        .np b { display: block; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .np small { display: block; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .np .next { margin-top: 6px; font-size: .78rem; color: var(--muted); }
+        .np .next em { font-style: normal; color: var(--text); }
+        .prog { height: 5px; border-radius: 3px; background: var(--hi); margin-top: 8px; overflow: hidden; }
+        .prog i { display: block; height: 100%; width: 0; background: var(--play); }
+        select { width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--hi); color: var(--text); font: inherit; padding: 0 12px; margin-bottom: 8px; }
+        .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
+        .moods button { min-height: 44px; font-size: .62rem; letter-spacing: .06em; color: var(--muted); }
+        .moods button.on { color: var(--text); border-color: var(--cue); }
+        .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; min-height: 46px; padding: 0 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--hi); font-size: .78rem; }
+        .toggle b { flex: none; }
+        .toggle b { font-size: .68rem; letter-spacing: .1em; color: var(--muted); }
+        .toggle.on b { color: var(--play); }
+        .sharebox { margin-top: 8px; font-size: .78rem; color: var(--muted); word-break: break-all; }
+        .sharebox a { color: var(--a); }
 
         /* ===== Fit every screen: the MIX view is one screen, never a scroll ===== */
         html, body { height: 100dvh; }
@@ -105,10 +140,8 @@
         nav button { min-height: clamp(38px, 5.6dvh, 48px); }
         .grid8 button { min-height: clamp(48px, 8dvh, 72px); }
 
-        /* Very short screens (small phones, split screen): drop the second row of deck buttons. */
         @media (max-height: 560px) and (orientation: portrait) { #tab-mix .row.x { display: none; } .artist { display: none; } }
 
-        /* Sideways: the two decks sit next to each other with the crossfader under both, like a real mixer. */
         @media (orientation: landscape) and (max-height: 540px) {
             header { padding: 4px 0; }
             #tab-mix { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) auto; }
@@ -121,20 +154,19 @@
             .xf input[type=range] { height: clamp(30px, 11dvh, 44px); }
             nav { padding: 3px 0 5px; }
             nav button { min-height: clamp(30px, 9dvh, 40px); }
-            #tab-pads, #tab-tracks, #tab-auto { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
-            #tab-pads > .card, #tab-tracks > .card, #tab-auto > .card { margin-top: 0 !important; }
+            #tab-pads, #tab-tracks, #tab-stream { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+            #tab-pads > .card, #tab-tracks > .card, #tab-stream > .card { margin-top: 0 !important; }
             #tab-pads .hint { grid-column: 1 / -1; }
         }
         @media (orientation: landscape) and (max-height: 360px) { #tab-mix .row.x, .artist { display: none; } }
 
-        /* Tablets and wide screens: decks side by side with room to breathe. */
         @media (min-width: 760px) and (min-height: 541px) {
             #tab-mix { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) auto; }
             #tab-mix .deck.A { grid-column: 1; grid-row: 1; }
             #tab-mix .deck.B { grid-column: 2; grid-row: 1; }
             #tab-mix .xf { grid-column: 1 / -1; grid-row: 2; }
-            #tab-pads, #tab-tracks, #tab-auto { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
-            #tab-pads > .card, #tab-tracks > .card, #tab-auto > .card { margin-top: 0 !important; }
+            #tab-pads, #tab-tracks, #tab-stream { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+            #tab-pads > .card, #tab-tracks > .card, #tab-stream > .card { margin-top: 0 !important; }
             #tab-pads .hint { grid-column: 1 / -1; }
         }
     </style>
@@ -144,6 +176,7 @@
         <div class="logo">ZAO <span>MixZ</span></div>
         <div class="dot" id="dot"></div>
         <div id="status">Connecting</div>
+        <button id="role-btn" class="hidden" title="Switch between DJ and viewer">DJ</button>
         <button id="install-btn" class="hidden">INSTALL</button>
         <button id="listen" class="hidden">LISTEN</button>
     </header>
@@ -182,22 +215,47 @@
                 </div>
                 <p class="hint">Loads the pick on the deck that is not playing.</p>
             </div>
-            <div class="card" style="margin-top:10px"><h2>THE CRATE</h2>
+            <div class="card" style="margin-top:10px"><h2>THE LIBRARY</h2>
+                <div class="chips" id="sources">
+                    <button data-src="songchainn" class="on">SONGCHAINN</button><button data-src="zao">ZAO CRATE</button><button data-src="local">ON THE DESK</button><button data-src="view">AS SHOWN</button>
+                </div>
                 <input id="search" type="search" placeholder="Search tracks" autocomplete="off">
                 <div id="tracks"></div>
             </div>
         </section>
 
-        <section id="tab-auto" class="hidden">
-            <div class="card"><h2>DJ MIXZ</h2>
-                <button class="big go" id="mixz-go">MIX SONGCHAINN NOW</button>
+        <section id="tab-stream" class="hidden">
+            <div class="card">
+                <div class="air"><span class="pill" id="air-pill">OFF AIR</span><span class="pill b" id="mixz-pill">DJ MIXZ OFF</span><span style="flex:1"></span><button id="live-btn" class="dj-only" style="min-height:40px;padding:0 14px;font-size:.72rem;font-weight:800;letter-spacing:.1em">GO LIVE</button></div>
+                <div class="np"><b id="np-title">Nothing playing</b><small id="np-artist"></small><div class="prog"><i id="np-prog"></i></div><div class="next" id="np-next"></div></div>
+            </div>
+            <div class="card dj-only" style="margin-top:10px"><h2>DJ MIXZ, FROM HERE</h2>
+                <select id="st-source">
+                    <option value="songchainn" selected>SongChainn, every artist</option>
+                    <option value="zao">ZAO crate: SongChainn and Audius</option>
+                    <option value="view">What the library on the desk is showing</option>
+                    <option value="local">Files on the desk</option>
+                </select>
+                <div class="moods" id="st-moods">
+                    <button data-mood="warmup">WARM UP</button><button data-mood="peak">PEAK</button><button data-mood="journey" class="on">JOURNEY</button><button data-mood="sunset">SUNSET</button><button data-mood="party">PARTY</button>
+                </div>
+                <select id="st-length">
+                    <option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="0">Everything it has</option>
+                </select>
+                <button class="toggle" id="st-endless"><span>Keep going when the set ends</span><b>ENDLESS OFF</b></button>
+                <button class="toggle" id="st-deadair"><span>Auto play if silent for 5 seconds</span><b>OFF</b></button>
+                <button class="big go" id="st-start">START THE STREAM</button>
                 <div class="grid2" style="margin-top:8px">
+                    <button id="st-skip">SKIP TRACK</button><button class="stop" id="st-stop" style="color:var(--b)">STOP DJ MIXZ</button>
                     <button id="mixz-take">TAKE THE DECKS</button><button id="mixz-back">HAND BACK</button>
                 </div>
-                <button class="big stop hidden" id="mixz-stop" style="margin-top:8px">STOP DJ MIXZ</button>
-                <p class="hint" id="mixz-say">DJ MixZ is off.</p>
+                <p class="hint" id="mixz-say">DJ MixZ is off. Pick the music and a mood, then START: it builds the set and plays it on the desk while you are away.</p>
             </div>
-            <div class="card" style="margin-top:10px"><h2>LEVELS</h2>
+            <div class="card" style="margin-top:10px"><h2>THE MIX SO FAR</h2>
+                <button class="big" id="st-share">SHARE THE MIX</button>
+                <div class="sharebox hidden" id="st-sharebox"></div>
+            </div>
+            <div class="card dj-only" style="margin-top:10px"><h2>LEVELS</h2>
                 <div class="xf" style="border:0;padding:0"><label><span>MASTER</span></label><input type="range" id="master" min="0" max="1000" value="800"></div>
                 <div class="xf" style="border:0;padding:0"><label><span>DECK A</span></label><input type="range" id="vol-A" min="0" max="1000" value="800"></div>
                 <div class="xf" style="border:0;padding:0"><label><span>DECK B</span></label><input type="range" id="vol-B" min="0" max="1000" value="800"></div>
@@ -209,7 +267,7 @@
         <button data-tab="mix" class="on">MIX</button>
         <button data-tab="pads">PADS</button>
         <button data-tab="tracks">TRACKS</button>
-        <button data-tab="auto">AUTO</button>
+        <button data-tab="stream" id="nav-stream">STREAM</button>
     </nav>
 
     <div class="install-sheet hidden" id="install-sheet" role="dialog">
@@ -219,6 +277,8 @@
     </div>
 
     <audio id="monitor" autoplay playsinline></audio>
+    <audio id="pa-A" playsinline preload="auto"></audio>
+    <audio id="pa-B" playsinline preload="auto"></audio>
     <script type="module" src="remote.js"></script>
 </body>
 </html>

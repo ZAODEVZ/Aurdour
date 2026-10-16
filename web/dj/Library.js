@@ -1,6 +1,8 @@
 // Library.js — Track browser with pagination, sorting, playlist management,
 // context menus, bulk actions, and enhanced search
 
+import { loadSourceManifest } from './MusicSource.js';
+
 export class Library {
     constructor(onLoadTrack) {
         this.tracks = [];
@@ -454,7 +456,8 @@ export class Library {
         try {
             const resp = await fetch('data/manifest.json');
             const data = await resp.json();
-            this.tracks = data.tracks || [];
+            // Plus the private music source, if one is set (no music files in this repo).
+            this.tracks = [...(data.tracks || []), ...await loadSourceManifest()];
             this._filterAndRender();
         } catch (err) {
             console.error('Failed to load manifest:', err);

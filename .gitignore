@@ -9,6 +9,10 @@ web/data/*.ogg
 web/data/*.wav
 web/data/*.flac
 
+# No music in this repo (Zaal, 16 Oct 2026). New music goes to the private source
+# (ZAO_MUSIC_SOURCE, see web/dj/MusicSource.js), never to web/music.
+web/music/
+
 !web/data/example.json
 
 .vercel

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#07080c">
+    <title>The mix, on ZAO MixZ</title>
+    <meta name="description" content="Every song from this set, in order, with a link to each one. Press play to hear it again.">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/remote-192.png">
+    <style>
+        :root { --bg: #07080c; --panel: #0f1118; --hi: #161924; --line: rgba(255,255,255,.1); --text: #f1f3f8; --muted: #8a90a6; --a: #00d4ff; --b: #ff6b35; --play: #2bff9a; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        body { padding: 0 16px calc(96px + env(safe-area-inset-bottom)); max-width: 760px; margin: 0 auto; }
+        a { color: var(--a); }
+        header { padding: 28px 0 18px; }
+        .brand { font-weight: 800; letter-spacing: .04em; font-size: .9rem; color: var(--muted); }
+        .brand span { color: var(--a); }
+        h1 { margin: 10px 0 4px; font-size: clamp(1.6rem, 6vw, 2.4rem); line-height: 1.1; letter-spacing: -.01em; }
+        .sub { color: var(--muted); font-size: .95rem; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .chip { font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+        .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        button { font: inherit; color: var(--text); background: var(--hi); border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; min-height: 48px; cursor: pointer; font-weight: 700; letter-spacing: .06em; }
+        button:active { transform: scale(.98); }
+        button.go { color: var(--play); border-color: rgba(43,255,154,.4); }
+        button.ghost { color: var(--muted); }
+        ol { list-style: none; margin: 18px 0 0; padding: 0; }
+        li { display: grid; grid-template-columns: 34px 52px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+        li.now { background: linear-gradient(90deg, rgba(43,255,154,.08), transparent); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 10px; }
+        .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; }
+        .art { width: 52px; height: 52px; border-radius: 8px; background: var(--hi) center/cover; }
+        .t b { display: block; font-size: 1.02rem; }
+        .t small { display: block; color: var(--muted); margin-top: 2px; }
+        .t small a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+        .t .at { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .78rem; margin-top: 3px; }
+        .play { min-height: 44px; min-width: 64px; padding: 0 12px; font-size: .78rem; }
+        li.now .play { color: var(--play); }
+        .play[disabled] { opacity: .35; cursor: default; }
+        .empty { color: var(--muted); padding: 40px 0; text-align: center; line-height: 1.6; }
+        .bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(15,17,24,.96); backdrop-filter: blur(10px); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+        .bar .in { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; }
+        .bar .np { min-width: 0; }
+        .bar .np b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bar .np small { color: var(--muted); }
+        .bar .prog { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--hi); overflow: hidden; }
+        .bar .prog i { display: block; height: 100%; width: 0; background: var(--play); }
+        .hidden { display: none !important; }
+        footer { margin-top: 36px; color: var(--muted); font-size: .8rem; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">ZAO <span>MixZ</span></div>
+        <h1 id="name">The mix</h1>
+        <div class="sub" id="sub"></div>
+        <div class="chips" id="chips"></div>
+        <div class="actions">
+            <button class="go" id="play-all">PLAY THE MIX</button>
+            <button class="ghost" id="copy">COPY THIS LINK</button>
+            <button class="ghost" id="mixz-link">OPEN ZAO MIXZ</button>
+        </div>
+    </header>
+    <ol id="list"><li class="empty" style="display:block">Reading the set</li></ol>
+    <footer>Every song here plays from where its artist put it: SongChainn or Audius. Open a song to follow the artist. Mixed live on <a href="/">ZAO MixZ</a>.</footer>
+
+    <div class="bar hidden" id="bar">
+        <div class="in">
+            <div class="np"><b id="bar-title"></b><small id="bar-artist"></small></div>
+            <button id="bar-prev" class="ghost">PREV</button>
+            <button id="bar-next" class="ghost">NEXT</button>
+            <div class="prog"><i id="bar-prog"></i></div>
+        </div>
+    </div>
+    <audio id="player" preload="none"></audio>
+
+    <script src="music-source.js"></script>
+    <script type="module">
+        import { mixFromHash, resolveTracks, fmtTime, mixLength } from './dj/MixPage.js';
+        const $ = (id) => document.getElementById(id);
+        const mix = mixFromHash(location.hash);
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        $('copy').onclick = () => { navigator.clipboard?.writeText(location.href); $('copy').textContent = 'COPIED'; setTimeout(() => { $('copy').textContent = 'COPY THIS LINK'; }, 1500); };
+        $('mixz-link').onclick = () => { location.href = '/'; };
+
+        if (!mix) {
+            $('list').innerHTML = '<li class="empty" style="display:block">This link is not a mix. Ask the DJ for the link again, or open ZAO MixZ and press SHARE THE MIX after a set.</li>';
+            $('play-all').disabled = true;
+        } else {
+            const when = mix.d ? new Date(mix.d + 'Z') : null;
+            const dateText = when && !isNaN(when) ? when.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+            $('name').textContent = mix.n || `The mix${dateText ? ', ' + dateText : ''}`;
+            document.title = `${$('name').textContent} · ZAO MixZ`;
+            $('sub').textContent = [mix.dj ? `Mixed by ${mix.dj}` : '', mix.n && dateText ? dateText : ''].filter(Boolean).join(' · ');
+            const len = mixLength(mix);
+            $('chips').innerHTML = `<span class="chip">${mix.t.length} ${mix.t.length === 1 ? 'SONG' : 'SONGS'}</span>${len ? `<span class="chip">${Math.round(len / 60)} MIN</span>` : ''}`;
+
+            let tracks = [];
+            const list = $('list');
+            const draw = () => {
+                list.innerHTML = tracks.map((t) => `
+                    <li data-n="${t.n}">
+                        <span class="n">${String(t.n + 1).padStart(2, '0')}</span>
+                        <span class="art" style="${t.art ? `background-image:url(&quot;${esc(t.art)}&quot;)` : ''}"></span>
+                        <span class="t"><b>${esc(t.title || 'Loading')}</b><small>${esc(t.artist)}${t.page ? ` · <a href="${esc(t.page)}" target="_blank" rel="noopener">${t.src === 'audius' ? 'on Audius' : 'on SongChainn'}</a>` : t.src === 'local' ? ' · from the DJ\'s own files' : ''}</small><span class="at">${fmtTime(t.at)}${t.du ? ` for ${fmtTime(t.du)}` : ''}</span></span>
+                        <button class="play" data-play="${t.n}" ${t.stream ? '' : 'disabled'}>${t.stream ? 'PLAY' : 'NO STREAM'}</button>
+                    </li>`).join('');
+            };
+            tracks = mix.t.map((e, n) => ({ n, src: e[0], title: '', artist: '', at: e[0] === 'lo' ? e[3] : e[2], du: e[0] === 'lo' ? e[4] : e[3], art: null, stream: null, page: null }));
+            draw();
+            tracks = await resolveTracks(mix);
+            draw();
+
+            // Hearing it again: one song after the next, in the order they were played.
+            const player = $('player');
+            let cur = -1;
+            const playable = () => tracks.filter((t) => t.stream);
+            const playN = (n) => {
+                const t = tracks[n];
+                if (!t?.stream) return;
+                cur = n;
+                player.src = t.stream;
+                player.play().catch(() => {});
+                $('bar').classList.remove('hidden');
+                $('bar-title').textContent = t.title; $('bar-artist').textContent = t.artist;
+                document.querySelectorAll('li').forEach((li) => li.classList.toggle('now', Number(li.dataset.n) === n));
+                document.querySelectorAll('.play').forEach((b) => { if (!b.disabled) b.textContent = Number(b.dataset.play) === n ? 'PLAYING' : 'PLAY'; });
+            };
+            const step = (dir) => { const list = playable().map((t) => t.n); const i = list.indexOf(cur); const next = list[i + dir]; if (next != null) playN(next); else if (dir > 0) { player.pause(); $('bar').classList.add('hidden'); } };
+            player.addEventListener('ended', () => step(1));
+            player.addEventListener('timeupdate', () => { $('bar-prog').style.width = player.duration ? `${(player.currentTime / player.duration) * 100}%` : '0'; });
+            $('play-all').onclick = () => { const first = playable()[0]; if (first) playN(first.n); };
+            $('bar-next').onclick = () => step(1);
+            $('bar-prev').onclick = () => step(-1);
+            list.addEventListener('click', (e) => { const b = e.target.closest('[data-play]'); if (b && !b.disabled) { const n = Number(b.dataset.play); if (n === cur && !player.paused) { player.pause(); b.textContent = 'PLAY'; } else playN(n); } });
+            if (!playable().length) $('play-all').disabled = true;
+        }
+    </script>
+</body>
+</html>

@@ -12,8 +12,21 @@
 // This file is shared by the desktop (RemoteHost below) and the phone page (remote.js).
 // The top half is pure and runs under node: see RemoteLink.test.mjs.
 
+import { cleanTitle, liveDeck } from './NowPlaying.js';
+import { MOODS, tracksFrom } from './DjMixz.js';
+
 export const STATE_HZ = 5;
 export const NEXT_MODES = ['smooth', 'up', 'down', 'key', 'mood', 'genre', 'double', 'wild'];
+export const TRACK_SOURCES = ['view', 'zao', 'songchainn', 'local'];
+export const SET_MINUTES = [0, 15, 30, 60, 90, 120, 180, 240];
+const MOOD_IDS = MOODS.map((m) => m.id);
+
+// For the direct sound call: STUN finds a way through most home networks, the relay (TURN)
+// servers carry the call when a network refuses a direct line (mobile data often does).
+export const ICE_SERVERS = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+];
 
 export function newToken() {
     const b = new Uint8Array(16);
@@ -47,7 +60,13 @@ export function cleanCommand(raw) {
         case 'load':
             return d && typeof raw.id === 'string' && raw.id.length <= 200 ? { a: 'load', d, id: raw.id } : null;
         case 'tracks':
-            return { a: 'tracks', q: typeof raw.q === 'string' ? raw.q.slice(0, 60) : '' };
+            return { a: 'tracks', q: typeof raw.q === 'string' ? raw.q.slice(0, 60) : '', src: TRACK_SOURCES.includes(raw.src) ? raw.src : 'view' };
+        case 'stream':
+            return { a: 'stream', src: TRACK_SOURCES.includes(raw.src) && raw.src !== 'view' ? raw.src : (raw.src === 'view' ? 'view' : 'songchainn'), mood: MOOD_IDS.includes(raw.mood) ? raw.mood : 'journey', minutes: SET_MINUTES.includes(raw.minutes) ? raw.minutes : 60, endless: !!raw.endless };
+        case 'skip': case 'share':
+            return { a: raw.a };
+        case 'endless': case 'live': case 'deadair':
+            return { a: raw.a, on: !!raw.on };
         case 'mixz':
             return { a: 'mixz', on: !!raw.on };
         case 'songchainn': case 'takeover': case 'handback':
@@ -62,6 +81,8 @@ export function cleanCommand(raw) {
 // Commands that mean a person has their hands on the mix. They take the decks from DJ MixZ,
 // the same as touching the real controller does.
 export const HANDS_ON = new Set(['play', 'cue', 'crossfader', 'load']);
+// What a phone that is only watching may ask for.
+export const VIEWER_OK = new Set(['listen', 'share']);
 
 const idOfTrack = t => String(t?.id ?? t?.sourceId ?? t?.dataFile ?? t?.streamUrl ?? t?.title ?? '');
 
@@ -72,20 +93,32 @@ export function snapshot(dj) {
         const m = d?.metadata?.metadata || {};
         return {
             loaded: !!d?.isLoaded, playing: !!d?.isPlaying,
-            title: String(m.title || '').slice(0, 80), artist: String(m.artist || '').slice(0, 60),
+            title: cleanTitle(m.title, m.artist).slice(0, 80), artist: String(m.artist || '').slice(0, 60),
             bpm: d?.getBPM?.() || null, rate: d?.currentRate || 1,
             time: Math.round((d?.getCurrentTime?.() || 0) * 10) / 10, dur: Math.round(d?.getDuration?.() || 0),
             cues: (d?.hotCues || []).map(c => !!c), loop: !!d?.loop?.active,
             fading: !!dj.fxFade?.active?.[id],
+            url: String(d?.metadata?.audio_files?.mp3 || '').slice(0, 400),   // so the phone can play along
         };
     };
+    const m = dj.djMixz || {};
+    const next = m.running ? m.plan?.[(m.index || 0) + 1]?.track : null;
+    const now = m.running ? m.plan?.[m.index || 0]?.track : null;
+    const brief = (t) => (t ? { title: cleanTitle(t.title, t.artist).slice(0, 80), artist: String(t.artist || '').slice(0, 60) } : null);
     const slider = (id, fallback) => { const el = typeof document !== 'undefined' && document.getElementById(id); return el ? Number(el.value) / 100 : fallback; };
     return {
         t: 'state',
         A: deck('A'), B: deck('B'),
         xf: dj.audioRouter?._lastCrossfadePosition ?? 0.5,
         vol: { A: slider('vol-a', 0.8), B: slider('vol-b', 0.8) }, master: slider('master-volume', 0.8),
-        mixz: { running: !!dj.djMixz?.running, human: !!dj.djMixz?.human },
+        live_deck: liveDeck(dj.decks, dj.audioRouter?._lastCrossfadePosition ?? 0.5),
+        live: !!dj.broadcast?.isLive, liveSince: dj.broadcast?.liveSince || 0,
+        deadair: !!dj.deadAir?.on,
+        mixz: {
+            running: !!m.running, human: !!m.human, endless: !!m.endless, mood: m.mood || 'journey',
+            index: m.index || 0, total: m.plan?.length || 0, minutes: m.minutes || 0, source: m._lastBuild?.sourceId || '',
+            now: brief(now), next: brief(next),
+        },
     };
 }
 
@@ -127,6 +160,11 @@ export function applyCommand(dj, cmd, host = null) {
         case 'songchainn': mixz?.mixSongChainn?.(); return 'songchainn';
         case 'takeover': mixz?.takeOver?.('button'); return 'takeover';
         case 'handback': mixz?.handBack?.(); return 'handback';
+        case 'stream': mixz?.startFrom?.(cmd.src, cmd.mood, cmd.minutes, cmd.endless); return 'stream';
+        case 'skip': dj.flowMode?.skip?.(); return 'skip';
+        case 'endless': if (mixz) mixz.endless = cmd.on; return 'endless';
+        case 'live': { const b = document.getElementById('live-toggle'); if (b && !!dj.broadcast?.isLive !== cmd.on) b.click(); return 'live'; }
+        case 'deadair': dj.deadAir?.set?.(cmd.on); return 'deadair';
         default: return 'ignored';
     }
 }
@@ -325,6 +363,9 @@ export class RemoteHost {
         phone.seen = Date.now();
         if (msg.t === 'hello') {
             if (typeof msg.name === 'string') phone.name = msg.name.slice(0, 40);
+            const viewer = msg.role === 'viewer';
+            if (viewer !== !!phone.viewer) { phone.viewer = viewer; if (!viewer) phone.allowed = this._allowed().includes(device); }
+            if (viewer) { phone.allowed = true; this.relay.send({ t: 'welcome', to: device, role: 'viewer' }); this._render(); return; }
             if (phone.allowed) { this.relay.send({ t: 'welcome', to: device }); this._render(); return; }
             // Not known yet: ask at the desk, and tell the phone it is waiting (not more than
             // once every few seconds, the phone says hello often).
@@ -338,8 +379,15 @@ export class RemoteHost {
         if (msg.t !== 'cmd' || !phone.allowed) return;
         const cmd = cleanCommand(msg);
         if (!cmd) return;
+        if (phone.viewer && !VIEWER_OK.has(cmd.a)) return;
+        if (cmd.a === 'share') {
+            const url = this.dj.setlist?.mixLink?.() || '';
+            this.relay.send({ t: 'mix', to: device, url, n: this.dj.setlist?.history?.length || 0 });
+            return;
+        }
         if (cmd.a === 'tracks') {
-            const full = this.dj.library?._getCurrentList?.() || [];
+            const lib = this.dj.library || {};
+            const full = cmd.src === 'view' ? (lib._getCurrentList?.() || []) : tracksFrom(lib, cmd.src);
             this._tracks.clear();
             for (const t of full) this._tracks.set(idOfTrack(t), t);
             this.relay.send({ t: 'tracks', to: device, list: trackList(full, cmd.q) });
@@ -375,7 +423,7 @@ export class RemoteHost {
         try {
             await loadPeer();
             if (!this.peer || this.peer.destroyed) {
-                this.peer = new window.Peer();
+                this.peer = new window.Peer({ config: { iceServers: ICE_SERVERS } });
                 await new Promise((resolve, reject) => { this.peer.on('open', resolve); this.peer.on('error', reject); });
             }
             const router = this.dj.audioRouter;
@@ -428,7 +476,7 @@ export class RemoteHost {
         const linkEl = document.getElementById('remote-link');
         if (linkEl && linkEl.textContent !== url) linkEl.textContent = url;
         const list = document.getElementById('remote-phones');
-        const sig = asking.map(p => 'ask:' + p.device).concat(live.map(p => 'live:' + p.device + (p.call ? ':l' : ''))).join('|');
+        const sig = asking.map(p => 'ask:' + p.device).concat(live.map(p => 'live:' + p.device + (p.call ? ':l' : '') + (p.viewer ? ':v' : ''))).join('|');
         if (list && list.dataset.sig !== sig) {
             list.dataset.sig = sig;
             list.textContent = '';
@@ -445,7 +493,7 @@ export class RemoteHost {
             for (const p of live) {
                 const row = document.createElement('div');
                 row.className = 'remote-phone';
-                row.textContent = `${p.name}: connected${p.call ? ', listening' : ''}`;
+                row.textContent = `${p.name}: ${p.viewer ? 'watching' : 'connected'}${p.call ? ', listening' : ''}`;
                 list.appendChild(row);
             }
         }

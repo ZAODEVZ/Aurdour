@@ -52,7 +52,7 @@ export class FlowMode {
                 console.warn('[FlowMode] Streaming track missing streamUrl:', track.title);
                 return false;
             }
-            deck.loadDirect(streamUrl, {
+            const meta = {
                 title: track.title || 'Unknown',
                 artist: track.artist || '',
                 bpm: track.bpm || null,
@@ -61,11 +61,17 @@ export class FlowMode {
                 artwork: track.artwork || null,
                 source: track.source || 'stream',
                 id: track.id || track.sourceId || null,
-            });
+            };
+            deck.loadDirect(streamUrl, meta);
+            // The setlist (and so the mix link) must see what DJ MixZ and Flow play, not only hand loads.
+            this.dj.setlist?.logPlay(meta.title, meta.artist, meta.bpm, meta.key, deck.id, { ...meta, streamUrl });
+            this.dj.recorder?.logTrackChange?.(deck.id, meta.title, meta.artist);
             return true;
         } else if (track.dataFile) {
             // Local track — use loadTrack
             deck.loadTrack(track.dataFile);
+            this.dj.setlist?.logPlay(track.title || track.dataFile.split('/').pop().replace('.json', ''), track.artist || '', track.bpm || null, track.key || null, deck.id, { source: 'local', id: track.dataFile, artwork: track.artwork || null });
+            this.dj.recorder?.logTrackChange?.(deck.id, track.title || 'Unknown', track.artist || '');
             return true;
         } else {
             console.warn('[FlowMode] Track has neither dataFile nor streamUrl:', track.title);

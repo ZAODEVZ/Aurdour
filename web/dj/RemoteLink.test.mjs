@@ -1,5 +1,5 @@
 // node web/dj/RemoteLink.test.mjs
-import { newToken, validToken, linkKeys, seal, unseal, fresh, FRESH_MS, BROKERS, remoteUrl, cleanCommand, applyCommand, trackList, snapshot, HANDS_ON, NEXT_MODES } from './RemoteLink.js';
+import { newToken, validToken, linkKeys, seal, unseal, fresh, FRESH_MS, BROKERS, remoteUrl, cleanCommand, applyCommand, trackList, snapshot, HANDS_ON, NEXT_MODES, ICE_SERVERS, TRACK_SOURCES, VIEWER_OK } from './RemoteLink.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -89,7 +89,24 @@ check('track list search matches title or artist', trackList(tracks, 'two').leng
 check('track list is capped', trackList(Array.from({ length: 200 }, (_, i) => ({ id: i, title: 'T' + i }))).length === 60);
 const snap = snapshot(rig().dj);
 check('the state sent to the phone has both decks, the crossfader and DJ MixZ', snap.t === 'state' && snap.A.loaded && snap.B.bpm === 126 && snap.xf === 0.5 && snap.mixz.running === false);
-check('the state is small (under 1 KB)', JSON.stringify(snap).length < 1024);
+check('the state is small (under 2 KB)', JSON.stringify(snap).length < 2048);
+check('the state names the deck the room hears, the live flag and the DJ MixZ plan', snap.live_deck === null && snap.live === false && snap.mixz.total === 0 && snap.mixz.next === null && 'endless' in snap.mixz);
+
+// The STREAM tab
+check('a stream order is cleaned to known music, mood and length', JSON.stringify(cleanCommand({ a: 'stream', src: 'zao', mood: 'party', minutes: 90, endless: 1 })) === '{"a":"stream","src":"zao","mood":"party","minutes":90,"endless":true}');
+check('a stream order with rubbish falls back to SongChainn, journey, one hour', JSON.stringify(cleanCommand({ a: 'stream', src: 'evil', mood: 'x', minutes: 7 })) === '{"a":"stream","src":"songchainn","mood":"journey","minutes":60,"endless":false}');
+check('tracks can be asked by source, unknown sources mean the view', cleanCommand({ a: 'tracks', src: 'songchainn' }).src === 'songchainn' && cleanCommand({ a: 'tracks', src: 'x' }).src === 'view' && TRACK_SOURCES.length === 4);
+check('skip, share, endless and live are known', cleanCommand({ a: 'skip' })?.a === 'skip' && cleanCommand({ a: 'share' })?.a === 'share' && cleanCommand({ a: 'endless', on: 1 })?.on === true && cleanCommand({ a: 'live', on: 0 })?.on === false);
+r = rig({ running: false, human: false });
+r.dj.djMixz.startFrom = (s, m, min, e) => r.log.push(`startFrom ${s} ${m} ${min} ${e}`);
+r.dj.flowMode = { skip: () => r.log.push('skip') };
+applyCommand(r.dj, cleanCommand({ a: 'stream', src: 'local', mood: 'sunset', minutes: 30, endless: true }));
+applyCommand(r.dj, cleanCommand({ a: 'skip' }));
+applyCommand(r.dj, cleanCommand({ a: 'endless', on: true }));
+check('a stream order starts DJ MixZ from that music, skip moves on, endless sticks', r.log.includes('startFrom local sunset 30 true') && r.log.includes('skip') && r.dj.djMixz.endless === true);
+check('auto play on silence can be switched from the phone', cleanCommand({ a: 'deadair', on: 1 })?.on === true && (() => { r.dj.deadAir = { set: (v) => r.log.push('deadair ' + v) }; applyCommand(r.dj, cleanCommand({ a: 'deadair', on: false })); return r.log.includes('deadair false'); })());
+check('a viewer may only listen or ask for the mix link', VIEWER_OK.has('listen') && VIEWER_OK.has('share') && !VIEWER_OK.has('play') && !VIEWER_OK.has('stream') && !VIEWER_OK.has('crossfader'));
+check('the sound call has STUN and a relay to fall back on', ICE_SERVERS.some(s => String(s.urls).includes('stun:')) && ICE_SERVERS.some(s => String(s.urls).includes('turn:') && s.username && s.credential));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

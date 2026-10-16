@@ -1,4 +1,6 @@
 // Deck.js — Single deck: WaveSurfer instance, hot cues, loops, transport, stems
+import { cleanTitle } from './NowPlaying.js';
+import { resolveAudio } from './MusicSource.js';
 
 export class Deck {
     constructor(id, waveformId, overviewId, options = {}) {
@@ -158,8 +160,9 @@ export class Deck {
         try {
             const response = await fetch(jsonPath);
             this.metadata = await response.json();
-            const audioFile = this.metadata.audio_files?.mp3;
+            const audioFile = resolveAudio(jsonPath, this.metadata.audio_files?.mp3);
             if (!audioFile) throw new Error('No MP3 file in metadata');
+            this.metadata.audio_files.mp3 = audioFile;
 
             this._resetState();
             this.wavesurfer.load(audioFile);
@@ -521,7 +524,7 @@ export class Deck {
         const bpmEl = document.getElementById(`${prefix}-bpm`);
         const keyEl = document.getElementById(`${prefix}-key`);
 
-        if (titleEl) titleEl.textContent = m.title || 'Unknown';
+        if (titleEl) titleEl.textContent = cleanTitle(m.title, m.artist);
         if (artistEl) artistEl.textContent = m.artist || '';
         if (bpmEl) bpmEl.textContent = m.bpm ? `${m.bpm} BPM` : '--- BPM';
         if (keyEl) keyEl.textContent = m.key || '--';

@@ -23,13 +23,20 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const titleOf = (file) => file.replace(/\.mp3$/i, '').split('-').map((w) => (/^vol$/i.test(w) ? 'vol' : /^\d+$/.test(w) ? w : w[0].toUpperCase() + w.slice(1))).join(' ')
     .replace(/^(North|South|Mid) East/, '$1-East');
 
+// A titles.json in the folder names tracks whose file name is not the title:
+//   { "<file without .mp3>": { "title": "...", "genre": "..." } }
+const titlesPath = path.join(dir, 'titles.json');
+const titles = fs.existsSync(titlesPath) ? JSON.parse(fs.readFileSync(titlesPath, 'utf8')) : {};
+
 let added = 0;
 for (const file of fs.readdirSync(dir).filter((f) => /\.mp3$/i.test(f)).sort()) {
     const id = `${folder}-${file.replace(/\.mp3$/i, '')}`;
-    const title = titleOf(file);
+    const named = titles[file.replace(/\.mp3$/i, '')] || {};
+    const title = named.title || titleOf(file);
+    const trackGenre = named.genre || genre;
     const seconds = Math.round(parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(dir, file)]).toString()));
     const sheet = applySheet({ title });
-    const meta = { id, title, artist, duration: seconds, genre, bpm: sheet.bpm || null, key: sheet.key || null };
+    const meta = { id, title, artist, duration: seconds, genre: trackGenre, bpm: sheet.bpm || null, key: sheet.key || null };
     fs.writeFileSync(path.join(web, 'data', `${id}.json`), JSON.stringify({
         metadata: { ...meta, description: `${title} by ${artist}`, tags: [], source: 'add_music' },
         audio_files: { mp3: `music/${folder}/${file}` },

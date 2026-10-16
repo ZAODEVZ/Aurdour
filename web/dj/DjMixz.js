@@ -186,6 +186,8 @@ export class DjMixz {
         try { this._bpm = JSON.parse(localStorage.getItem('mixz-bpm') || '{}'); } catch (e) { /* no storage */ }
         this._learnTempos();
         this.human = false;      // true while a person has the decks
+        this.endless = false;    // when the set ends, build the next one and keep going
+        this._lastBuild = null;  // what the last set was built from, for endless and the phone
         this.b2b = 0;            // back to back: tracks per turn, 0 = off
         this._turn = 0;          // handovers done in the current turn
         this.battle = false;     // contest: the room scores each round, DJ MixZ against the live DJ
@@ -212,6 +214,7 @@ export class DjMixz {
         const maxTracks = tracksForMinutes(tracks, minutes);
         this.minutes = minutes;
         this.mood = moodId;
+        this._lastBuild = { sourceId, moodId, minutes };
         this.plan = planSet(tracks, moodId, this.dj.harmonic, { maxTracks });
         this.index = 0;
         this._renderPlan();
@@ -251,6 +254,7 @@ export class DjMixz {
         this._renderPlan();
         this._say(`DJ MixZ is on. ${this.plan.length} tracks, ${MOODS.find((m) => m.id === this.mood)?.label} mood.`);
         document.getElementById('djmixz-open')?.classList.add('live');
+        const stopBtn = document.getElementById('djmixz-stop'); if (stopBtn) stopBtn.hidden = false;
         this.human = false; this._turn = 0;
         this.score = { ai: 0, human: 0 }; this.round = 1; this._voteOpen = false;
         this._watchHands();
@@ -285,13 +289,31 @@ export class DjMixz {
         this.human = false;
         clearInterval(this._turnTimer);
         document.getElementById('djmixz-open')?.classList.remove('live');
+        const stopBtn = document.getElementById('djmixz-stop'); if (stopBtn) stopBtn.hidden = true;
         this._renderPlan();
         this._renderBar();
     }
 
     _finish() {
+        if (this.endless && this._lastBuild) {
+            const b = this._lastBuild;
+            this.stop();
+            const plan = this.build(b.sourceId, b.moodId, b.minutes);
+            if (plan.length >= 2 && this.start()) { this._say(`End of the set. Endless is on: the next ${plan.length} tracks are rolling.`); return; }
+        }
         this._say('That was the set. DJ MixZ is off.');
         this.stop();
+    }
+
+    // From the phone, or anywhere that is not the panel: pick the music, mood and length and go.
+    async startFrom(sourceId = 'songchainn', moodId = 'journey', minutes = 60, endless = false) {
+        this.endless = !!endless;
+        if (this.running) this.stop();
+        if (sourceId === 'songchainn') return this.mixSongChainn(moodId, minutes);
+        this.scArtist = '';
+        const plan = this.build(sourceId, moodId, minutes);
+        if (plan.length < 2) { this._say('Fewer than two playable tracks there. Pick another source.'); return false; }
+        return this.start();
     }
 
     // Whenever a deck has measured the tempo of a track that came without one, remember it.
