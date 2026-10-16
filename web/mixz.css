@@ -874,3 +874,7 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 /* BATTLES tab: last night's WaveWarZ quick battle songs, and the night picker beside it. */
 .battle-night { margin-left: 4px; max-width: 150px; font-size: 11px; background: transparent; color: inherit; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; padding: 2px 4px; }
 .battle-night option { color: #111; }
+
+/* The ? panel links to how.html, the one-page guide to MixZ. */
+.how-link { display: block; margin: 0 0 12px; padding: 8px 10px; border: 1px solid rgba(255,176,32,0.5); border-radius: 6px; color: #ffb020; text-decoration: none; font-size: 13px; }
+.how-link:hover { background: rgba(255,176,32,0.08); }
