@@ -878,3 +878,6 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 /* The ? panel links to how.html, the one-page guide to MixZ. */
 .how-link { display: block; margin: 0 0 12px; padding: 8px 10px; border: 1px solid rgba(255,176,32,0.5); border-radius: 6px; color: #ffb020; text-decoration: none; font-size: 13px; }
 .how-link:hover { background: rgba(255,176,32,0.08); }
+
+/* FEEDBACK in the top bar: a link styled as a toolbar button, opens /feedback. */
+.btn-feedback { text-decoration: none; display: inline-flex; align-items: center; }

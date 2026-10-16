@@ -47,6 +47,7 @@ import { SmartRecommend } from './dj/SmartRecommend.js';
 import { SwitchPad } from './dj/SwitchPad.js';
 import { ZaoCrate } from './dj/ZaoCrate.js';
 import { BattleCrate } from './dj/BattleCrate.js';
+import { Feedback } from './dj/Feedback.js';
 import { SongChainn } from './dj/SongChainn.js';
 import { DjMixz } from './dj/DjMixz.js';
 import { CloudSync } from './dj/CloudSync.js';
@@ -160,6 +161,7 @@ class DJPlayer {
         this.songchainn = safeInit('SongChainn', () => new SongChainn());
         this.zaoCrate = safeInit('ZaoCrate', () => new ZaoCrate(this));
         this.battleCrate = safeInit('BattleCrate', () => new BattleCrate(this));
+        this.feedback = safeInit('Feedback', () => new Feedback(this));
 
         // DJ MixZ: the bot DJ. Plans a set from a playlist and a mood, then mixes it.
         this.djMixz = safeInit('DjMixz', () => new DjMixz(this));
