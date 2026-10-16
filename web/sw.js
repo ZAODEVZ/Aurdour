@@ -2,7 +2,7 @@
 // Full offline support with app shell caching, audio IndexedDB caching,
 // graceful updates, and background sync
 
-const CACHE_VERSION = 29;
+const CACHE_VERSION = 30;
 const CACHE_NAME = `aurdour-v${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = 'aurdour-audio-v1';
 
@@ -21,6 +21,7 @@ const APP_SHELL = [
     '/music-source.js',
     '/dj/MusicSource.js',
     '/dj/Licence.js',
+    '/dj/BattleCrate.js',
     '/player.js',
     '/dj/Deck.js',
     '/dj/AudioRouter.js',

@@ -167,6 +167,7 @@ export function tracksFrom(lib, sourceId, artist = '') {
     const pools = {
         view: lib._displayedTracks || [],
         zao: lib.zaoTracks || [],
+        battles: lib.battleTracks || [],
         local: lib.tracks || [],
         songchainn: sc,
         'songchainn-artist': sc.filter((t) => artist && String(t.artist).toLowerCase().includes(artist.toLowerCase())),
@@ -203,6 +204,7 @@ export class DjMixz {
             { id: 'songchainn', label: 'SongChainn: every artist' },
             { id: 'songchainn-artist', label: 'SongChainn: one artist' },
             { id: 'zao', label: 'ZAO crate: SongChainn and Audius' },
+            { id: 'battles', label: 'WaveWarZ quick battles: last battle night' },
             { id: 'view', label: 'What the library is showing' },
             { id: 'local', label: 'LOCAL tab' },
         ];

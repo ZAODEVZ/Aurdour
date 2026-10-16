@@ -870,3 +870,7 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 
 /* A track refused for having no licence: the deck says so for a few seconds. */
 .licence-refused { color: #ff5a5a !important; font-weight: 700; letter-spacing: 0.04em; }
+
+/* BATTLES tab: last night's WaveWarZ quick battle songs, and the night picker beside it. */
+.battle-night { margin-left: 4px; max-width: 150px; font-size: 11px; background: transparent; color: inherit; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; padding: 2px 4px; }
+.battle-night option { color: #111; }
