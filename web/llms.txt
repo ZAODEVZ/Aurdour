@@ -119,7 +119,7 @@ Press ? to see every shortcut. The main ones: Space plays or pauses (Shift + Spa
 
 ## The community
 
-ZM (ZAO Music) is the group for MixZ users, ZAO artists and the label: https://t.me/+WVf5XsztOMc4OGZk (Telegram). Ask questions, share mixes, report bugs.
+ZM (ZAO Music) is the group for MixZ users, ZAO artists and the label: https://t.me/+WVf5XsztOMc4OGZk (Telegram) and https://discord.gg/KgJM52Wu4d (Discord). Ask questions, share mixes, report bugs.
 
 ## Getting help
 
