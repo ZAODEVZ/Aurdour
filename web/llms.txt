@@ -25,6 +25,8 @@ Every song the decks play has a licence: who the artist is, and what they allow 
 - **TEST**: a checklist of what to test this round, with a way to send what you found.
 - **INSTALL**: puts MixZ on your home screen or desktop like an app.
 - **TRAVEL**: a big-button view for tablets.
+- **FEEDBACK**: opens the feedback page.
+- **ZM**: opens ZM, the ZAO Music group on Telegram.
 - **?**: keyboard shortcuts.
 - The number (like 80): the master volume.
 
@@ -115,8 +117,14 @@ Plug it in by USB and open MixZ in Chrome. The jog wheels, play, cue, sync, fade
 
 Press ? to see every shortcut. The main ones: Space plays or pauses (Shift + Space for deck B), Q plays deck A, and the left and right arrows move the crossfader.
 
+## The community
+
+ZM (ZAO Music) is the group for MixZ users, ZAO artists and the label: https://t.me/+WVf5XsztOMc4OGZk (Telegram). Ask questions, share mixes, report bugs.
+
 ## Getting help
 
 - **TRY A MOVE**: learn one move at a time.
 - **GUIDE**: labels every part of the screen.
 - **TEST**: report what works and what does not.
+- **FEEDBACK**: tell the team anything, at zaomixz.vercel.app/feedback.
+- **ZM**: the ZAO Music community group.
