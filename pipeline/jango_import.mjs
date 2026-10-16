@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Jango UU's catalogue into the MixZ library.
 // Takes the zip(s) Drive made of "All Jango Projects 4 Zaal", converts every master to mp3
-// with a clean name, drops them in web/music/jango-uu/ with a titles.json, then
-// add_music.mjs lists them. Zaal, 14 Oct 2026: "Add them all to dj deck pls".
+// with a clean name, drops them in ZAO_MUSIC_DIR with a titles.json, for upload to the
+// private music source. Zaal, 14 Oct 2026: "Add them all to dj deck pls".
+// No music files in this repo (Zaal, 16 Oct 2026): ZAO_MUSIC_DIR must be outside it.
 //
-//   node pipeline/jango_import.mjs <zip or folder> [more zips...]
+//   ZAO_MUSIC_DIR=<folder outside the repo> node pipeline/jango_import.mjs <zip or folder> [more zips...]
 //
 // Needs ffmpeg and (for zips) PowerShell's Expand-Archive on the PATH.
 import fs from 'node:fs';
@@ -14,7 +15,10 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.join(here, '..', 'web', 'music', 'jango-uu');
+const repo = path.resolve(here, '..');
+if (!process.env.ZAO_MUSIC_DIR) { console.error('set ZAO_MUSIC_DIR to a folder outside this repo'); process.exit(1); }
+const outDir = path.resolve(process.env.ZAO_MUSIC_DIR, 'jango-uu');
+if (!path.relative(repo, outDir).startsWith('..')) { console.error('ZAO_MUSIC_DIR must be outside this repo: no music files in git'); process.exit(1); }
 const inputs = process.argv.slice(2);
 if (!inputs.length) { console.error('usage: jango_import.mjs <zip or folder> ...'); process.exit(1); }
 
@@ -114,9 +118,9 @@ for (const file of files) {
     console.log(`${title}  <-  ${path.basename(file)}`);
 }
 fs.writeFileSync(path.join(outDir, 'titles.json'), JSON.stringify(titles, null, 2) + '\n');
-console.log(`${done} tracks converted into web/music/jango-uu`);
+console.log(`${done} tracks converted into ${outDir}`);
 if (unknown.length) console.log(`not in the map, skipped: ${unknown.join(', ')}`);
 const missing = TRACKS.filter((t) => !titles[t[1]]).map((t) => t[2]);
 if (missing.length) console.log(`still missing: ${missing.join(', ')}`);
 try { fs.rmSync(temp, { recursive: true, force: true }); } catch (e) { /* temp stays */ }
-console.log('now: node pipeline/add_music.mjs "Jango UU" jango-uu "Rage pop"');
+console.log('now: upload them to the private music source (ZAO_MUSIC_SOURCE) with their manifest and data json. Not to web/music.');

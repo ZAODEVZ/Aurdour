@@ -10,6 +10,7 @@
 
 import { cleanTitle } from './NowPlaying.js';
 import { ENDPOINT as SONGCHAINN_ENDPOINT, ANON_KEY as SONGCHAINN_KEY } from './SongChainn.js';
+import { resolveAudio } from './MusicSource.js';
 
 export const MIX_VERSION = 1;
 export const AUDIUS_APP = 'ZAOMixZ';
@@ -120,9 +121,10 @@ export async function resolveTracks(mix, fetchFn = fetch, siteBase = '/') {
     // Files the app ships with live on the site itself: read the track's json for its mp3.
     await Promise.all(out.filter((t) => t.src === 'local' && t.file).map(async (t) => {
         try {
-            const resp = await fetchFn(`${siteBase}${t.file}`);
+            const jsonUrl = /^https?:/.test(t.file) ? t.file : `${siteBase}${t.file}`;
+            const resp = await fetchFn(jsonUrl);
             const j = resp.ok ? await resp.json() : null;
-            const mp3 = j?.audio_files?.mp3;
+            const mp3 = resolveAudio(jsonUrl, j?.audio_files?.mp3);
             if (mp3) { t.stream = /^https?:/.test(mp3) ? mp3 : `${siteBase}${mp3.replace(/^\.?\//, '')}`; t.art = j.metadata?.artwork || null; }
         } catch (e) { /* stays unplayable */ }
     }));
