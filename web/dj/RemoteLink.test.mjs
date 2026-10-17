@@ -107,7 +107,8 @@ applyCommand(r.dj, cleanCommand({ a: 'endless', on: true }));
 check('a stream order starts DJ MixZ from that music, skip moves on, endless sticks', r.log.includes('startFrom local sunset 30 true') && r.log.includes('skip') && r.dj.djMixz.endless === true);
 check('auto play on silence can be switched from the phone', cleanCommand({ a: 'deadair', on: 1 })?.on === true && (() => { r.dj.deadAir = { set: (v) => r.log.push('deadair ' + v) }; applyCommand(r.dj, cleanCommand({ a: 'deadair', on: false })); return r.log.includes('deadair false'); })());
 check('a viewer may only listen or ask for the mix link', VIEWER_OK.has('listen') && VIEWER_OK.has('share') && !VIEWER_OK.has('play') && !VIEWER_OK.has('stream') && !VIEWER_OK.has('crossfader'));
-check('the sound call has STUN and a relay to fall back on', ICE_SERVERS.some(s => String(s.urls).includes('stun:')) && ICE_SERVERS.some(s => String(s.urls).includes('turn:') && s.username && s.credential));
+check('the sound call has STUN, and any relay carries its login', ICE_SERVERS.some(s => String(s.urls).includes('stun:')) && ICE_SERVERS.filter(s => String(s.urls).includes('turn:')).every(s => s.username && s.credential));
+check('the dead free relay is gone', !ICE_SERVERS.some(s => String(s.urls).includes('openrelay.metered.ca')));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

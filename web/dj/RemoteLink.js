@@ -23,11 +23,15 @@ export const TRACK_SOURCES = ['view', 'zao', 'songchainn', 'local'];
 export const SET_MINUTES = [0, 15, 30, 60, 90, 120, 180, 240];
 const MOOD_IDS = MOODS.map((m) => m.id);
 
-// For the direct sound call: STUN finds a way through most home networks, the relay (TURN)
-// servers carry the call when a network refuses a direct line (mobile data often does).
+// For the direct sound call: STUN finds a way through most home networks. A relay (TURN)
+// carries the call when a network refuses a direct line (mobile data often does). The free
+// openrelay.metered.ca relay is gone (17 Oct 2026 its name points at 192.0.2.1, a dead
+// address), so there is no relay until MixZ has a TURN account of its own: add it to TURN.
+// Without one, a phone that cannot reach the desk directly falls back to PLAY ALONG.
+export const TURN = [];
 export const ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+    ...TURN,
 ];
 
 export function newToken() {
