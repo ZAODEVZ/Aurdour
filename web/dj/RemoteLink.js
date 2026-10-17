@@ -14,6 +14,8 @@
 
 import { cleanTitle, liveDeck } from './NowPlaying.js';
 import { MOODS, tracksFrom } from './DjMixz.js';
+import { RequestQueue, cleanRequest, forCaller, canTape } from './RequestLine.js';
+import { canPlay } from './Licence.js';
 
 export const STATE_HZ = 5;
 export const NEXT_MODES = ['smooth', 'up', 'down', 'key', 'mood', 'genre', 'double', 'wild'];
@@ -21,11 +23,15 @@ export const TRACK_SOURCES = ['view', 'zao', 'songchainn', 'local'];
 export const SET_MINUTES = [0, 15, 30, 60, 90, 120, 180, 240];
 const MOOD_IDS = MOODS.map((m) => m.id);
 
-// For the direct sound call: STUN finds a way through most home networks, the relay (TURN)
-// servers carry the call when a network refuses a direct line (mobile data often does).
+// For the direct sound call: STUN finds a way through most home networks. A relay (TURN)
+// carries the call when a network refuses a direct line (mobile data often does). The free
+// openrelay.metered.ca relay is gone (17 Oct 2026 its name points at 192.0.2.1, a dead
+// address), so there is no relay until MixZ has a TURN account of its own: add it to TURN.
+// Without one, a phone that cannot reach the desk directly falls back to PLAY ALONG.
+export const TURN = [];
 export const ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+    ...TURN,
 ];
 
 export function newToken() {
@@ -58,7 +64,7 @@ export function cleanCommand(raw) {
         case 'next':
             return NEXT_MODES.includes(raw.mode) ? { a: 'next', mode: raw.mode } : null;
         case 'load':
-            return d && typeof raw.id === 'string' && raw.id.length <= 200 ? { a: 'load', d, id: raw.id } : null;
+            return d && typeof raw.track === 'string' && raw.track.length <= 200 ? { a: 'load', d, id: raw.track } : null;   // the song rides as 'track': the link stamps every message with its own id
         case 'tracks':
             return { a: 'tracks', q: typeof raw.q === 'string' ? raw.q.slice(0, 60) : '', src: TRACK_SOURCES.includes(raw.src) ? raw.src : 'view' };
         case 'stream':
@@ -71,6 +77,10 @@ export function cleanCommand(raw) {
             return { a: 'mixz', on: !!raw.on };
         case 'songchainn': case 'takeover': case 'handback':
             return { a: raw.a };
+        case 'request': {   // the request line: a listener calls in a song
+            const req = cleanRequest(raw);
+            return req ? { a: 'request', ...req } : null;
+        }
         case 'listen':
             return { a: 'listen', on: !!raw.on };   // the phone's call address rides beside it, checked by the host
         default:
@@ -81,8 +91,8 @@ export function cleanCommand(raw) {
 // Commands that mean a person has their hands on the mix. They take the decks from DJ MixZ,
 // the same as touching the real controller does.
 export const HANDS_ON = new Set(['play', 'cue', 'crossfader', 'load']);
-// What a phone that is only watching may ask for.
-export const VIEWER_OK = new Set(['listen', 'share']);
+// What a phone that is only watching may ask for: listen, share, and call in a request.
+export const VIEWER_OK = new Set(['listen', 'share', 'tracks', 'request']);
 
 const idOfTrack = t => String(t?.id ?? t?.sourceId ?? t?.dataFile ?? t?.streamUrl ?? t?.title ?? '');
 
@@ -119,6 +129,7 @@ export function snapshot(dj) {
             index: m.index || 0, total: m.plan?.length || 0, minutes: m.minutes || 0, source: m._lastBuild?.sourceId || '',
             now: brief(now), next: brief(next),
         },
+        req: dj.requestLine?.board?.() || null,
     };
 }
 
@@ -310,11 +321,14 @@ export class RemoteHost {
         this.token = localStorage.getItem('mixz-remote-token');
         this.phones = new Map();      // device id -> { name, allowed, seen, askedAt, call }
         this._tracks = new Map();
+        this.requests = new RequestQueue();
+        this.dj.requestLine = this.requests;   // the board rides in the snapshot
         this._buildUI();
         // Once switched on it stays on across reloads, so the phone can always find the desk.
         if (validToken(this.token) && localStorage.getItem('mixz-remote') === 'on') this.start();
         setInterval(() => this._broadcast(), 1000 / STATE_HZ);
         setInterval(() => this._render(), 2000);
+        setInterval(() => this._requestTick(), 1000);
     }
 
     _allowed() {
@@ -388,12 +402,13 @@ export class RemoteHost {
         if (cmd.a === 'tracks') {
             const lib = this.dj.library || {};
             const full = cmd.src === 'view' ? (lib._getCurrentList?.() || []) : tracksFrom(lib, cmd.src);
-            this._tracks.clear();
+            if (this._tracks.size > 5000) this._tracks.clear();   // kept between searches: a request names a track from any phone's list
             for (const t of full) this._tracks.set(idOfTrack(t), t);
             this.relay.send({ t: 'tracks', to: device, list: trackList(full, cmd.q) });
             return;
         }
         if (cmd.a === 'listen') { this._listen(phone, cmd.on, msg.peer); return; }
+        if (cmd.a === 'request') { this._request(phone, cmd); return; }
         try { applyCommand(this.dj, cmd, this); } catch (e) { console.warn('[Remote] command failed', cmd, e); }
         // Answer straight away instead of at the next tick, so a tap shows on the phone at once.
         clearTimeout(this._echo);
@@ -412,6 +427,100 @@ export class RemoteHost {
         this.relay?.send({ t: 'denied', to: phone.device });
         this.phones.delete(phone.device);
         this._render();
+    }
+
+    // ── The request line ──
+
+    _request(phone, cmd) {
+        const say = (text) => this.relay?.send({ t: 'req', to: phone.device, say: text, list: forCaller(this.requests, phone.device) });
+        const track = this.trackById(cmd.id);
+        if (!track) { say('The desk lost that list. Search again and pick the song.'); return; }
+        const play = canPlay(track);
+        if (!play.ok) { say(play.reason); return; }
+        const res = this.requests.add(phone.device, cmd, track);
+        if (!res.ok) { say(res.reason); return; }
+        if (!res.joined) res.request.tape = canTape(play.licence) || !play.licence;   // no licence = the DJ's own file
+        say(res.joined ? 'Someone asked for that one too. You are on it with them.' : 'Got it. Your request is on the board.');
+        this._renderRequests();
+    }
+
+    _tell(r) {
+        for (const device of r.devices) this.relay?.send({ t: 'req', to: device, list: forCaller(this.requests, device) });
+    }
+
+    // Once a second: is a requested song on now, or over? DJ MixZ slots the oldest request in.
+    _requestTick() {
+        if (!this.relay) return;
+        const live = liveDeck(this.dj.decks, this.dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+        const m = live ? this.dj.decks[live]?.metadata?.metadata || {} : {};
+        const changed = this.requests.nowPlaying(live ? m.title : '', m.artist || '');
+        const mixz = this.dj.djMixz;
+        if (mixz?.running && !mixz.human && !this.requests.items.some((r) => r.status === 'next')) {
+            const r = this.requests.first();
+            if (r && mixz.playNext?.(r.track)) { this.requests.set(r.rid, 'next'); changed.push(r); }
+        }
+        changed.forEach((r) => this._tell(r));
+        if (changed.length) this._renderRequests();
+    }
+
+    // PLAY NEXT at the desk: DJ MixZ takes it as its next song, or it loads on the deck the
+    // room is not hearing, ready for the DJ to bring in.
+    _playNext(r) {
+        const mixz = this.dj.djMixz;
+        if (mixz?.running && !mixz.human) {
+            if (!mixz.playNext?.(r.track)) return;
+        } else {
+            const live = liveDeck(this.dj.decks, this.dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+            this.dj.library?.loadToDeck(r.track, live === 'A' ? 'B' : 'A');
+        }
+        this.requests.items.filter((x) => x.status === 'next' && x !== r).forEach((x) => { x.status = 'waiting'; this._tell(x); });
+        this.requests.set(r.rid, 'next');
+        this._tell(r);
+        this._renderRequests();
+    }
+
+    _pass(r) {
+        this.requests.set(r.rid, 'passed');
+        this._tell(r);
+        this._renderRequests();
+    }
+
+    _renderRequests() {
+        const box = document.getElementById('remote-requests');
+        const open = this.requests.waiting();
+        const onair = this.requests.items.find((r) => r.status === 'onair');
+        if (this.btn) {
+            const base = this.btn.textContent.replace(/ · \d+ REQ$/, '');
+            this.btn.textContent = base + (open.length ? ` · ${open.length} REQ` : '');
+        }
+        if (!box) return;
+        const sig = (onair?.rid || '') + '|' + open.map((r) => `${r.rid}:${r.status}:${r.also.length}`).join(',');
+        if (box.dataset.sig === sig) return;
+        box.dataset.sig = sig;
+        box.textContent = '';
+        if (!onair && !open.length) return;
+        const head = document.createElement('div'); head.className = 'remote-req-head'; head.textContent = 'REQUEST LINE';
+        box.appendChild(head);
+        const row = (r) => {
+            const el = document.createElement('div'); el.className = `remote-req ${r.status}`;
+            const info = document.createElement('div'); info.className = 'remote-req-info';
+            const b = document.createElement('b'); b.textContent = `${r.title}${r.artist ? ', ' + r.artist : ''}`;
+            const who = document.createElement('small');
+            who.textContent = `${r.name}${r.also.length ? ` +${r.also.length}` : ''}${r.note ? `: "${r.note}"` : ''}`;
+            info.append(b, who);
+            el.appendChild(info);
+            if (r.status === 'onair' || r.status === 'next') {
+                const s = document.createElement('span'); s.className = 'remote-req-tag'; s.textContent = r.status === 'onair' ? 'ON AIR' : 'NEXT';
+                el.appendChild(s);
+            } else {
+                const go = document.createElement('button'); go.className = 'btn-toolbar btn-sm'; go.textContent = 'PLAY NEXT'; go.onclick = () => this._playNext(r);
+                el.appendChild(go);
+            }
+            if (r.status !== 'onair') { const no = document.createElement('button'); no.className = 'btn-toolbar btn-sm'; no.textContent = 'NOT TONIGHT'; no.onclick = () => this._pass(r); el.appendChild(no); }
+            return el;
+        };
+        if (onair) box.appendChild(row(onair));
+        open.forEach((r) => box.appendChild(row(r)));
     }
 
     // Send the live mix to the phone, so the set can be heard from anywhere. Sound cannot go
@@ -472,6 +581,7 @@ export class RemoteHost {
         const asking = [...this.phones.values()].filter(p => !p.allowed && now - p.seen < PHONE_QUIET_MS);
         this.btn?.classList.toggle('active', live.length > 0);
         if (this.btn) this.btn.textContent = live.length > 0 ? `PHONE ${live.length}` : 'PHONE';
+        this._renderRequests();
         const url = on && validToken(this.token) ? remoteUrl(location.origin, this.token) : '';
         const linkEl = document.getElementById('remote-link');
         if (linkEl && linkEl.textContent !== url) linkEl.textContent = url;

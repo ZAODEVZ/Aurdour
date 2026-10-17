@@ -82,7 +82,7 @@ function enter() {
     showTab(role === 'viewer' ? 'stream' : (localStorage.getItem('mixz-remote-tab') || 'mix'));
     keepAwake();
 }
-const VIEWER_OK = new Set(['listen', 'share']);
+const VIEWER_OK = new Set(['listen', 'share', 'tracks', 'request']);
 function send(a, extra = {}) {
     if (role === 'viewer' && !VIEWER_OK.has(a)) return;
     if (ready) relay?.send({ t: 'cmd', device, a, ...extra });
@@ -122,7 +122,8 @@ function onData(msg) {
     else if (msg.t === 'denied') { gate('The desk said no', 'Ask whoever is at the computer to allow this phone.'); status('Not allowed'); }
     else if (msg.t === 'welcome') { lastState = Date.now(); enter(); status('Live', true); }
     else if (msg.t === 'state') { if (!ready) return; state = msg; lastState = Date.now(); if (!rtt) status('Live', true); draw(); listenTick(); }
-    else if (msg.t === 'tracks') drawTracks(msg.list || []);
+    else if (msg.t === 'tracks') { if (tracksFor === 'req') drawReqTracks(msg.list || []); else drawTracks(msg.list || []); }
+    else if (msg.t === 'req') drawMine(msg);
     else if (msg.t === 'mix') showMixLink(msg);
     else if (msg.t === 'pong' && msg.n === pingN) { rtt = Date.now() - pingAt; if (ready) status(`Live  ${rtt} ms`, true); }
 }
@@ -195,6 +196,7 @@ function draw() {
     $('mixz-say').textContent = !m.running ? 'DJ MixZ is off. Pick the music and a mood, then START: it builds the set and plays it on the desk while you are away.'
         : m.human ? 'You have the decks. DJ MixZ is watching and takes over again on HAND BACK.'
             : `DJ MixZ is mixing ${m.total} tracks${m.minutes ? ` for about ${m.minutes} minutes` : ''}. ${m.endless ? 'When the set ends it builds the next one by itself.' : 'When the set ends it stops.'}`;
+    drawBoard(state.req);
 }
 function drawTracks(list) {
     const box = $('tracks');
@@ -206,8 +208,8 @@ function drawTracks(list) {
         const b = document.createElement('b'); b.textContent = t.title || 'Untitled';
         const small = document.createElement('small'); small.textContent = [t.artist, t.bpm ? `${Math.round(t.bpm)} BPM` : '', t.key || ''].filter(Boolean).join('  ·  ');
         info.append(b, small);
-        const la = document.createElement('button'); la.className = 'la'; la.textContent = 'A'; la.onclick = () => send('load', { d: 'A', id: t.id });
-        const lb = document.createElement('button'); lb.className = 'lb'; lb.textContent = 'B'; lb.onclick = () => send('load', { d: 'B', id: t.id });
+        const la = document.createElement('button'); la.className = 'la'; la.textContent = 'A'; la.onclick = () => send('load', { d: 'A', track: t.id });
+        const lb = document.createElement('button'); lb.className = 'lb'; lb.textContent = 'B'; lb.onclick = () => send('load', { d: 'B', track: t.id });
         row.append(info, la, lb);
         box.appendChild(row);
     }
@@ -220,7 +222,8 @@ function showTab(name) {
     if (name === 'tracks') askTracks();
 }
 $('role-btn').onclick = () => { const next = role === 'viewer' ? 'dj' : 'viewer'; setRole(next); relay?.send({ t: 'hello', device, name: phoneName, role: next }); if (next === 'dj') status('Switching to DJ: the desk may ask to allow this phone'); };
-function askTracks() { send('tracks', { q: $('search').value, src: trackSrc }); }
+let tracksFor = 'tracks';
+function askTracks() { tracksFor = 'tracks'; send('tracks', { q: $('search').value, src: trackSrc }); }
 function showMixLink(msg) {
     const box = $('st-sharebox');
     box.classList.remove('hidden');
@@ -297,6 +300,120 @@ $('live-btn').onclick = () => send('live', { on: !state?.live });
 $('st-share').onclick = () => { $('st-sharebox').classList.remove('hidden'); $('st-sharebox').textContent = 'Asking the desk'; send('share'); };
 let searchTimer = null;
 $('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(askTracks, 300); });
+
+// ── REQUEST LINE: call in a song, and tape it when it comes on ──
+// Like phoning the radio station and waiting by the cassette recorder. The desk keeps the
+// board (RequestLine.js); this phone shows its own requests and records its song off the mix.
+const REQ_WORDS = { waiting: 'On the board. The DJ has it.', next: 'Up next. Get your tape ready.', onair: 'Your song is on now.', played: 'Played. Thanks for calling in.', passed: 'Not tonight.' };
+$('req-name').value = localStorage.getItem('mixz-req-name') || '';
+$('req-name').addEventListener('change', () => localStorage.setItem('mixz-req-name', $('req-name').value.trim()));
+let reqSrc = 'zao', reqTimer = null, mine = [];
+// The ZAO crate first. If the desk has nothing there yet, this one search uses its library view.
+function askReqTracks(src = 'zao') { tracksFor = 'req'; reqSrc = src; send('tracks', { q: $('req-search').value, src }); }
+$('req-search').addEventListener('focus', () => { if (!$('req-list').childElementCount) askReqTracks(); });
+$('req-search').addEventListener('input', () => { clearTimeout(reqTimer); reqTimer = setTimeout(() => askReqTracks(), 300); });
+function drawReqTracks(list) {
+    const box = $('req-list');
+    box.textContent = '';
+    // The desk has not opened the ZAO crate yet: use whatever its library shows.
+    if (!list.length && reqSrc === 'zao') { askReqTracks('view'); return; }
+    if (!list.length) { box.textContent = $('req-search').value ? 'No song by that name on the desk.' : 'The desk is still loading its music. Try again in a moment.'; return; }
+    for (const t of list.slice(0, 12)) {
+        const row = document.createElement('div'); row.className = 'track'; row.dataset.id = t.id;
+        const info = document.createElement('div');
+        const b = document.createElement('b'); b.textContent = t.title || 'Untitled';
+        const small = document.createElement('small'); small.textContent = t.artist || '';
+        info.append(b, small);
+        const go = document.createElement('button'); go.textContent = 'REQUEST';
+        go.onclick = () => {
+            const name = $('req-name').value.trim();
+            localStorage.setItem('mixz-req-name', name);
+            send('request', { track: t.id, name, note: $('req-note').value.trim() });
+            $('req-say').textContent = 'Calling it in';
+            box.textContent = ''; $('req-search').value = '';
+        };
+        row.append(info, go);
+        box.appendChild(row);
+    }
+}
+function drawMine(msg) {
+    if (msg.say) $('req-say').textContent = msg.say;
+    mine = msg.list || [];
+    const box = $('req-mine');
+    box.textContent = '';
+    for (const r of mine) {
+        const el = document.createElement('div'); el.className = `req-mine ${r.status}`;
+        const b = document.createElement('b'); b.textContent = `${r.title}${r.artist ? ', ' + r.artist : ''}`;
+        const small = document.createElement('small'); small.textContent = REQ_WORDS[r.status] || '';
+        el.append(b, small);
+        if (r.status === 'onair' || r.status === 'next') {
+            const tape = document.createElement('button');
+            tape.className = 'tape';
+            if (!r.tape) { tape.disabled = true; tape.textContent = 'NO TAPING ON THIS ONE'; }
+            else if (taping && taping.rid === r.rid) { tape.classList.add('rec'); tape.textContent = 'STOP TAPE'; tape.onclick = () => stopTape(); }
+            else if (r.status === 'onair') { tape.textContent = 'TAPE IT'; tape.onclick = () => startTape(r); }
+            else { tape.disabled = true; tape.textContent = 'TAPE READY WHEN IT COMES ON'; }
+            el.appendChild(tape);
+        }
+        box.appendChild(el);
+    }
+    // The song ended while taping: stop and save, like lifting the finger off REC.
+    if (taping && !mine.some((r) => r.rid === taping.rid && r.status === 'onair')) stopTape();
+}
+function drawBoard(req) {
+    const box = $('req-board');
+    if (!req || (!req.onair && !req.up?.length)) { box.textContent = ''; return; }
+    const line = (lead, r) => {
+        const d = document.createElement('div');
+        const em = document.createElement('em'); em.textContent = r.title;
+        d.append(`${lead} `, em, ` for ${r.name}${r.also ? ` +${r.also}` : ''}${r.note ? `: "${r.note}"` : ''}`);
+        return d;
+    };
+    const sig = JSON.stringify(req);
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    box.textContent = '';
+    if (req.onair) box.appendChild(line('On air:', req.onair));
+    for (const r of req.up || []) box.appendChild(line(r.status === 'next' ? 'Next:' : 'Waiting:', r));
+}
+
+// TAPE: record the song off the mix this phone hears. Needs LISTEN on.
+let taping = null;
+function tapeStream() {
+    if (direct && $('monitor').srcObject) return $('monitor').srcObject;
+    const deck = state?.live_deck;
+    const el = deck && along.on ? $(`pa-${deck}`) : null;
+    return el?.captureStream?.() || el?.mozCaptureStream?.() || null;
+}
+function startTape(r) {
+    if (!listening) { $('req-say').textContent = 'Press LISTEN at the top first, then TAPE IT.'; return; }
+    const stream = tapeStream();
+    if (!stream || !window.MediaRecorder) { $('req-say').textContent = 'This phone cannot tape the mix. Try Chrome on Android, or a computer.'; return; }
+    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
+    const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    const parts = [];
+    rec.ondataavailable = (e) => { if (e.data.size) parts.push(e.data); };
+    rec.onstop = () => {
+        const blob = new Blob(parts, { type: rec.mimeType || 'audio/webm' });
+        if (!blob.size) { $('req-say').textContent = 'The tape came out empty. Is the sound on?'; return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `MixZ tape - ${r.title.replace(/[\\/:*?"<>|]/g, '')}.${(rec.mimeType || '').includes('mp4') ? 'm4a' : 'webm'}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        $('req-say').textContent = 'Taped. It is saved on this phone.';
+    };
+    rec.start(1000);
+    taping = { rid: r.rid, rec };
+    $('req-say').textContent = 'Taping. It stops by itself when the song ends.';
+    drawMine({ list: mine });
+}
+function stopTape() {
+    const t = taping;
+    taping = null;
+    if (t?.rec.state === 'recording') t.rec.stop();
+    drawMine({ list: mine });
+}
 
 // ── LISTEN: the mix on this phone ──
 // First a direct call from the desk (the real mix). If no sound arrives in a few seconds,

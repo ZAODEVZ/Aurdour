@@ -701,7 +701,7 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 .btn-phone { color: var(--mz-a); border-color: rgba(var(--mz-a-rgb), 0.35); }
 .btn-phone.active { color: var(--mz-play); border-color: rgba(43, 255, 154, 0.5); }
 .remote-panel {
-    position: fixed; top: 60px; right: 16px; z-index: 460; width: min(92vw, 300px);
+    position: fixed; top: 60px; right: 16px; z-index: 460; width: min(92vw, 300px); max-height: calc(100vh - 80px); overflow-y: auto;
     display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px;
     background: var(--mz-panel); border: 1px solid var(--mz-line-hi); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
@@ -712,6 +712,16 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 .remote-qr canvas { border-radius: 8px; max-width: 100%; }
 .remote-status { font-size: 0.82rem; color: var(--mz-text); text-align: center; }
 .remote-link { font-size: 0.6rem; color: var(--mz-dim); word-break: break-all; user-select: all; text-align: center; }
+.remote-requests { display: flex; flex-direction: column; gap: 6px; }
+.remote-req-head { font-size: 0.6rem; letter-spacing: 0.14em; color: var(--mz-cue); }
+.remote-req { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); }
+.remote-req.onair { border-color: rgba(43, 255, 154, 0.6); }
+.remote-req.next { border-color: rgba(255, 197, 51, 0.5); }
+.remote-req-info { flex: 1 1 160px; min-width: 0; }
+.remote-req-info b { display: block; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remote-req-info small { display: block; font-size: 0.7rem; color: var(--mz-muted); }
+.remote-req-tag { font-size: 0.6rem; letter-spacing: 0.12em; font-weight: 800; color: var(--mz-cue); }
+.remote-req.onair .remote-req-tag { color: #2bff9a; }
 .remote-phones { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; }
 .remote-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 10px; border: 1px solid rgba(255, 197, 51, 0.5); color: var(--mz-cue); }
 .remote-ask span { flex: 1 1 100%; }
