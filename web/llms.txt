@@ -98,6 +98,8 @@ Press DJ MIXZ in the top bar.
 
 Scan the QR code. Choose **I AM THE DJ** to control the set (the computer asks you to allow the phone once), or **JUST WATCHING** to only listen and see what is playing. From the phone you can run DJ MixZ, move the crossfader, skip, go endless, and listen along. If the computer is off, **MIX ON THIS PHONE** plays a set on the phone itself.
 
+**REQUEST LINE** (like calling the radio station): on the phone page, anyone watching can search a song, add their name and who it is for, and press REQUEST. The request shows in the PHONE panel on the computer with PLAY NEXT and NOT TONIGHT. PLAY NEXT loads it on the deck the room is not hearing, or, while DJ MixZ is playing, makes it the next song (DJ MixZ also takes requests by itself, oldest first). One phone can have 2 songs waiting, the board holds 20. When the song comes on, the caller's phone says so and shows **TAPE IT**: with LISTEN on, it records the song off the live mix and saves it on the phone, stopping by itself when the song ends. Taping only shows when the song's licence allows radio play.
+
 ## Sharing a set
 
 - **NOW PLAYING** strip: the song on air, with OPEN THE SONG (go to it on Audius or SongChainn) and SHARE THE MIX (a link to everything played so far, so anyone can play the mix again).

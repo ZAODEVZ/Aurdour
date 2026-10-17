@@ -119,6 +119,21 @@
         .sharebox { margin-top: 8px; font-size: .78rem; color: var(--muted); word-break: break-all; }
         .sharebox a { color: var(--a); }
 
+        /* The REQUEST LINE: call in a song, tape it when it plays */
+        .req-who { margin-bottom: 8px; }
+        #req-card input { width: 100%; min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--hi); color: var(--text); font: inherit; padding: 0 12px; }
+        #req-search { margin-bottom: 6px; }
+        #req-list .track button { min-width: 0; padding: 0 12px; font-size: .66rem; letter-spacing: .08em; }
+        .req-mine { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+        .req-mine.onair { border-color: var(--play); box-shadow: 0 0 14px rgba(43,255,154,.25); }
+        .req-mine b { display: block; font-size: .92rem; }
+        .req-mine small { display: block; color: var(--muted); font-size: .74rem; margin-top: 2px; }
+        .req-mine .tape { margin-top: 8px; width: 100%; min-height: 48px; font-weight: 800; letter-spacing: .12em; }
+        .req-mine .tape.rec { color: #ff4d6d; border-color: #ff4d6d; }
+        .req-board { margin-top: 8px; font-size: .76rem; color: var(--muted); }
+        .req-board div { padding: 4px 0; border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .req-board em { font-style: normal; color: var(--text); }
+
         /* ===== Fit every screen: the MIX view is one screen, never a scroll ===== */
         html, body { height: 100dvh; }
         body { max-width: 980px; margin: 0 auto; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
@@ -228,6 +243,14 @@
             <div class="card">
                 <div class="air"><span class="pill" id="air-pill">OFF AIR</span><span class="pill b" id="mixz-pill">DJ MIXZ OFF</span><span style="flex:1"></span><button id="live-btn" class="dj-only" style="min-height:40px;padding:0 14px;font-size:.72rem;font-weight:800;letter-spacing:.1em">GO LIVE</button></div>
                 <div class="np"><b id="np-title">Nothing playing</b><small id="np-artist"></small><div class="prog"><i id="np-prog"></i></div><div class="next" id="np-next"></div></div>
+            </div>
+            <div class="card" id="req-card" style="margin-top:10px"><h2>REQUEST LINE</h2>
+                <p class="hint" id="req-say" style="margin-top:0">Call in a song. Pick it, say who it is for, and the DJ gets it. When it comes on, tape it.</p>
+                <div id="req-mine"></div>
+                <div class="grid2 req-who"><input id="req-name" placeholder="Your name" maxlength="24" autocomplete="nickname"><input id="req-note" placeholder="Who is it for?" maxlength="80"></div>
+                <input id="req-search" type="search" placeholder="Search a song to request" autocomplete="off">
+                <div id="req-list"></div>
+                <div class="req-board" id="req-board"></div>
             </div>
             <div class="card dj-only" style="margin-top:10px"><h2>DJ MIXZ, FROM HERE</h2>
                 <select id="st-source">

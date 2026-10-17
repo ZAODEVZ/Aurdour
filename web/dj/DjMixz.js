@@ -264,6 +264,25 @@ export class DjMixz {
         return true;
     }
 
+    // A listener's request (the request line, RequestLine.js) goes in as the next song. If a
+    // move is already under way it goes in right after the song coming in.
+    playNext(track) {
+        const flow = this.dj.flowMode;
+        if (!this.running || !flow || !track) return false;
+        const busy = flow._transitioning || flow._nearEndTriggered;
+        const at = this.index + (busy ? 2 : 1);
+        const id = idOf(track);
+        const dup = this.plan.findIndex((p, i) => i >= at && idOf(p.track) === id);
+        if (dup >= 0) { this.plan.splice(dup, 1); const q = flow.queue.findIndex((t) => idOf(t) === id); if (q >= 0) flow.queue.splice(q, 1); }
+        const move = this.plan[at]?.move || this.plan[this.index]?.move || { type: 'blend', seconds: 16 };
+        this.plan.splice(at, 0, { track, energy: energyOf(track), target: energyOf(track), move, request: true });
+        flow.queue.splice(busy ? 1 : 0, 0, track);
+        if (!busy) this._armNext();
+        this._renderPlan();
+        this._renderBar();
+        return true;
+    }
+
     // Set FlowMode up for the next move: how long before the end to start, and how.
     _armNext() {
         const next = this.plan[this.index + 1];

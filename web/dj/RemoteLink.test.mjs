@@ -39,7 +39,8 @@ check('next track takes the eight known modes only', NEXT_MODES.length === 8 && 
 check('unknown commands are dropped', cleanCommand({ a: 'eval', code: 'x' }) === null && cleanCommand({ a: 'settings' }) === null && cleanCommand(null) === null && cleanCommand('play') === null);
 check('extra fields never pass through', Object.keys(cleanCommand({ a: 'play', d: 'A', evil: 1, __proto__: { x: 1 } })).sort().join() === 'a,d');
 check('a search is capped at 60 characters', cleanCommand({ a: 'tracks', q: 'x'.repeat(500) }).q.length === 60);
-check('a load id is capped', cleanCommand({ a: 'load', d: 'A', id: 'x'.repeat(201) }) === null && cleanCommand({ a: 'load', d: 'A', id: 'abc' })?.id === 'abc');
+check('a load id is capped', cleanCommand({ a: 'load', d: 'A', track: 'x'.repeat(201) }) === null && cleanCommand({ a: 'load', d: 'A', track: 'abc' })?.id === 'abc');
+check('the song rides as track, not id: the link stamps its own id on every message', cleanCommand({ a: 'load', d: 'A', id: 'abc' }) === null && cleanCommand({ a: 'request', track: 'abc', id: '0123456789abcdef' })?.id === 'abc');
 
 // Carrying a command out on the desktop
 const mkDeck = (o = {}) => ({ calls: [], isLoaded: true, isPlaying: false, currentRate: 1, loop: { active: false }, hotCues: new Array(8).fill(null),
@@ -71,8 +72,8 @@ applyCommand(r.dj, cleanCommand({ a: 'fxfade', d: 'B', n: 3 }));
 applyCommand(r.dj, cleanCommand({ a: 'jump', d: 'A', n: 6 }));
 applyCommand(r.dj, cleanCommand({ a: 'next', mode: 'up' }));
 check('crossfader, fx fade, beat jump and next track reach the right part of the app', ['xf 0.9', 'fxfade B 3', 'jump A 6', 'next up'].every(x => r.log.includes(x)));
-check('a load for a track the desk never listed does nothing', applyCommand(r.dj, cleanCommand({ a: 'load', d: 'A', id: 'nope' }), { trackById: () => null }) === 'load-miss' && !r.log.some(x => x.startsWith('load')));
-applyCommand(r.dj, cleanCommand({ a: 'load', d: 'B', id: 'x' }), { trackById: () => ({ title: 'Song' }) });
+check('a load for a track the desk never listed does nothing', applyCommand(r.dj, cleanCommand({ a: 'load', d: 'A', track: 'nope' }), { trackById: () => null }) === 'load-miss' && !r.log.some(x => x.startsWith('load')));
+applyCommand(r.dj, cleanCommand({ a: 'load', d: 'B', track: 'x' }), { trackById: () => ({ title: 'Song' }) });
 check('a load for a listed track loads it', r.log.includes('load Song B'));
 
 r = rig({ running: true, human: false });
