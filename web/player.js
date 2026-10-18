@@ -54,6 +54,7 @@ import { CloudSync } from './dj/CloudSync.js';
 import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
 import { BeatGridOverlay } from './dj/BeatGridOverlay.js';
+import { Archive } from './dj/Archive.js';
 
 class DJPlayer {
     constructor() {
@@ -178,6 +179,9 @@ class DJPlayer {
 
         // Beat Grid Overlay — visual beat markers, hot cue markers, loop highlights, phase meter
         this.beatGridOverlay = safeInit('BeatGridOverlay', () => new BeatGridOverlay(this.decks.A, this.decks.B));
+
+        // Archive: the extras Zaal asked to hide until each one is tested (ARCHIVE.md)
+        this.archive = safeInit('Archive', () => new Archive(this));
 
         // Wire mixer crossfader to stream broadcast
         if (this.broadcast && this.mixer) {
