@@ -55,6 +55,7 @@ import { PluginManager } from './dj/PluginManager.js';
 import { TravelMode } from './dj/TravelMode.js';
 import { BeatGridOverlay } from './dj/BeatGridOverlay.js';
 import { Archive } from './dj/Archive.js';
+import { ArtistTab } from './dj/ArtistTab.js';
 
 class DJPlayer {
     constructor() {
@@ -182,6 +183,8 @@ class DJPlayer {
 
         // Archive: the extras Zaal asked to hide until each one is tested (ARCHIVE.md)
         this.archive = safeInit('Archive', () => new Archive(this));
+        // Artist pages in the library: JANGO first (Zaal, 18 Oct)
+        this.artistTab = safeInit('ArtistTab', () => new ArtistTab(this));
 
         // Wire mixer crossfader to stream broadcast
         if (this.broadcast && this.mixer) {
