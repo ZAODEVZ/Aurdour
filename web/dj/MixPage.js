@@ -31,8 +31,12 @@ export function mixEntry(h, sessionStart) {
     return ['lo', cleanTitle(h.title, h.artist).slice(0, 60), String(h.artist || '').slice(0, 40), at, du, siteFile(sid)];
 }
 
+// A song played for under 20 seconds was skipped or only loaded: it is not part of the mix.
+// The last one stays, since it may still be playing.
+export const SKIPPED_UNDER = 20;
 export function buildMix(history, { name = '', dj = '', date = new Date() } = {}) {
-    const list = (history || []).filter((h) => h && h.title);
+    const all = (history || []).filter((h) => h && h.title);
+    const list = all.filter((h, i) => i === all.length - 1 || (h.durationPlayed || 0) >= SKIPPED_UNDER);
     const start = list.length ? Math.min(...list.map((h) => h.startTime || Infinity)) : date.getTime();
     return {
         v: MIX_VERSION,
@@ -75,14 +79,60 @@ const txt = (s) => encodeURIComponent(String(s ?? ''));
 const untxt = (s) => { try { return decodeURIComponent(s); } catch (e) { return ''; } };
 const int = (s) => { const n = parseInt(s, 10); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
+// Version 2 of the link, the one SHARE THE MIX makes now. Zaal: "clean up the hash".
+//   2.<yyMMddHHmm>[.N<name>][.D<dj>].<entry>.<entry>...
+// with an entry  s<id>~<played>[~<gap>]   a<id>~<played>[~<gap>]   l<title>~<artist>~<played>[~<gap>[~<file>]]
+// Numbers are base 36. When a song started is not written out: it is the end of the one
+// before plus <gap> (left out when 0, negative when the two overlapped in a blend).
+// No ; , : or % for a date, so the link reads clean and stays short.
+const txt2 = (s) => txt(s).replace(/\./g, '%2E').replace(/~/g, '%7E');
+const b36 = (n) => (n < 0 ? '-' + (-n).toString(36) : n.toString(36));
+const un36 = (s) => { const n = parseInt(s, 36); return Number.isFinite(n) ? n : 0; };
+const compactDate = (d) => (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(d || '') ? d.slice(2).replace(/[-T:]/g, '') : '');
+const fullDate = (c) => (/^\d{10}$/.test(c) ? `20${c.slice(0, 2)}-${c.slice(2, 4)}-${c.slice(4, 6)}T${c.slice(6, 8)}:${c.slice(8, 10)}` : '');
+
 export function encodeMix(obj) {
-    const entries = (obj.t || []).map((e) => (e[0] === 'sc' ? `s${packHex(String(e[1]))},${int(e[2])},${int(e[3])}`
-        : e[0] === 'au' ? `a${txt(e[1])},${int(e[2])},${int(e[3])}`
-            : `l${txt(e[1])},${txt(e[2])},${int(e[3])},${int(e[4])}${e[5] ? ',' + txt(e[5]) : ''}`));
-    return [obj.v ?? MIX_VERSION, txt(obj.n), txt(obj.dj), txt(obj.d), ...entries].join(';');
+    let end = 0;
+    const entries = (obj.t || []).map((e) => {
+        const lo = e[0] === 'lo';
+        const at = int(lo ? e[3] : e[2]), du = int(lo ? e[4] : e[3]);
+        const gap = at - end;
+        end = at + du;
+        const tail = `~${b36(du)}${gap || (lo && e[5]) ? '~' + b36(gap) : ''}`;
+        if (e[0] === 'sc') return `s${packHex(String(e[1]))}${tail}`;
+        if (e[0] === 'au') return `a${txt2(e[1])}${tail}`;
+        return `l${txt2(e[1])}~${txt2(e[2])}${tail}${e[5] ? '~' + txt2(e[5]) : ''}`;
+    });
+    const head = ['2', compactDate(obj.d)];
+    if (obj.n) head.push('N' + txt2(obj.n));
+    if (obj.dj) head.push('D' + txt2(obj.dj));
+    return [...head, ...entries].join('.');
 }
+
+function decodeMix2(str) {
+    const parts = str.split('.');
+    const out = { v: MIX_VERSION, n: '', dj: '', d: fullDate(parts[1] || ''), t: [] };
+    let end = 0;
+    for (const raw of parts.slice(2, 202)) {
+        const kind = raw[0], f = raw.slice(1).split('~');
+        if (kind === 'N') { out.n = untxt(raw.slice(1)); continue; }
+        if (kind === 'D') { out.dj = untxt(raw.slice(1)); continue; }
+        const timed = (du, gap) => { const at = Math.max(0, end + un36(gap || '0')); const d = Math.max(0, un36(du)); end = at + d; return [at, d]; };
+        if ((kind === 's' || kind === 'a') && (f.length === 2 || f.length === 3) && f[0]) {
+            const [at, du] = timed(f[1], f[2]);
+            out.t.push(kind === 's' ? ['sc', unpackHex(f[0]), at, du] : ['au', untxt(f[0]), at, du]);
+        } else if (kind === 'l' && f.length >= 3 && f.length <= 5) {
+            const [at, du] = timed(f[2], f[3]);
+            out.t.push(['lo', untxt(f[0]), untxt(f[1]), at, du, siteFile(untxt(f[4] || ''))]);
+        }
+    }
+    return out;
+}
+
+// Reads both the new links and the version 1 ones already out in chats.
 export function decodeMix(str) {
     try {
+        if (/^2\.\d{0,10}(\.|$)/.test(String(str || ''))) return decodeMix2(String(str));
         const parts = String(str || '').split(';');
         if (parts.length < 4 || Number(parts[0]) !== MIX_VERSION) return null;
         const t = [];

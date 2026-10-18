@@ -97,9 +97,12 @@ export class FlowMode {
         if (cf) { cf.value = 0; }
         this.dj.audioRouter.setCrossfade(0);
 
-        // Load and play on deck A
+        // Load and play on deck A. Loading alone left the first song sitting at 0:00, so
+        // press play once it is ready; a song that will not load hands over to the next one.
         this.dj.audioRouter.resume();
-        this._loadTrackToDeck(this.dj.decks.A, track);
+        const deckA = this.dj.decks.A;
+        if (this._loadTrackToDeck(deckA, track) === false) { this._startNext(); return; }
+        this._playWhenReady(deckA);
 
         // Auto-suggest next tracks
         this._suggestNext();
@@ -108,8 +111,34 @@ export class FlowMode {
         this._startProgressUpdates();
     }
 
+    // Start deck playback as soon as its song has loaded; on a load error try the next song.
+    _playWhenReady(deck) {
+        const ws = deck.wavesurfer;
+        if (!ws) return;
+        const token = (this._startToken = (this._startToken || 0) + 1);
+        const go = () => {
+            if (token !== this._startToken || !this.enabled) return;
+            this.dj.audioRouter.resume();
+            if (!deck.isPlaying) deck.play();
+        };
+        if (deck.isLoaded && ws.getDuration() > 0) { go(); return; }
+        ws.once('ready', go);
+        ws.once('error', () => {
+            if (token !== this._startToken || !this.enabled || deck.isPlaying) return;
+            console.warn('[FlowMode] First song would not load, trying the next one');
+            this._startNext();
+        });
+    }
+
+    _startNext() {
+        this._startFails = (this._startFails || 0) + 1;
+        if (this._startFails > 5 || this.queue.length === 0) { this._startFails = 0; return; }
+        this.start(this.queue.shift());
+    }
+
     skip() {
-        if (this.queue.length === 0) return;
+        // A second skip mid-mix reloaded the deck coming in and stopped both: one mix at a time.
+        if (this.queue.length === 0 || this._transitioning) return;
         this._triggerTransition();
     }
 
@@ -231,13 +260,21 @@ export class FlowMode {
 
         // Wait for deck to be ready, then start transition
         let retries = 0;
-        const maxRetries = 100; // 10 seconds max wait
+        const maxRetries = 250; // 25 seconds: streams load slowly on a weak connection
         const checkReady = () => {
             if (retries++ > maxRetries) {
-                console.warn('[FlowMode] Deck load timed out, aborting transition');
+                // A song that never loads used to stall the set here for good, the same song
+                // retried at every near-end. Drop it and go straight to the one after.
+                console.warn('[FlowMode] Deck load timed out, skipping', nextTrack.title);
+                if (this.queue[0] === nextTrack) this.queue.shift();
                 this._transitioning = false;
+                this._loadFails = (this._loadFails || 0) + 1;
+                if (this._loadFails <= 3 && this.queue.length) this._triggerTransition();
+                else this._loadFails = 0;
+                this._updateUI();
                 return;
             }
+            if (this.dj.decks[idleDeck].isLoaded) this._loadFails = 0;
             if (this.dj.decks[idleDeck].isLoaded) {
                 if (this.dj.autoTransition) {
                     // Pass transition type and BPM sync info

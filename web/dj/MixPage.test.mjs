@@ -27,6 +27,21 @@ check('the full link is built on mix.html', mixUrl('https://zaomixz.vercel.app/'
 check('a broken or foreign link is refused', decodeMix('not a mix') === null && decodeMix('99;;;') === null && decodeMix('1;a;b') === null && decodeMix('') === null && mixFromHash('#setlist=abc') === null);
 check('unknown or short entries are dropped on the way in', decodeMix('1;;;;zq,1;sdeadbeef,0;sdeadbeef,0,0;lonly,one').t.length === 1);
 
+check('the link is version 2: no ; , or : in it', enc.startsWith('2.2610141200.') && !/[;,:]/.test(enc));
+const v1 = '1;;;2026-10-18T12%3A13;a2AYk2X0,0,653;amOdAE2,15,466';
+check('a version 1 link from before still opens', decodeMix(v1)?.t.length === 2 && decodeMix(v1).t[1].join() === 'au,mOdAE2,15,466');
+const skipped = buildMix([
+    { title: 'Kept', artist: 'A', src: 'audius', sid: 'x1', startTime: t0, durationPlayed: 300 },
+    { title: 'Skipped', artist: 'A', src: 'audius', sid: 'x2', startTime: t0 + 300000, durationPlayed: 3 },
+    { title: 'Loaded only', artist: 'A', src: 'audius', sid: 'x3', startTime: t0 + 303000, durationPlayed: 0 },
+    { title: 'Playing now', artist: 'A', src: 'audius', sid: 'x4', startTime: t0 + 304000, durationPlayed: 0 },
+]);
+check('songs skipped in under 20 seconds leave the mix, the one playing stays', skipped.t.map((e) => e[1]).join() === 'x1,x4');
+const blend = { v: 1, n: 'a.b~c', dj: '', d: '2026-10-18T12:13', t: [['au', 'p', 0, 100], ['au', 'q', 90, 50], ['au', 'r', 200, 0], ['lo', 'T.x', 'A~y', 200, 5, 'data/t.json']] };
+check('overlaps, gaps, dots and tildes all come back exactly', JSON.stringify(decodeMix(encodeMix(blend))) === JSON.stringify(blend));
+const zaal = buildMix(Array.from({ length: 20 }, (_, i) => ({ title: 'T' + i, artist: 'A', src: 'audius', sid: 'aB3dE' + i, startTime: t0 + i * 100000, durationPlayed: i % 2 ? 2 : 300 })));
+check('a 20 song night with half skipped makes a link under 260 characters', zaal.t.length === 11 && mixUrl('https://zaomixz.vercel.app', zaal).length < 260);
+
 const big = buildMix(Array.from({ length: 30 }, (_, i) => ({ title: 'T' + i, artist: 'A', src: 'songchainn', sid: 'songchainn:94e4377c-bb84-4bea-8b3f-324e1aded3e5', startTime: t0 + i * 200000, durationPlayed: 200 })), { name: 'A long night', dj: 'Zaal' });
 check('thirty SongChainn songs fit in a Telegram message (under 2,000 characters)', mixUrl('https://zaomixz.vercel.app', big).length < 2000);
 
