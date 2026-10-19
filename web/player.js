@@ -44,6 +44,8 @@ import { Spotify } from './dj/Spotify.js';
 import { TwitchChat } from './dj/TwitchChat.js';
 import { YouTubeLive } from './dj/YouTubeLive.js';
 import { SmartRecommend } from './dj/SmartRecommend.js';
+import { StreamEvents } from './dj/StreamEvents.js';
+import { moderate } from './dj/ChatFilter.js';
 import { SwitchPad } from './dj/SwitchPad.js';
 import { ZaoCrate } from './dj/ZaoCrate.js';
 import { BattleCrate } from './dj/BattleCrate.js';
@@ -168,6 +170,9 @@ class DJPlayer {
         // DJ MixZ: the bot DJ. Plans a set from a playlist and a mood, then mixes it.
         this.djMixz = safeInit('DjMixz', () => new DjMixz(this));
         this.deadAir = safeInit('DeadAir', () => new DeadAir(this));
+        // Stream events: the on-air song, each handover and stream health (docs/STREAM-EVENTS.md)
+        this.streamEvents = safeInit('StreamEvents', () => new StreamEvents(this));
+        if (this.flowMode && this.streamEvents) this.flowMode.onHandover = (phase, data) => this.streamEvents.handover(phase, data);
 
         // Cloud Sync
         this.cloudSync = safeInit('CloudSync', () => new CloudSync(this.storage));
@@ -825,6 +830,9 @@ class DJPlayer {
                 if (this.flowMode?.enabled) {
                     this.flowMode.onTransitionComplete(direction);
                 }
+            };
+            this.autoTransition.onCancel = () => {
+                if (this.flowMode?.enabled) this.flowMode.onTransitionCancelled();
             };
         }
     }
@@ -1656,7 +1664,16 @@ class DJPlayer {
 
     // ===== STREAM CHAT =====
 
+    // Words the DJ never wants on the stream, one per line in localStorage 'mixz-chat-block'
+    _chatBlocked() {
+        try { return String(localStorage.getItem('mixz-chat-block') || '').split(/\n|,/).map((w) => w.trim()).filter(Boolean); } catch (e) { return []; }
+    }
+
     _onStreamChatMessage(msg) {
+        // Only a line the filter passes becomes a chat.message stream event (docs/STREAM-EVENTS.md)
+        const blocked = this._chatBlocked();
+        const line = moderate(msg.message, { blocked }), who = moderate(msg.user, { blocked });
+        if (line.ok && who.ok) this.streamEvents?.emit?.('chat.message', { platform: msg.platform === 'youtube' ? 'youtube' : 'twitch', user: who.text.slice(0, 40), text: line.text });
         const list = document.getElementById('chat-messages');
         if (!list) return;
 
@@ -1683,6 +1700,8 @@ class DJPlayer {
     }
 
     _onStreamSongRequest(request) {
+        // Onto the request line, moderated and matched to a track; it waits for PLAY NEXT
+        try { this.remote?.chatRequest?.(request, this._chatBlocked()); } catch (e) { console.warn('chat request failed:', e); }
         const list = document.getElementById('requests-list');
         if (!list) return;
         const el = document.createElement('div');

@@ -3,6 +3,7 @@
 // Supports both local tracks (dataFile) and streaming tracks (streamUrl)
 
 import { canPlay } from './Licence.js';
+import { esc } from './Html.js';
 
 export class FlowMode {
     constructor(djPlayer) {
@@ -21,6 +22,10 @@ export class FlowMode {
         this._transitioning = false;
         this._progressInterval = null;
         this._nearEndTriggered = false; // our own near-end flag (independent of Deck's)
+        this._mixToken = 0; // moves on whenever a handover is given up, so its wait for the deck stops
+        this.onTrackDropped = null; // told about a song that would not load, so DJ MixZ can take it out of its plan
+        this.onHandover = null; // (phase, data): 'started' or 'finished', for the stream events (StreamEvents.js)
+        this.transitionWhy = null; // DJ MixZ's reason for the move, sent with transition.started
     }
 
     enable() {
@@ -38,6 +43,35 @@ export class FlowMode {
         document.getElementById('flow-panel')?.classList.add('hidden');
         document.getElementById('flow-toggle-btn')?.classList.remove('active');
         this._stopProgressUpdates();
+        this.cancelTransition();
+    }
+
+    // Stop waiting on a handover that is under way. Whatever is playing keeps playing.
+    // DJ MixZ calls this when a person takes the decks; a cancelled mix lands here too.
+    cancelTransition() {
+        this._mixToken++;
+        this._transitioning = false;
+    }
+
+    // Called by player.js when AutoTransition is cancelled mid-mix (CANCEL on AUTO, or takeover).
+    // The crossfader says where the mix was left: past halfway the incoming song is the one the
+    // room hears, so it becomes the current song. Before halfway it stays next; it has already
+    // gone in the setlist, so it is not logged again, and its deck is reused when it mixes in.
+    onTransitionCancelled() {
+        const mix = this._mixing;
+        this._mixing = null;
+        this.cancelTransition();
+        if (!mix) return;
+        const xf = parseFloat(document.getElementById('crossfader')?.value);
+        const into = Number.isFinite(xf) ? (mix.direction === 'AtoB' ? xf / 100 : 1 - xf / 100) : 0;
+        this._aired = mix;
+        this._handover('finished', { outcome: 'cancelled', title: mix.track?.title || null, reason: into >= 0.5 ? 'cancelled past halfway, the new song stays on' : 'cancelled before halfway, the old song stays on' });
+        if (into >= 0.5) this.onTransitionComplete(mix.direction);
+    }
+
+    // Tell the stream events about a handover. A listener that throws must never touch playback.
+    _handover(phase, data) {
+        try { this.onHandover?.(phase, data); } catch (e) { console.warn('[FlowMode] handover listener failed:', e); }
     }
 
     toggle() {
@@ -46,7 +80,10 @@ export class FlowMode {
     }
 
     // Load a track to a deck — handles both local (dataFile) and streaming (streamUrl)
-    _loadTrackToDeck(deck, track) {
+    // `onLateFail` runs if a local track's load fails after this returns (its json would not
+    // fetch, or the deck refused it): no ready or error event comes for that, so without it the
+    // first song sat silent and a song mid-set waited out the 25 second timeout.
+    _loadTrackToDeck(deck, track, onLateFail = null) {
         if (track.streamUrl || track.source === 'audius' || track.source === 'soundcloud' || track.source === 'spotify') {
             // Streaming track — use loadDirect
             const streamUrl = track.streamUrl;
@@ -63,24 +100,36 @@ export class FlowMode {
                 artwork: track.artwork || null,
                 source: track.source || 'stream',
                 id: track.id || track.sourceId || null,
+                // The deck checks the licence on this meta (Licence.js canPlay): a track's own
+                // licence, its Audius Creative Commons licence and its uploader must come with it,
+                // as they do when the library loads a track by hand.
+                licence: track.licence || null,
+                audiusLicense: track.audiusLicense || null,
+                uploader: track.uploader || null,
             };
-            if (deck.loadDirect(streamUrl, meta) === false) return false;
-            // The setlist (and so the mix link) must see what DJ MixZ and Flow play, not only hand loads.
-            this.dj.setlist?.logPlay(meta.title, meta.artist, meta.bpm, meta.key, deck.id, { ...meta, streamUrl });
-            this.dj.recorder?.logTrackChange?.(deck.id, meta.title, meta.artist);
-            return true;
+            return deck.loadDirect(streamUrl, meta) !== false;
         } else if (track.dataFile) {
             // Local track — use loadTrack. The manifest entry carries the licence, so an
             // unlicensed track is skipped here rather than refused after the handover started.
             if (!canPlay(track).ok) return false;
-            deck.loadTrack(track.dataFile);
-            this.dj.setlist?.logPlay(track.title || track.dataFile.split('/').pop().replace('.json', ''), track.artist || '', track.bpm || null, track.key || null, deck.id, { source: 'local', id: track.dataFile, artwork: track.artwork || null });
-            this.dj.recorder?.logTrackChange?.(deck.id, track.title || 'Unknown', track.artist || '');
+            Promise.resolve(deck.loadTrack(track.dataFile)).then((ok) => { if (ok === false) onLateFail?.(); }, () => onLateFail?.());
             return true;
         } else {
             console.warn('[FlowMode] Track has neither dataFile nor streamUrl:', track.title);
             return false;
         }
+    }
+
+    // The setlist (and so the mix link) must see what DJ MixZ and Flow play, not only hand loads.
+    // Logged when the song goes on air, so a song that never loaded is not in the mix link.
+    _logPlay(deckId, track) {
+        if (track.dataFile && !track.streamUrl) {
+            this.dj.setlist?.logPlay(track.title || track.dataFile.split('/').pop().replace('.json', ''), track.artist || '', track.bpm || null, track.key || null, deckId, { source: 'local', id: track.dataFile, artwork: track.artwork || null });
+        } else {
+            const meta = { title: track.title || 'Unknown', artist: track.artist || '', bpm: track.bpm || null, key: track.key || null, genre: track.genre || null, artwork: track.artwork || null, source: track.source || 'stream', id: track.id || track.sourceId || null };
+            this.dj.setlist?.logPlay(meta.title, meta.artist, meta.bpm, meta.key, deckId, { ...meta, streamUrl: track.streamUrl });
+        }
+        this.dj.recorder?.logTrackChange?.(deckId, track.title || 'Unknown', track.artist || '');
     }
 
     start(track) {
@@ -101,8 +150,9 @@ export class FlowMode {
         // press play once it is ready; a song that will not load hands over to the next one.
         this.dj.audioRouter.resume();
         const deckA = this.dj.decks.A;
-        if (this._loadTrackToDeck(deckA, track) === false) { this._startNext(); return; }
-        this._playWhenReady(deckA);
+        const lateFail = () => { if (this.currentTrack === track && !deckA.isPlaying) { console.warn('[FlowMode] First song would not load, trying the next one'); this._startNext(); } };
+        if (this._loadTrackToDeck(deckA, track, lateFail) === false) { this._startNext(); return; }
+        this._playWhenReady(deckA, track);
 
         // Auto-suggest next tracks
         this._suggestNext();
@@ -112,25 +162,38 @@ export class FlowMode {
     }
 
     // Start deck playback as soon as its song has loaded; on a load error try the next song.
-    _playWhenReady(deck) {
+    // The song goes in the setlist here, once it has loaded, not when its load starts.
+    _playWhenReady(deck, track) {
         const ws = deck.wavesurfer;
         if (!ws) return;
         const token = (this._startToken = (this._startToken || 0) + 1);
+        // ready and error are each registered once, and the one that does not fire stays on the
+        // deck: an error on a later song must not restart the set. Whichever comes first wins.
+        let settled = false;
         const go = () => {
-            if (token !== this._startToken || !this.enabled) return;
+            if (settled || token !== this._startToken || !this.enabled) return;
+            settled = true;
             this.dj.audioRouter.resume();
             if (!deck.isPlaying) deck.play();
+            this._logPlay(deck.id, track);
         };
         if (deck.isLoaded && ws.getDuration() > 0) { go(); return; }
         ws.once('ready', go);
         ws.once('error', () => {
-            if (token !== this._startToken || !this.enabled || deck.isPlaying) return;
+            if (settled || token !== this._startToken || !this.enabled || deck.isPlaying) return;
+            settled = true;
             console.warn('[FlowMode] First song would not load, trying the next one');
             this._startNext();
         });
     }
 
     _startNext() {
+        if (this.currentTrack) {
+            // It never played: take it back out of the played list
+            const at = this.playedInSession.lastIndexOf(this.currentTrack.id || this.currentTrack.title);
+            if (at >= 0) this.playedInSession.splice(at, 1);
+            this.onTrackDropped?.(this.currentTrack);
+        }
         this._startFails = (this._startFails || 0) + 1;
         if (this._startFails > 5 || this.queue.length === 0) { this._startFails = 0; return; }
         this.start(this.queue.shift());
@@ -203,6 +266,11 @@ export class FlowMode {
         if (!this.enabled) return;
         if (deck.id !== this.currentDeck) return;
         if (this._transitioning) return;
+        // Ahead of our own trigger point (DJ MixZ arms a shorter one for short moves) the
+        // deck's fixed 30s call is early: onTimeUpdate starts the handover when it is due.
+        // At the end of the track (onFinish) it always goes.
+        const remaining = deck.getDuration() - deck.getCurrentTime();
+        if (remaining > this._getTransitionTriggerTime() + 0.5) return;
 
         this._triggerTransition();
     }
@@ -211,8 +279,13 @@ export class FlowMode {
     onTransitionComplete(direction) {
         if (!this.enabled) return;
 
+        // An engine mix that ran to the end (a cut and a cancel report themselves)
+        if (this._mixing) this._handover('finished', { outcome: 'mixed', title: this._mixing.track?.title || null, reason: null });
+
         // Swap current deck
         this.currentDeck = this.currentDeck === 'A' ? 'B' : 'A';
+        this._mixing = null;
+        this._aired = null;
         this._transitioning = false;
         this._nearEndTriggered = false;
 
@@ -230,29 +303,39 @@ export class FlowMode {
     _triggerTransition() {
         if (this.queue.length === 0) {
             this._autoFillQueue();
-            if (this.queue.length === 0) return;
+            // Nothing to mix into yet: leave the near-end trigger free, so a song added
+            // before this one ends still gets mixed in.
+            if (this.queue.length === 0) { this._nearEndTriggered = false; return; }
         }
 
         this._transitioning = true;
+        const token = ++this._mixToken;
         const nextTrack = this.queue[0];
         const idleDeck = this.currentDeck === 'A' ? 'B' : 'A';
         const direction = this.currentDeck === 'A' ? 'AtoB' : 'BtoA';
-
-        // Mark as played
-        this.playedInSession.push(nextTrack.id || nextTrack.title);
 
         // The idle deck may still hold the track it played last time. Stop it and mark it empty,
         // or the wait below sees the OLD track as ready and starts the mix before the new one
         // has loaded (the new track then lands silent at 0:00).
         const incoming = this.dj.decks[idleDeck];
-        if (incoming.isPlaying) { try { incoming.pause(); } catch (e) { /* not fatal */ } }
-        incoming.isLoaded = false;
+        // A mix into this song was cancelled early: its deck still holds it, so mix it in
+        // from where it is instead of reloading it (no gap at the end of the track).
+        const reuse = this._aired?.track === nextTrack && this._aired.deck === idleDeck && incoming.isLoaded;
+        if (!reuse) {
+            if (incoming.isPlaying) { try { incoming.pause(); } catch (e) { /* not fatal */ } }
+            incoming.isLoaded = false;
+        }
 
         // Load next track to idle deck (handles both local and streaming).
         // A refused track (no licence) leaves the queue and the current song keeps playing.
-        if (this._loadTrackToDeck(incoming, nextTrack) === false) {
-            this.queue.shift();
-            this._transitioning = false;
+        const lateFail = () => {
+            if (token !== this._mixToken) return; // given up on already
+            this._dropNext(nextTrack, 'its file would not load');
+            this._autoFillQueue();
+            this._updateUI();
+        };
+        if (!reuse && this._loadTrackToDeck(incoming, nextTrack, lateFail) === false) {
+            this._dropNext(nextTrack, 'refused: no licence, or the deck would not take it');
             this._autoFillQueue();
             this._updateUI();
             return;
@@ -262,35 +345,96 @@ export class FlowMode {
         let retries = 0;
         const maxRetries = 250; // 25 seconds: streams load slowly on a weak connection
         const checkReady = () => {
+            // Given up on (takeover, cancel, exit): a song that loads now must not start a mix
+            if (token !== this._mixToken || !this.enabled) return;
             if (retries++ > maxRetries) {
                 // A song that never loads used to stall the set here for good, the same song
                 // retried at every near-end. Drop it and go straight to the one after.
                 console.warn('[FlowMode] Deck load timed out, skipping', nextTrack.title);
-                if (this.queue[0] === nextTrack) this.queue.shift();
-                this._transitioning = false;
+                this._dropNext(nextTrack, 'did not load in time');
                 this._loadFails = (this._loadFails || 0) + 1;
                 if (this._loadFails <= 3 && this.queue.length) this._triggerTransition();
                 else this._loadFails = 0;
                 this._updateUI();
                 return;
             }
-            if (this.dj.decks[idleDeck].isLoaded) this._loadFails = 0;
-            if (this.dj.decks[idleDeck].isLoaded) {
-                if (this.dj.autoTransition) {
-                    // Pass transition type and BPM sync info
-                    const sourceBPM = this.dj.decks[this.currentDeck].getBPM();
-                    const targetBPM = this.dj.decks[idleDeck].getBPM();
-                    this.dj.autoTransition.startProgrammatic(direction, this.transitionDuration, {
-                        type: this.transitionType,
-                        sourceBPM,
-                        targetBPM,
-                    });
-                }
-            } else {
-                setTimeout(checkReady, 100);
-            }
+            if (!incoming.isLoaded) { setTimeout(checkReady, 100); return; }
+            this._loadFails = 0;
+            this._beginMix(idleDeck, direction, nextTrack);
         };
         checkReady();
+    }
+
+    // A song that would not load leaves the queue (and DJ MixZ's plan) unplayed, and frees the
+    // near-end trigger, so the next timeupdate tries the song after it while this one still plays.
+    _dropNext(track, reason = null) {
+        this._handover('finished', { outcome: 'dropped', title: track?.title || null, reason });
+        if (this.queue[0] === track) this.queue.shift();
+        this.cancelTransition();
+        this._nearEndTriggered = false;
+        this.onTrackDropped?.(track);
+    }
+
+    // Hand the next song to the mix engine. With no engine, or one that throws, cut to it:
+    // the set must never sit with the next song loaded and silent.
+    _beginMix(idleDeck, direction, track) {
+        const engine = this.dj.autoTransition;
+        if (engine?.running) {
+            // A mix someone started by hand is still going: leave it alone, try again at the end
+            console.warn('[FlowMode] A mix is already running, not starting another');
+            this.cancelTransition();
+            return;
+        }
+        // A slow load eats into the time left on the outgoing song. The fade must end before
+        // that song does: shorten it to fit, and if the song has already run out, cut.
+        const out = this.dj.decks[this.currentDeck];
+        // A length not known yet (0) is no reason to cut: treat the time left as unlimited
+        const dur = out?.getDuration?.() || 0;
+        const left = dur > 0 ? dur - (out?.getCurrentTime?.() || 0) : Infinity;
+        if (!out?.isPlaying || left <= 1.5) { this._cut(idleDeck, direction, track); return; }
+        const seconds = Math.min(this.transitionDuration, Math.max(1.5, left - 0.5));
+        if (engine) {
+            try {
+                engine.startProgrammatic(direction, seconds, {
+                    type: this.transitionType,
+                    sourceBPM: this.dj.decks[this.currentDeck].getBPM(),
+                    targetBPM: this.dj.decks[idleDeck].getBPM(),
+                });
+                if (engine.running) {
+                    this._mixing = { track, deck: idleDeck, direction };
+                    this._markPlayed(idleDeck, track);
+                    this._handover('started', { from: this.currentDeck, to: idleDeck, type: this.transitionType, seconds: this.transitionDuration, why: this.transitionWhy, title: track.title || null });
+                    return;
+                }
+            } catch (e) {
+                console.warn('[FlowMode] Mix engine failed, cutting to the next song instead:', e);
+                try { engine.cancel?.(); } catch (e2) { /* already stopped */ }
+            }
+        }
+        this._cut(idleDeck, direction, track);
+    }
+
+    _cut(idleDeck, direction, track) {
+        const from = this.dj.decks[this.currentDeck];
+        const to = this.dj.decks[idleDeck];
+        const end = direction === 'AtoB' ? 1 : 0;
+        this.dj.audioRouter.resume?.();
+        if (!to.isPlaying) to.play();
+        this.dj.audioRouter.setCrossfade(end);
+        const cf = document.getElementById('crossfader');
+        if (cf) cf.value = end * 100;
+        if (from.isPlaying) from.pause();
+        this._markPlayed(idleDeck, track);
+        this._handover('started', { from: this.currentDeck, to: idleDeck, type: 'cut', seconds: 0, why: 'the mix engine was missing or failed, so a cut', title: track.title || null });
+        this._handover('finished', { outcome: 'cut', title: track.title || null, reason: null });
+        this.onTransitionComplete(direction);
+    }
+
+    // The song is on air: only now does it count as played and go in the setlist.
+    _markPlayed(deckId, track) {
+        if (this._aired?.track === track) return; // already on air once, in a mix that was cancelled
+        this.playedInSession.push(track.id || track.title);
+        this._logPlay(deckId, track);
     }
 
     // Gather ALL available tracks — local + Audius + SoundCloud + Spotify
@@ -681,18 +825,18 @@ export class FlowMode {
         const track = this.queue[0];
         const badges = this._getCompatibilityBadges(track);
         const badgeHtml = badges.map(b =>
-            `<span class="flow-badge flow-badge-${b.type}">${b.label}</span>`
+            `<span class="flow-badge flow-badge-${b.type}">${esc(b.label)}</span>`
         ).join('');
 
         container.innerHTML = `
             <div class="flow-next-card">
                 <div class="flow-next-info">
-                    <div class="flow-next-title">${track.title || 'Unknown'}</div>
-                    <div class="flow-next-artist">${track.artist || ''}</div>
+                    <div class="flow-next-title">${esc(track.title || 'Unknown')}</div>
+                    <div class="flow-next-artist">${esc(track.artist)}</div>
                 </div>
                 <div class="flow-next-meta">
-                    <span>${track.bpm ? track.bpm + ' BPM' : ''}</span>
-                    <span>${track.key || ''}</span>
+                    <span>${track.bpm ? esc(track.bpm) + ' BPM' : ''}</span>
+                    <span>${esc(track.key)}</span>
                 </div>
                 <div class="flow-next-badges">${badgeHtml}</div>
             </div>
@@ -714,7 +858,7 @@ export class FlowMode {
             return `
                 <div class="flow-queue-item">
                     <span class="flow-queue-num">${actualIndex + 1}</span>
-                    <span class="flow-queue-info">${track.title || 'Unknown'} — ${track.artist || ''}</span>
+                    <span class="flow-queue-info">${esc(track.title || 'Unknown')} — ${esc(track.artist)}</span>
                     <button class="flow-queue-remove" data-index="${actualIndex}">x</button>
                 </div>
             `;
@@ -753,18 +897,18 @@ export class FlowMode {
         container.innerHTML = items.map((track, i) => {
             const badges = this._getCompatibilityBadges(track);
             const badgeHtml = badges.map(b =>
-                `<span class="flow-badge flow-badge-${b.type}">${b.label}</span>`
+                `<span class="flow-badge flow-badge-${b.type}">${esc(b.label)}</span>`
             ).join('');
 
             return `
                 <div class="flow-suggestion-card" data-index="${i}">
                     <div class="flow-sug-info">
-                        <div class="flow-sug-title">${track.title || 'Unknown'}</div>
-                        <div class="flow-sug-artist">${track.artist || ''}</div>
+                        <div class="flow-sug-title">${esc(track.title || 'Unknown')}</div>
+                        <div class="flow-sug-artist">${esc(track.artist)}</div>
                     </div>
                     <div class="flow-sug-meta">
-                        <span>${track.bpm ? track.bpm + ' BPM' : ''}</span>
-                        <span>${track.key || ''}</span>
+                        <span>${track.bpm ? esc(track.bpm) + ' BPM' : ''}</span>
+                        <span>${esc(track.key)}</span>
                         ${badgeHtml}
                     </div>
                     <button class="flow-sug-add" data-index="${i}">

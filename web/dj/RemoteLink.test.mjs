@@ -1,5 +1,6 @@
 // node web/dj/RemoteLink.test.mjs
-import { newToken, validToken, linkKeys, seal, unseal, fresh, FRESH_MS, BROKERS, remoteUrl, cleanCommand, applyCommand, trackList, snapshot, HANDS_ON, NEXT_MODES, ICE_SERVERS, TRACK_SOURCES, VIEWER_OK } from './RemoteLink.js';
+import { newToken, validToken, linkKeys, seal, unseal, fresh, FRESH_MS, BROKERS, remoteUrl, cleanCommand, applyCommand, trackList, snapshot, HANDS_ON, NEXT_MODES, ICE_SERVERS, TRACK_SOURCES, VIEWER_OK, RemoteHost } from './RemoteLink.js';
+import { RequestQueue } from './RequestLine.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -109,6 +110,74 @@ check('auto play on silence can be switched from the phone', cleanCommand({ a: '
 check('a viewer may only listen or ask for the mix link', VIEWER_OK.has('listen') && VIEWER_OK.has('share') && !VIEWER_OK.has('play') && !VIEWER_OK.has('stream') && !VIEWER_OK.has('crossfader'));
 check('the sound call has STUN, and any relay carries its login', ICE_SERVERS.some(s => String(s.urls).includes('stun:')) && ICE_SERVERS.filter(s => String(s.urls).includes('turn:')).every(s => s.username && s.credential));
 check('the dead free relay is gone', !ICE_SERVERS.some(s => String(s.urls).includes('openrelay.metered.ca')));
+
+// The desk's once-a-second request check, on a fake desk: DJ MixZ is mixing, one request waits.
+{
+    const tickDesk = (autoPlay) => {
+        const played = [];
+        const host = {
+            relay: {}, autoPlay, requests: new RequestQueue(), _tell() {}, _renderRequests() {},
+            dj: { decks: { A: { isPlaying: true, metadata: { metadata: { title: 'On Now', artist: 'X' } } }, B: { isPlaying: false } }, audioRouter: { _lastCrossfadePosition: 0 },
+                djMixz: { running: true, human: false, playNext: (t) => { played.push(t.title); return true; } } },
+        };
+        host.requests.add('p1', { name: 'Ana' }, { id: 'r1', title: 'Asked For', artist: 'Y' });
+        RemoteHost.prototype._requestTick.call(host);
+        return { played, status: host.requests.items[0].status };
+    };
+    const off = tickDesk(false);
+    check('requests: with AUTO-PLAY off, a waiting request is not put on air by itself', off.played.length === 0 && off.status === 'waiting');
+    const on = tickDesk(true);
+    check('requests: with AUTO-PLAY on, DJ MixZ takes the oldest one next', on.played.join() === 'Asked For' && on.status === 'next');
+}
+
+// The phone's request form says what of the caller is shown, right under the name field
+{
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../remote.html', import.meta.url), 'utf8');
+    const at = html.indexOf('id="req-name"'), notice = html.indexOf('id="req-shown"');
+    check('phone: the request form says the name is shown, next to the name field', at > 0 && notice > at && notice - at < 400 && /your name[^<]*show/i.test(html.slice(notice, notice + 200)));
+}
+
+// request.updated goes to the stream for a new request and for each change of status
+{
+    const sent = [];
+    const host = {
+        relay: { send() {} }, autoPlay: true, requests: new RequestQueue(), _renderRequests() {},
+        trackById: () => ({ id: 'au1', title: 'Asked For', artist: 'Y', source: 'audius', streamUrl: 'https://x' }),
+        dj: { decks: { A: { isPlaying: true, metadata: { metadata: { title: 'On Now', artist: 'X' } } }, B: { isPlaying: false } }, audioRouter: { _lastCrossfadePosition: 0 },
+            djMixz: { running: true, human: false, playNext: () => true }, streamEvents: { emit: (type, data) => sent.push({ type, data }) } },
+    };
+    host._tell = RemoteHost.prototype._tell; host._announce = RemoteHost.prototype._announce;
+    RemoteHost.prototype._request.call(host, { device: 'phone-secret-id' }, { a: 'request', id: 'au1', name: 'Ana', note: '' });
+    check('stream: a new request goes out as request.updated, waiting', sent.length === 1 && sent[0].type === 'request.updated' && sent[0].data.status === 'waiting' && sent[0].data.title === 'Asked For' && sent[0].data.name === 'Ana');
+    check('stream: it never carries the phone\'s device id', !JSON.stringify(sent).includes('phone-secret-id'));
+    RemoteHost.prototype._requestTick.call(host);
+    check('stream: going next is announced too', sent.some((e) => e.data.status === 'next'));
+}
+
+// A "!sr" from stream chat: moderated, matched, on the board marked chat, never played by itself
+{
+    const { CHAT_MAX_WAITING } = await import('./ChatFilter.js');
+    const sent = [];
+    const host = {
+        relay: null, autoPlay: true, requests: new RequestQueue(), _renderRequests() {},
+        dj: { library: { zaoTracks: [{ id: 'rb', title: 'Rude Boy', artist: 'IMan Afrikah', source: 'audius', streamUrl: 'https://x' }], tracks: [], battleTracks: [] },
+            decks: { A: { isPlaying: true, metadata: { metadata: { title: 'On Now' } } }, B: { isPlaying: false } }, audioRouter: { _lastCrossfadePosition: 0 },
+            djMixz: { running: true, human: false, playNext: () => { sent.push('PLAYED'); return true; } }, streamEvents: { emit: (type, data) => sent.push({ type, data }) } },
+    };
+    host._announce = RemoteHost.prototype._announce; host._tell = RemoteHost.prototype._tell;
+    const res = RemoteHost.prototype.chatRequest.call(host, { platform: 'twitch', user: 'Ana', query: 'rude boy' });
+    const r = host.requests.items[0];
+    check('chat: a matched !sr goes on the board, marked from chat, with its platform', res.ok && r.title === 'Rude Boy' && r.from === 'chat' && r.note === 'via Twitch' && r.name === 'Ana');
+    check('chat: and goes out as request.updated', sent.some((e) => e.type === 'request.updated' && e.data.title === 'Rude Boy'));
+    host.relay = { send() {} }; RemoteHost.prototype._requestTick.call(host);
+    check('chat: even with AUTO-PLAY on, a chat request is not played by itself', !sent.includes('PLAYED') && r.status === 'waiting');
+    check('chat: a link or no match never reaches the board', !RemoteHost.prototype.chatRequest.call(host, { platform: 'twitch', user: 'Bo', query: 'rude boy https://x.example' }).ok
+        && !RemoteHost.prototype.chatRequest.call(host, { platform: 'twitch', user: 'Bo', query: 'nothing like it' }).ok && host.requests.items.length === 1);
+    for (let i = 0; i < CHAT_MAX_WAITING + 3; i++) host.dj.library.zaoTracks.push({ id: 's' + i, title: 'Song Number ' + i, artist: 'Z', source: 'audius', streamUrl: 'https://x' });
+    for (let i = 0; i < CHAT_MAX_WAITING + 3; i++) RemoteHost.prototype.chatRequest.call(host, { platform: 'youtube', user: 'u' + i, query: 'song number ' + i });
+    check(`chat: at most ${CHAT_MAX_WAITING} chat requests wait at once, so phones keep a turn`, host.requests.waiting().filter((x) => x.from === 'chat').length === CHAT_MAX_WAITING);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -14,6 +14,7 @@ export class AutoTransition {
         this.duration = 8; // seconds
         this.direction = 'AtoB'; // AtoB or BtoA
         this.onComplete = null; // callback when transition finishes
+        this.onCancel = null; // callback when a transition is cancelled before it finishes
 
         // Transition type: blend, echo-out, cut, filter-sweep
         this.transitionType = 'blend';
@@ -29,6 +30,9 @@ export class AutoTransition {
 
         // Filter-sweep state
         this._filterSweepCleanupNeeded = false;
+
+        // Blend state: the low EQ each deck had before the bass swap, put back afterwards
+        this._eqBefore = null;
 
         this._initUI();
     }
@@ -95,6 +99,8 @@ export class AutoTransition {
         if (btn) { btn.textContent = 'AUTO'; btn.classList.remove('active'); }
         // Notify broadcast about transition cancel
         if (this.onTransitionStateChange) this.onTransitionStateChange(false, this.direction);
+        // FlowMode waits for onComplete; tell it this mix will not finish
+        if (this.onCancel) this.onCancel(this.direction);
     }
 
     _startTransition() {
@@ -141,7 +147,11 @@ export class AutoTransition {
 
             case 'blend':
             default:
-                // Standard crossfade — no special init
+                // The blend swaps the bass (source low cut to -24dB, target low set to 0).
+                // Remember what each deck had so _cleanupEffects can put it back.
+                this._eqBefore = { A: this._lowEQ('A'), B: this._lowEQ('B') };
+                this._eqWrote = { A: null, B: null };
+                this._eqHands = { A: false, B: false };
                 break;
         }
     }
@@ -197,8 +207,8 @@ export class AutoTransition {
             fadeOut = Math.cos(angle); // A fades from 1 to 0
             fadeIn = Math.sin(angle);  // B fades from 0 to 1
         } else {
-            fadeIn = Math.cos(angle);  // A fades from 0 to 1
-            fadeOut = Math.sin(angle); // B fades from 1 to 0
+            fadeIn = Math.sin(angle);  // A fades from 0 to 1
+            fadeOut = Math.cos(angle); // B fades from 1 to 0
         }
 
         // Map to crossfader position (0 = full A, 1 = full B)
@@ -232,12 +242,12 @@ export class AutoTransition {
             // Middle 20%: swap the bass — cut source lows, keep target lows
             const swapProgress = (progress - 0.4) / 0.2; // 0 to 1 within this window
             const bassKill = -24 * swapProgress; // 0 to -24dB
-            this.router.setEQ(sourceDeckId, 'low', bassKill);
-            this.router.setEQ(targetDeckId, 'low', 0);
+            this._blendEQ(sourceDeckId, bassKill);
+            this._blendEQ(targetDeckId, 0);
         } else {
             // Last 40%: source bass fully cut, target bass normal
-            this.router.setEQ(sourceDeckId, 'low', -24);
-            this.router.setEQ(targetDeckId, 'low', 0);
+            this._blendEQ(sourceDeckId, -24);
+            this._blendEQ(targetDeckId, 0);
         }
     }
 
@@ -459,6 +469,37 @@ export class AutoTransition {
             this.router.setFilter('B', 0.5);
             this._filterSweepCleanupNeeded = false;
         }
+
+        if (this._eqBefore) {
+            // Undo the bass swap: the deck that went out kept a -24dB low cut, and the one
+            // coming in lost the DJ's own low setting. Both get back what they had.
+            // A deck whose low knob the DJ moved during the blend keeps what the DJ set.
+            for (const id of ['A', 'B']) if (!this._eqHands?.[id]) this.router.setEQ(id, 'low', this._eqBefore[id]);
+            this._eqBefore = null;
+            this._eqWrote = null;
+            this._eqHands = null;
+        }
+    }
+
+    // One step of the blend's bass swap. If the low EQ is no longer what the blend last wrote,
+    // the DJ has moved the knob: from then on the blend leaves that deck's low EQ to them.
+    _blendEQ(id, db) {
+        if (!this._eqWrote) { this.router.setEQ(id, 'low', db); return; }
+        if (this._eqHands[id]) return;
+        // Compare with what the blend last wrote, or before its first write (the first 40%)
+        // with what the deck had when the blend began
+        const last = this._eqWrote[id] ?? this._eqBefore?.[id] ?? null;
+        if (last !== null && Math.abs(this._lowEQ(id) - last) > 0.01) { this._eqHands[id] = true; return; }
+        this.router.setEQ(id, 'low', db);
+        this._eqWrote[id] = db;
+    }
+
+    // A deck's low EQ as the DJ set it (a killed band keeps its setting aside)
+    _lowEQ(id) {
+        const r = this.router;
+        if (r._eqKillState?.[id]?.low) return r._eqSavedGain?.[id]?.low ?? 0;
+        const v = r.channels?.[id]?.eqLow?.gain?.value;
+        return Number.isFinite(v) ? v : 0;
     }
 
     // Helper to get the DJPlayer instance (parent of router)
