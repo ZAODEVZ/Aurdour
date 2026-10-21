@@ -968,3 +968,8 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 .djmixz-fx button:hover { border-color: #f5a623; color: #ffd27a; }
 .djmixz-fx button:active { transform: scale(0.97); background: rgba(245, 166, 35, 0.18); }
 .djmixz-fx button[data-fx="rewind"] { border-color: #ff3b5c; color: #ff8fa3; }
+.djmixz-artists-head { gap: 10px; }
+.djmixz-artists-count { margin-left: auto; }
+.djmixz-artists-tools { display: flex; gap: 6px; }
+.djmixz-artists-tools button { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--mz-line-hi); background: var(--mz-panel); color: var(--mz-text); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
+.djmixz-artists-tools button:hover { border-color: var(--mz-a); color: var(--mz-a); }
