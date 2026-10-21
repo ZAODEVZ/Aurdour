@@ -580,6 +580,12 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 .djmixz-sub { font-size: 0.82rem; color: var(--mz-muted); margin-top: 2px; }
 .djmixz-label { font-family: var(--font-display); font-weight: 800; font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mz-dim); margin-top: 4px; }
 .djmixz-select { width: 100%; height: 38px; border-radius: 9px; padding: 0 10px; background: var(--mz-inset); border: 1px solid var(--mz-line-hi); color: var(--mz-text); font-size: 0.86rem; }
+.djmixz-artists { margin-top: 6px; max-height: 200px; overflow-y: auto; border-radius: 9px; padding: 6px 8px; background: var(--mz-inset); border: 1px solid var(--mz-line-hi); }
+.djmixz-artists[hidden] { display: none; }
+.djmixz-artists-count, .djmixz-artists-empty { font-size: 0.78rem; color: var(--mz-muted); padding: 2px 0 6px; }
+.djmixz-artist { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: 0.86rem; color: var(--mz-text); cursor: pointer; }
+.djmixz-artist input { accent-color: var(--mz-a); width: 16px; height: 16px; }
+.djmixz-artist:has(input:disabled) { color: var(--mz-dim); cursor: default; }
 .djmixz-moods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .djmixz-mood { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 9px 11px; border-radius: 10px; cursor: pointer; background: var(--mz-inset); border: 1px solid var(--mz-line); color: var(--mz-muted); }
 .djmixz-mood b { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--mz-text); }

@@ -53,6 +53,11 @@ export const OFF_AIR = [
     ['7roo7h', 'incompatible'], ['7roo7h', 'neveragain'], ['7roo7h', 'onchain'],
 ].map(([a, t]) => a + '|' + t);
 
+// Whole artists kept out of the crate, squashed. Matched in the artist line and the title, so a
+// song posted from another account or a feature stays out too. Geezy2126: IMan's word, 21 Oct 2026.
+export const OFF_AIR_ARTISTS = ['geezy2126'];
+export const artistOffAir = (t) => OFF_AIR_ARTISTS.some((a) => squash(t.artist).includes(a) || squash(t.title).includes(a));
+
 // Returns the track with the sheet's tempo and key when its title is on the sheet.
 export function applySheet(track) {
     const t = squash(track.title);
@@ -133,7 +138,7 @@ export class ZaoCrate {
         const songs = new Set();
         const next = all.filter((t) => {
             const k = songKey(t);
-            if (seen.has(t.id) || songs.has(k) || offAir.has(k)) return false;
+            if (seen.has(t.id) || songs.has(k) || offAir.has(k) || artistOffAir(t)) return false;
             seen.add(t.id); songs.add(k);
             return true;
         }).map(applySheet);

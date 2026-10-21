@@ -16,6 +16,7 @@ export class FlowMode {
         this.transitionPointMode = 'fixed'; // 'fixed' (seconds) or 'percent' (% of track length)
         this.transitionPointPercent = 10; // percentage of track length for transition trigger
         this.transitionDuration = 8; // crossfade length in seconds
+        this.maxPlaySeconds = 0; // 0 = play songs to their mix point; DJ MixZ party sets 120
         this.transitionType = 'blend'; // blend, echo-out, cut, filter-sweep
         this.playedInSession = []; // track IDs already played
         this.suggestions = [];
@@ -228,15 +229,21 @@ export class FlowMode {
             // Use percentage of track length
             const triggerSeconds = (this.transitionPointPercent / 100) * duration;
             // Clamp: at least 5 seconds, at most 90% of the track
-            return Math.max(5, Math.min(triggerSeconds, duration * 0.9));
+            return this._capped(Math.max(5, Math.min(triggerSeconds, duration * 0.9)), duration);
         }
 
         // Fixed mode: use transitionPoint but clamp to track length
         // For short tracks (< 2x transition point), use 25% of track length
-        if (duration < this.transitionPoint * 2) {
-            return Math.max(5, duration * 0.25);
-        }
-        return this.transitionPoint;
+        const base = duration < this.transitionPoint * 2 ? Math.max(5, duration * 0.25) : this.transitionPoint;
+        return this._capped(base, duration);
+    }
+
+    // With maxPlaySeconds set (DJ MixZ party mood), a song is mixed out early enough that it is
+    // never on air longer than that, the crossfade included.
+    _capped(base, duration) {
+        if (!(this.maxPlaySeconds > 0)) return base;
+        const mixOutAt = Math.max(20, this.maxPlaySeconds - (this.transitionDuration || 0));
+        return Math.max(base, duration - mixOutAt);
     }
 
     // Called by player.js on every timeupdate — we do our own near-end detection

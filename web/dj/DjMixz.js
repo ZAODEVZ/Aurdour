@@ -160,23 +160,32 @@ export function planSet(tracks, moodId, harmonic, opts = {}) {
 
 // How many tracks fill a session of this many minutes. Uses the tracks' own lengths when the
 // library has them; SongChainn does not, so those count as 3.2 minutes on air each.
-export function tracksForMinutes(tracks, minutes) {
+// `capMin` is the longest a song stays on air (party: 2), so a party hour holds more songs.
+export function tracksForMinutes(tracks, minutes, capMin = 0) {
     if (!minutes) return tracks.length;
     const known = tracks.map((t) => num(t.duration)).filter((d) => d && d > 30);
-    const avgMin = known.length >= 3 ? Math.max(1.5, (known.reduce((a, b) => a + b, 0) / known.length / 60) * 0.88) : 3.2;
+    let avgMin = known.length >= 3 ? Math.max(1.5, (known.reduce((a, b) => a + b, 0) / known.length / 60) * 0.88) : 3.2;
+    if (capMin > 0) avgMin = Math.min(avgMin, capMin);
     return Math.max(2, Math.min(tracks.length, Math.round(minutes / avgMin)));
 }
 
-// The tracks a source points at. `artist` narrows the SongChainn one-artist source.
+// The most artists one SongChainn mix can be built from.
+export const MAX_ARTISTS = 5;
+
+// Moods that keep every song short: the longest one is on air, mix included, in seconds.
+export const MAX_PLAY = { party: 120 };
+
+// The tracks a source points at. `artist` narrows the SongChainn artists source: one name, or a list of up to MAX_ARTISTS.
 export function tracksFrom(lib, sourceId, artist = '') {
     const sc = (lib.zaoTracks || []).filter((t) => t.source === 'songchainn');
+    const names = (Array.isArray(artist) ? artist : [artist]).map((a) => String(a || '').trim().toLowerCase()).filter(Boolean).slice(0, MAX_ARTISTS);
     const pools = {
         view: lib._displayedTracks || [],
         zao: lib.zaoTracks || [],
         battles: lib.battleTracks || [],
         local: lib.tracks || [],
         songchainn: sc,
-        'songchainn-artist': sc.filter((t) => artist && String(t.artist).toLowerCase().includes(artist.toLowerCase())),
+        'songchainn-artist': sc.filter((t) => names.some((n) => String(t.artist).toLowerCase().includes(n))),
     };
     return (pools[sourceId] || pools.view).filter((t) => t && (t.streamUrl || t.dataFile));
 }
@@ -188,7 +197,7 @@ export class DjMixz {
         this.index = 0;
         this.running = false;
         this.mood = 'journey';
-        this.scArtist = '';      // artist for the SongChainn one-artist source
+        this.scArtist = [];      // artists for the SongChainn artists source, up to MAX_ARTISTS
         this._bpm = {};          // tempos the decks have measured, by track id, kept between visits
         try { this._bpm = JSON.parse(localStorage.getItem('mixz-bpm') || '{}'); } catch (e) { /* no storage */ }
         this._learnTempos();
@@ -210,7 +219,7 @@ export class DjMixz {
         const lib = this.dj.library || {};
         return [
             { id: 'songchainn', label: 'SongChainn: every artist' },
-            { id: 'songchainn-artist', label: 'SongChainn: one artist' },
+            { id: 'songchainn-artist', label: `SongChainn: pick artists (up to ${MAX_ARTISTS})` },
             { id: 'zao', label: 'ZAO crate: SongChainn and Audius' },
             { id: 'battles', label: 'WaveWarZ quick battles: last battle night' },
             { id: 'view', label: 'What the library is showing' },
@@ -221,7 +230,7 @@ export class DjMixz {
     build(sourceId, moodId, minutes) {
         // SongChainn stores no tempo, so use the ones the decks measured on earlier plays
         const tracks = tracksFrom(this.dj.library || {}, sourceId, this.scArtist).map((t) => (!t.bpm && this._bpm[t.id] ? { ...t, bpm: this._bpm[t.id] } : t));
-        const maxTracks = tracksForMinutes(tracks, minutes);
+        const maxTracks = tracksForMinutes(tracks, minutes, (MAX_PLAY[moodId] || 0) / 60);
         this.minutes = minutes;
         this.mood = moodId;
         this._lastBuild = { sourceId, moodId, minutes };
@@ -376,6 +385,7 @@ export class DjMixz {
         flow.transitionType = move.type;
         flow.transitionWhy = move.why || null;
         flow.transitionDuration = move.seconds;
+        flow.maxPlaySeconds = MAX_PLAY[this.mood] || 0;
         flow.transitionPointMode = 'fixed';
         // Start early enough that the move finishes a few seconds before the old track runs out.
         flow.transitionPoint = Math.round(move.seconds + (move.type === 'cut' ? 2 : 6));
@@ -383,6 +393,7 @@ export class DjMixz {
 
     stop() {
         const flow = this.dj.flowMode;
+        if (flow) flow.maxPlaySeconds = 0;
         if (flow && this._orig) { flow._autoFillQueue = this._orig.fill; flow._triggerTransition = this._orig.trigger; flow.onTransitionComplete = this._orig.done; flow.onTrackDropped = null; }
         if (this.running && this.battle && (this.score.ai || this.score.human)) {
             const { ai, human } = this.score;
@@ -413,7 +424,7 @@ export class DjMixz {
         this.endless = !!endless;
         if (this.running) this.stop();
         if (sourceId === 'songchainn') return this.mixSongChainn(moodId, minutes);
-        this.scArtist = '';
+        this.scArtist = [];
         const plan = this.build(sourceId, moodId, minutes);
         if (plan.length < 2) { this._say('Fewer than two playable tracks there. Pick another source.'); return false; }
         return this.start();
@@ -436,12 +447,14 @@ export class DjMixz {
     }
 
     // Point it at SongChainn and go: builds the set for the chosen mood and session length, and starts.
-    async mixSongChainn(moodId = this.mood, minutes = 60, artist = '') {
+    // `artist` is one name or a list of up to MAX_ARTISTS; empty means every artist.
+    async mixSongChainn(moodId = this.mood, minutes = 60, artist = []) {
         const crate = this.dj.zaoCrate;
         if (crate && !(this.dj.library?.zaoTracks || []).some((t) => t.source === 'songchainn')) { this._say('Fetching SongChainn…'); await crate.load(true); }
-        this.scArtist = artist;
-        const plan = this.build(artist ? 'songchainn-artist' : 'songchainn', moodId, minutes);
-        if (plan.length < 2) { this._say(artist ? `Fewer than two SongChainn songs by "${artist}".` : 'SongChainn did not answer. Check the connection and try again.'); return false; }
+        const artists = (Array.isArray(artist) ? artist : [artist]).filter(Boolean).slice(0, MAX_ARTISTS);
+        this.scArtist = artists;
+        const plan = this.build(artists.length ? 'songchainn-artist' : 'songchainn', moodId, minutes);
+        if (plan.length < 2) { this._say(artists.length ? `Fewer than two SongChainn songs by ${artists.join(', ')}.` : 'SongChainn did not answer. Check the connection and try again.'); return false; }
         return this.start();
     }
 
@@ -587,7 +600,7 @@ export class DjMixz {
             <div class="djmixz-quick-hint">One press: it pulls SongChainn's music, builds a set for the mood and session length below, and plays it.</div>
             <label class="djmixz-label" for="djmixz-source">Or choose the music</label>
             <select id="djmixz-source" class="toolbar-select djmixz-select">${this._sources().map((s) => `<option value="${s.id}">${s.label}</option>`).join('')}</select>
-            <select id="djmixz-artist" class="toolbar-select djmixz-select" hidden aria-label="SongChainn artist"></select>
+            <div id="djmixz-artist" class="djmixz-artists" hidden role="group" aria-label="SongChainn artists"></div>
             <div class="djmixz-label">Mood</div>
             <div class="djmixz-moods">${MOODS.map((m) => `<button class="djmixz-mood${m.id === this.mood ? ' active' : ''}" data-mood="${m.id}"><b>${m.label}</b><span>${m.hint}</span></button>`).join('')}</div>
             <label class="djmixz-label" for="djmixz-length">Session length</label>
@@ -610,13 +623,31 @@ export class DjMixz {
             b.classList.add('active'); this.mood = b.dataset.mood;
         }));
         const artistSel = panel.querySelector('#djmixz-artist');
+        // Tick up to MAX_ARTISTS; once that many are ticked the rest wait until one is unticked.
+        const readArtists = () => {
+            const boxes = [...artistSel.querySelectorAll('input[type=checkbox]')];
+            this.scArtist = boxes.filter((b) => b.checked).map((b) => b.value);
+            const full = this.scArtist.length >= MAX_ARTISTS;
+            boxes.forEach((b) => { b.disabled = full && !b.checked; });
+            const count = artistSel.querySelector('.djmixz-artists-count');
+            if (count) count.textContent = `${this.scArtist.length} of ${MAX_ARTISTS} picked`;
+        };
         const fillArtists = () => {
             const names = [...new Set((this.dj.library?.zaoTracks || []).filter((t) => t.source === 'songchainn').map((t) => t.artist))].sort((a, b) => a.localeCompare(b));
-            artistSel.innerHTML = names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-            this.scArtist = artistSel.value || '';
+            const picked = new Set(this.scArtist);
+            artistSel.innerHTML = `<div class="djmixz-artists-count"></div>` + (names.length
+                ? names.map((n) => `<label class="djmixz-artist"><input type="checkbox" value="${esc(n)}"${picked.has(n) ? ' checked' : ''}> <span>${esc(n)}</span></label>`).join('')
+                : '<div class="djmixz-artists-empty">No SongChainn artists yet. Press MIX SONGCHAINN NOW once to load them.</div>');
+            readArtists();
         };
-        panel.querySelector('#djmixz-source').addEventListener('change', (e) => { const one = e.target.value === 'songchainn-artist'; artistSel.hidden = !one; if (one) fillArtists(); });
-        artistSel.addEventListener('change', () => { this.scArtist = artistSel.value; });
+        panel.querySelector('#djmixz-source').addEventListener('change', async (e) => {
+            const pick = e.target.value === 'songchainn-artist'; artistSel.hidden = !pick;
+            if (!pick) return;
+            fillArtists();
+            const crate = this.dj.zaoCrate;
+            if (crate && !(this.dj.library?.zaoTracks || []).some((t) => t.source === 'songchainn')) { this._say('Fetching SongChainn…'); await crate.load(true); fillArtists(); this._say(`Tick up to ${MAX_ARTISTS} artists, then build the set.`); }
+        });
+        artistSel.addEventListener('change', readArtists);
         panel.querySelector('#djmixz-sc').addEventListener('click', async () => {
             panel.querySelector('#djmixz-source').value = 'songchainn'; artistSel.hidden = true;
             readB2b(panel.querySelector('#djmixz-b2b').value);
