@@ -22,7 +22,28 @@ export class SongChainn {
         if (!resp.ok) throw new Error(`SongChainn error: ${resp.status}`);
         this._all = (await resp.json()).filter((r) => r.audio_url).map((r) => this._normalizeTrack(r));
         this._at = Date.now();
+        await this._useLocalCopies(this._all);
         return this._all;
+    }
+
+    // On a DJ's own PC, the local server can hold a copy of the catalog on disk (map.json from
+    // MixZ-Local/local-songchainn.mjs). Those songs then play from disk, no streaming. The live
+    // site has no such map (404), so everyone else keeps streaming as before.
+    async _useLocalCopies(tracks) {
+        const h = typeof location !== 'undefined' ? location.hostname : '';
+        if (h !== '127.0.0.1' && h !== 'localhost') return;
+        try {
+            if (!this._local) {
+                const r = await fetch('/local-songchainn/map.json', { cache: 'no-store' });
+                this._local = r.ok ? (await r.json()).map || {} : {};
+            }
+            let n = 0;
+            for (const t of tracks) {
+                const rel = this._local[t.id.replace(/^songchainn:/, '')];
+                if (rel) { t.streamUrl = `${location.origin}/local-songchainn/${rel}`; t.local = true; n++; }
+            }
+            if (n) console.log(`[SongChainn] ${n} songs playing from this PC's disk`);
+        } catch (e) { /* no local copies: stream */ }
     }
 
     // Songs by the artists named (matched anywhere in the artist line, so features count).

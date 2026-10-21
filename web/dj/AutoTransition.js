@@ -607,7 +607,8 @@ export class AutoTransition {
         if (options.airhorn) {
             const ctx = this.router.getAudioContext?.() || this.router.ctx;
             const style = options.airhorn === 'double' ? 'double' : 'classic';
-            setTimeout(() => { try { airhorn(ctx, this.router.masterGain, { style }); } catch (e) { /* no horn, the mix goes on */ } }, Math.max(0, (duration || this.duration) * 0.35 * 1000));
+            const fx = this._getDJPlayer()?.partyFX;
+            setTimeout(() => { try { if (fx) fx.horn(style); else airhorn(ctx, this.router.masterGain, { style }); } catch (e) { /* no horn, the mix goes on */ } }, Math.max(0, (duration || this.duration) * 0.35 * 1000));
         }
         if (targetDeck.isLoaded && !targetDeck.isPlaying) {
             this.router.resume();

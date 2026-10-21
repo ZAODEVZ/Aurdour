@@ -83,7 +83,26 @@ export class PartyFX {
 
     hype() { this._lastHype = nextHype(this._lastHype); return this.shout(this._lastHype); }
 
-    horn(style = 'classic') { try { airhorn(this.ctx, this.out, { style }); } catch (e) { /* no horn */ } }
+    // The air horn: a real one from data/fx/airhorn.(wav|mp3) when the DJ has dropped one in
+    // (IMan's own sample), else the synthesized one.
+    async horn(style = 'classic') {
+        const ctx = this.ctx;
+        if (!ctx || !this.out) return;
+        if (this._hornFile === undefined) {
+            this._hornFile = null;
+            for (const name of ['data/fx/airhorn.wav', 'data/fx/airhorn.mp3']) {
+                try { const r = await fetch(name); if (r.ok) { this._hornFile = await ctx.decodeAudioData(await r.arrayBuffer()); break; } } catch (e) { /* try the next */ }
+            }
+        }
+        if (this._hornFile) {
+            const src = ctx.createBufferSource(); src.buffer = this._hornFile;
+            const g = ctx.createGain(); g.gain.value = 0.85;
+            src.connect(g); this._dub(g, 0.3, 0.3);
+            src.start();
+            return;
+        }
+        try { airhorn(ctx, this.out, { style }); } catch (e) { /* no horn */ }
+    }
 
     // The dub siren: a square wave wailing up and down, into the echo
     siren(seconds = 2.4) {
