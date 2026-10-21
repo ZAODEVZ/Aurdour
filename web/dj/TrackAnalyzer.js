@@ -16,6 +16,7 @@ export class TrackAnalyzer {
         this.queue = [];
         this.done = new Set();
         this.running = false;
+        this.allowDownloads = false; // true would fetch every song to analyze it: off, it eats mobile data
         this.urgent = new Set(); // ids DJ MixZ is about to plan with: these run even on air
         this.onUpdate = null;  // (known, total) after each song
     }
@@ -62,10 +63,11 @@ export class TrackAnalyzer {
             setTimeout(() => this._next(), BUSY_MS);
             return;
         }
-        const onAir = ['A', 'B'].some((id) => this.dj.decks?.[id]?.isPlaying);
-        if (onAir && !this.urgent.has(t.id) && !(await this._isStored(t))) {
-            this.queue.push(t);
-            setTimeout(() => this._next(), ONAIR_MS);
+        // Never download a song just to measure it: data is precious. Only tempos and keys already in
+        // storage are read back; a song gets measured when it is actually played on a deck.
+        if (!this.allowDownloads && !(await this._isStored(t))) {
+            this.done.add(t.id); this.urgent.delete(t.id);
+            setTimeout(() => this._next(), 0);
             return;
         }
         let cached = false;
