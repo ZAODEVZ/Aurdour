@@ -26,6 +26,8 @@ import { HarmonicMixer } from './dj/HarmonicMixer.js';
 import { StemSeparator } from './dj/StemSeparator.js';
 import { Storage } from './dj/Storage.js';
 import { BpmDetector } from './dj/BpmDetector.js';
+import { TrackAnalyzer } from './dj/TrackAnalyzer.js';
+import { PartyFX } from './dj/PartyFX.js';
 import { JogWheel } from './dj/JogWheel.js';
 import { DragDrop } from './dj/DragDrop.js';
 import { CrashRecovery } from './dj/CrashRecovery.js';
@@ -169,6 +171,10 @@ class DJPlayer {
 
         // DJ MixZ: the bot DJ. Plans a set from a playlist and a mood, then mixes it.
         this.djMixz = safeInit('DjMixz', () => new DjMixz(this));
+        // Tempo and key for every crate song, found once in the background and kept
+        this.trackAnalyzer = safeInit('TrackAnalyzer', () => new TrackAnalyzer(this));
+        // Shouts, siren, horn and the rewind for DJ MixZ's party sets and the FX pad
+        this.partyFX = safeInit('PartyFX', () => new PartyFX(this));
         this.deadAir = safeInit('DeadAir', () => new DeadAir(this));
         // Stream events: the on-air song, each handover and stream health (docs/STREAM-EVENTS.md)
         this.streamEvents = safeInit('StreamEvents', () => new StreamEvents(this));

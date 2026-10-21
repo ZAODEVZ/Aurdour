@@ -151,6 +151,7 @@ export class ZaoCrate {
         this.newest = added;
         if (added.length && document.getElementById('zao-crate-tab')?.classList.contains('active')) this.show(true);
         lib.zaoTracks = this.tracks; // the switch pad reads this
+        this.dj.trackAnalyzer?.refresh?.(); // tempo and key back onto the fresh copies
         const count = document.getElementById('zao-crate-count');
         if (count) count.textContent = this.tracks.length ? ` ${this.tracks.length}` : '';
         const tab = document.getElementById('zao-crate-tab');

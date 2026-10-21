@@ -60,6 +60,8 @@ const APP_SHELL = [
     '/dj/FX.js',
     '/dj/AutoTransition.js',
     '/dj/Airhorn.js',
+    '/dj/PartyFX.js',
+    '/dj/TrackAnalyzer.js',
     '/dj/Clock.js',
     '/dj/AgentQueue.js',
     '/dj/AgentPost.js',

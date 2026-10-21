@@ -70,7 +70,8 @@ ok('party set: never three identical moves in a row', !partySet.slice(1).map((p)
 ok('other moods never use the party moves', planSet(pool, 'journey', h).every((p) => !p.move || (p.move.type !== 'stem-swap' && !p.move.airhorn)));
 const mixed = [T(60, 85, 'A minor', 'Reggae'), T(61, 128, 'A minor', 'House'), T(62, 124, 'A minor', 'Afro'), T(63, null, null, ''), T(64, 70, 'A minor', 'Lo-Fi'), T(65, 132, 'A minor', 'House'), T(66, 72, 'A minor', 'Trap')];
 const up = uptempo(mixed).map((t) => t.id);
-ok('party: slow songs out, fast and unknown stay, half-time trap counts as fast', !up.includes(60) && !up.includes(64) && [61, 62, 63, 65, 66].every((id) => up.includes(id)));
+ok('party: slow songs out, half-time trap counts as fast, only known-fast songs when there are enough', !up.includes(60) && !up.includes(64) && [61, 62, 65, 66].every((id) => up.includes(id)) && !up.includes(63));
+ok('party: songs not analyzed yet fill in when the known-fast ones are too few for the set', uptempo(mixed, 8).map((t) => t.id).includes(63) && !uptempo(mixed, 8).map((t) => t.id).includes(60));
 ok('party: an all-slow list still plays its fastest half', uptempo([T(70, 80, 'A minor', 'Reggae'), T(71, 90, 'A minor', 'Soul'), T(72, 70, 'A minor', 'Lo-Fi'), T(73, 85, 'A minor', 'Jazz')]).length === 2);
 ok('party energy never dips below 0.75', Array.from({ length: 21 }, (_, i) => MOODS.find((m) => m.id === 'party').curve(i / 20)).every((e) => e >= 0.75));
 ok('the horn: short, short, long', hornPattern().length === 3 && hornPattern()[2].len > hornPattern()[0].len * 3);

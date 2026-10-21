@@ -961,3 +961,10 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 .flow-show-pill { position: fixed; left: 16px; bottom: 16px; z-index: 9000; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--mz-a); background: rgba(var(--mz-a-rgb), 0.18); color: var(--mz-text); font-weight: 800; font-size: 0.8rem; letter-spacing: 0.12em; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
 .flow-show-pill[hidden] { display: none; }
 .flow-show-pill::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2ee59d; margin-right: 8px; vertical-align: middle; box-shadow: 0 0 8px #2ee59d; }
+
+/* DJ MixZ party FX pad */
+.djmixz-fx { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.djmixz-fx button { height: 38px; border-radius: 9px; border: 1px solid var(--mz-line-hi); background: var(--mz-inset); color: var(--mz-text); font-weight: 800; font-size: 0.72rem; letter-spacing: 0.08em; cursor: pointer; }
+.djmixz-fx button:hover { border-color: #f5a623; color: #ffd27a; }
+.djmixz-fx button:active { transform: scale(0.97); background: rgba(245, 166, 35, 0.18); }
+.djmixz-fx button[data-fx="rewind"] { border-color: #ff3b5c; color: #ff8fa3; }

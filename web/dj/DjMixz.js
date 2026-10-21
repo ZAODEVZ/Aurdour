@@ -221,11 +221,14 @@ export const MAX_ARTISTS = 5;
 // Moods that keep every song short: the longest one is on air, mix included, in seconds.
 export const MAX_PLAY = { party: 120 };
 
-// Party stays uptempo: a song whose tempo is on file and reads slow (under 100 BPM, rap and
-// dancehall half-time counted at the speed it is felt) is left out. A song with no tempo on
-// file stays in, since nothing says it is slow. If that leaves fewer than 4, the fastest half plays.
-export function uptempo(tracks) {
+// Party stays uptempo. A song whose tempo is on file and reads slow (under 100 BPM as felt; rap,
+// trap and dancehall half-time count at the speed they are felt) is out. When enough songs have a
+// fast tempo on file to fill the set (`need`), only those play; songs not analyzed yet fill in only
+// when there are not enough. The track analyzer (TrackAnalyzer.js) finds the tempos.
+export function uptempo(tracks, need = 0) {
     const slow = (t) => num(t.bpm) && energyOf({ ...t, energy: undefined }) < energyOf({ bpm: 100, genre: t.genre });
+    const knownFast = tracks.filter((t) => num(t.bpm) && !slow(t));
+    if (knownFast.length >= Math.max(4, need)) return knownFast;
     const fast = tracks.filter((t) => !slow(t));
     if (fast.length >= 4 || fast.length === tracks.length) return fast;
     return tracks.slice().sort((a, b) => energyOf(b) - energyOf(a)).slice(0, Math.max(2, Math.ceil(tracks.length / 2)));
@@ -286,7 +289,7 @@ export class DjMixz {
     build(sourceId, moodId, minutes) {
         // SongChainn stores no tempo, so use the ones the decks measured on earlier plays
         let tracks = tracksFrom(this.dj.library || {}, sourceId, this.scArtist).map((t) => (!t.bpm && this._bpm[t.id] ? { ...t, bpm: this._bpm[t.id] } : t));
-        if (moodId === 'party') tracks = uptempo(tracks);
+        if (moodId === 'party') { this.dj.trackAnalyzer?.prioritize?.(tracks); tracks = uptempo(tracks, tracksForMinutes(tracks, minutes, 2)); }
         const maxTracks = tracksForMinutes(tracks, minutes, (MAX_PLAY[moodId] || 0) / 60);
         this.minutes = minutes;
         this.mood = moodId;
@@ -313,10 +316,15 @@ export class DjMixz {
             const next = this.plan[this.index + 1];
             if (!next) { this._finish(); return; }
             this._applyMove(next.move);
+            // Party: the dub siren rides an echo out
+            if (this.mood === 'party' && next.move?.type === 'echo-out') setTimeout(() => this.dj.partyFX?.siren(), 400);
             this._orig.trigger();
         };
         flow.onTransitionComplete = (direction) => {
             this._orig.done(direction);
+            this._songStart = Date.now(); this._rewound = false;
+            // Party: the MC bigs up the tune that just landed, most of the time
+            if (this.mood === 'party' && Math.random() < 0.65) setTimeout(() => this.dj.partyFX?.hype(), 900);
             this.index += 1;
             this._armNext();
             this._renderPlan();
@@ -338,6 +346,7 @@ export class DjMixz {
         this.human = false; this._turn = 0;
         this.score = { ai: 0, human: 0 }; this.round = 1; this._voteOpen = false;
         this._watchHands();
+        this._partyOn();
         this._renderBar();
         return true;
     }
@@ -431,6 +440,26 @@ export class DjMixz {
         return true;
     }
 
+    // Party: the event DJ's tricks. Every fourth song, from the third on, gets the rewind about 40
+    // seconds in (pull up, back to the top, reload); never during a mix or while a person has the decks.
+    _partyOn() {
+        this._partyOff();
+        if (this.mood !== 'party' || !this.dj.partyFX) return;
+        this.dj.partyFX.preload();
+        this._songStart = Date.now(); this._rewound = false;
+        setTimeout(() => this.dj.partyFX?.shout('mixz'), 1500);
+        this._partyTimer = setInterval(() => {
+            const flow = this.dj.flowMode;
+            if (!this.running || this.human || this._rewound || !flow || flow._transitioning || flow._nearEndTriggered) return;
+            if (this.index < 2 || this.index % 4 !== 2) return;
+            const deck = this.dj.decks?.[flow.currentDeck];
+            const t = deck?.getCurrentTime?.() || 0;
+            if (deck?.isPlaying && t > 38 && t < 48) { this._rewound = true; this.dj.partyFX.rewind(deck); }
+        }, 1000);
+    }
+
+    _partyOff() { if (this._partyTimer) { clearInterval(this._partyTimer); this._partyTimer = null; } }
+
     // Load the set's first song on deck A as soon as the set is built, so START plays it at once.
     // Never while a set runs or deck A is on air.
     _preloadFirst() {
@@ -466,6 +495,7 @@ export class DjMixz {
     stop() {
         const flow = this.dj.flowMode;
         if (flow) { flow.maxPlaySeconds = 0; flow.transitionExtras = null; }
+        this._partyOff();
         if (flow && this._orig) { flow._autoFillQueue = this._orig.fill; flow._triggerTransition = this._orig.trigger; flow.onTransitionComplete = this._orig.done; flow.onTrackDropped = null; }
         if (this.running && this.battle && (this.score.ai || this.score.human)) {
             const { ai, human } = this.score;
@@ -670,6 +700,12 @@ export class DjMixz {
             </div>
             <button class="djmixz-btn djmixz-quick" id="djmixz-sc">MIX SONGCHAINN NOW</button>
             <div class="djmixz-quick-hint">One press: it pulls SongChainn's music, builds a set for the mood and session length below, and plays it.</div>
+            <div class="djmixz-label">Party FX</div>
+            <div class="djmixz-fx" id="djmixz-fx">
+                <button type="button" data-fx="horn">AIR HORN</button><button type="button" data-fx="siren">SIREN</button><button type="button" data-fx="rewind">REWIND</button>
+                <button type="button" data-fx="big-tune">BIG TUNE</button><button type="button" data-fx="massive">MASSIVE</button><button type="button" data-fx="reload">RELOAD</button>
+                <button type="button" data-fx="wheel-up">WHEEL UP</button><button type="button" data-fx="badman">BAD MAN</button><button type="button" data-fx="hold-tight">HOLD TIGHT</button>
+            </div>
             <label class="djmixz-label" for="djmixz-source">Or choose the music</label>
             <select id="djmixz-source" class="toolbar-select djmixz-select">${this._sources().map((s) => `<option value="${s.id}">${s.label}</option>`).join('')}</select>
             <div id="djmixz-artist" class="djmixz-artists" hidden role="group" aria-label="SongChainn artists"></div>
@@ -689,6 +725,15 @@ export class DjMixz {
         document.body.appendChild(panel);
 
         open.addEventListener('click', () => panel.classList.toggle('hidden'));
+        panel.querySelector('#djmixz-fx')?.addEventListener('click', (e) => {
+            const fx = e.target.closest('[data-fx]')?.dataset.fx; const p = this.dj.partyFX;
+            if (!fx || !p) return;
+            this.dj.audioRouter?.resume?.();
+            if (fx === 'horn') p.horn();
+            else if (fx === 'siren') p.siren();
+            else if (fx === 'rewind') { const d = this.dj.decks?.[this.dj.flowMode?.currentDeck || 'A']; const live = d?.isPlaying ? d : ['A', 'B'].map((id) => this.dj.decks?.[id]).find((x) => x?.isPlaying); if (live) p.rewind(live); else this._say('Nothing is playing to rewind.'); }
+            else p.shout(fx);
+        });
         panel.querySelector('#djmixz-close').addEventListener('click', () => panel.classList.add('hidden'));
         panel.querySelectorAll('.djmixz-mood').forEach((b) => b.addEventListener('click', () => {
             panel.querySelectorAll('.djmixz-mood').forEach((x) => x.classList.remove('active'));
@@ -725,6 +770,7 @@ export class DjMixz {
             if (at >= 0) this.scArtist = this.scArtist.filter((x) => x !== n);
             else if (this.scArtist.length < MAX_ARTISTS) this.scArtist = [...this.scArtist, n];
             renderArtists();
+            this.dj.trackAnalyzer?.prioritize?.(tracksFrom(this.dj.library || {}, 'songchainn-artist', this.scArtist));
         };
         artistSel.innerHTML = `
             <div class="djmixz-artists-head"><span>Pick artists</span><span class="djmixz-artists-count"></span></div>
