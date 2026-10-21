@@ -406,6 +406,8 @@ export class FlowMode {
                     type: this.transitionType,
                     sourceBPM: this.dj.decks[this.currentDeck].getBPM(),
                     targetBPM: this.dj.decks[idleDeck].getBPM(),
+                    // DJ MixZ party moves: tempo ride and air horn
+                    ...(this.transitionExtras || {}),
                 });
                 if (engine.running) {
                     this._mixing = { track, deck: idleDeck, direction };

@@ -59,6 +59,7 @@ const APP_SHELL = [
     '/dj/StreamBroadcast.js',
     '/dj/FX.js',
     '/dj/AutoTransition.js',
+    '/dj/Airhorn.js',
     '/dj/Clock.js',
     '/dj/AgentQueue.js',
     '/dj/AgentPost.js',

@@ -1,5 +1,6 @@
 // Offline check of DJ MixZ's set planning.   node web/dj/DjMixz.test.mjs
 import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes } from './DjMixz.js';
+import { hornPattern } from './Airhorn.js';
 import { HarmonicMixer } from './HarmonicMixer.js';
 
 const h = new HarmonicMixer();
@@ -55,6 +56,20 @@ ok('session length: 1 hour of SongChainn is about 19 tracks, 4 hours about 75, n
 ok('session length uses real track lengths when the library has them', tracksForMinutes(Array.from({ length: 50 }, (_, i) => ({ id: i, duration: 120 })), 60) === 34);
 ok('a SongChainn set with no tempo or key on file still plans, every track once', planSet(many, 'journey', h, { maxTracks: 19 }).length === 19 && new Set(planSet(many, 'journey', h, { maxTracks: 19 }).map((p) => p.track.id)).size === 19);
 ok('five moods', MOODS.length === 5);
+// Party: tempo rides, stem swaps, echo outs, air horn
+const P = (a, b, prev = []) => planTransition(a, b, h, prev, { party: true });
+const ride = P(T(40, 120, 'A minor', 'Afro'), T(41, 132, 'A minor', 'Afro'));
+ok('party: 10% apart, same key, rides the tempo with a stem swap', ride.type === 'stem-swap' && ride.tempoRide === true);
+ok('party: keys clash, echo out with the air horn', P(T(42, 120, 'A minor', 'Afro'), T(43, 121, 'F# major', 'Afro')).type === 'echo-out' && !!P(T(42, 120, 'A minor', 'Afro'), T(43, 121, 'F# major', 'Afro')).airhorn);
+ok('party: 25% apart, echo out, no tempo ride', P(T(44, 100, 'A minor', 'Afro'), T(45, 125, 'A minor', 'Afro')).type === 'echo-out' && !P(T(44, 100, 'A minor', 'Afro'), T(45, 125, 'A minor', 'Afro')).tempoRide);
+ok('party: no tempo on file, stem swap and blend take turns', P(T(46, null, null, ''), T(47, null, null, '')).type === 'stem-swap' && P(T(46, null, null, ''), T(47, null, null, ''), ['stem-swap']).type === 'blend');
+ok('party: moves are short (20 seconds at most)', [ride, P(T(48, 70, 'A minor', 'Reggae'), T(49, 72, 'A minor', 'Reggae'))].every((m) => m.seconds <= 20));
+const partySet = planSet(pool, 'party', h);
+ok('party set: the air horn goes on about every other move', partySet.filter((p) => p.move?.airhorn).length >= Math.floor((partySet.length - 1) / 2));
+ok('party set: never three identical moves in a row', !partySet.slice(1).map((p) => p.move.type).some((t, i, r) => i >= 2 && r[i - 1] === t && r[i - 2] === t));
+ok('other moods never use the party moves', planSet(pool, 'journey', h).every((p) => !p.move || (p.move.type !== 'stem-swap' && !p.move.airhorn)));
+ok('the horn: short, short, long', hornPattern().length === 3 && hornPattern()[2].len > hornPattern()[0].len * 3);
+
 
 console.log(fail ? `${fail} failed` : 'all passed');
 process.exit(fail ? 1 : 0);

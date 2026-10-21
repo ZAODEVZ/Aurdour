@@ -1,11 +1,12 @@
 // AutoTransition.js — Automated crossfade transitions between decks
-// Supports multiple transition types: blend, echo-out, cut, filter-sweep
+// Supports multiple transition types: blend, echo-out, cut, filter-sweep, stem-swap
 // Uses equal-power (cos/sin) crossfade curve for smooth audio transitions
 // Includes gradual BPM matching during transitions
 // Driven by Clock.every, not requestAnimationFrame: a hidden tab stops animation frames, and a
 // mix must keep going while the DJ is in another tab.
 
 import { every } from './Clock.js';
+import { airhorn } from './Airhorn.js';
 
 export const TICK_MS = 20;
 
@@ -157,6 +158,14 @@ export class AutoTransition {
                 // No init needed — instantaneous switch
                 break;
 
+            case 'stem-swap':
+                // EQ stems: the old song keeps its vocal (mids and highs) while its drums and bass
+                // go; the new song comes in as drums and bass only, then its vocal takes over.
+                this._stemBefore = {};
+                for (const id of [sourceDeckId, targetDeckId]) this._stemBefore[id] = { low: this._bandEQ(id, 'low'), mid: this._bandEQ(id, 'mid'), high: this._bandEQ(id, 'high') };
+                this.router.setEQ(targetDeckId, 'mid', -26);
+                break;
+
             case 'blend':
             default:
                 // The blend swaps the bass (source low cut to -24dB, target low set to 0).
@@ -187,6 +196,9 @@ export class AutoTransition {
                 break;
             case 'filter-sweep':
                 this._animateFilterSweep(progress);
+                break;
+            case 'stem-swap':
+                this._animateStemSwap(progress);
                 break;
             default:
                 this._animateBlend(progress);
@@ -383,6 +395,41 @@ export class AutoTransition {
         }
     }
 
+    // Stem swap: 0 to 45%, the new song's drums and bass rise under the old song while the old
+    // song's drums and bass drain away, so its vocal rides the new beat. 45 to 70%, the vocals
+    // trade places. 70 to 100%, the old song fades out.
+    _animateStemSwap(progress) {
+        const sourceDeckId = this.direction === 'AtoB' ? 'A' : 'B';
+        const targetDeckId = this.direction === 'AtoB' ? 'B' : 'A';
+        const p1 = Math.min(1, progress / 0.45);
+        const p2 = Math.max(0, Math.min(1, (progress - 0.45) / 0.25));
+        const before = this._stemBefore || {};
+        const lerp = (a, b, x) => a + (b - a) * x;
+        // Old song: lows out by 45%, highs (the hats) half gone, mids (the vocal) out by 70%
+        this.router.setEQ(sourceDeckId, 'low', lerp(before[sourceDeckId]?.low ?? 0, -26, p1));
+        this.router.setEQ(sourceDeckId, 'high', lerp(before[sourceDeckId]?.high ?? 0, -10, p1));
+        this.router.setEQ(sourceDeckId, 'mid', lerp(before[sourceDeckId]?.mid ?? 0, -26, p2));
+        // New song: drums and bass from the start, its vocal comes up as the old one goes
+        this.router.setEQ(targetDeckId, 'mid', lerp(-26, before[targetDeckId]?.mid ?? 0, p2));
+
+        const sourceGain = progress < 0.7 ? 1 : Math.cos(((progress - 0.7) / 0.3) * Math.PI / 2);
+        const targetGain = Math.sin(Math.min(1, progress / 0.35) * Math.PI / 2);
+        const position = this.startPos + (this.endPos - this.startPos) * progress;
+        const cf = document.getElementById('crossfader');
+        if (cf) cf.value = Math.round(position * 100);
+        this.router.channels[sourceDeckId].crossfadeGain.gain.value = sourceGain;
+        this.router.channels[targetDeckId].crossfadeGain.gain.value = targetGain;
+    }
+
+    // A deck's EQ band as the DJ set it (a killed band keeps its setting aside)
+    _bandEQ(id, band) {
+        const r = this.router;
+        if (r._eqKillState?.[id]?.[band]) return r._eqSavedGain?.[id]?.[band] ?? 0;
+        const key = `eq${band.charAt(0).toUpperCase() + band.slice(1)}`;
+        const v = r.channels?.[id]?.[key]?.gain?.value;
+        return Number.isFinite(v) ? v : 0;
+    }
+
     // ===== BPM SYNC =====
 
     _animateBpmSync(progress) {
@@ -475,6 +522,17 @@ export class AutoTransition {
             this._echoCleanupNeeded = false;
         }
 
+        if (this._stemBefore) {
+            // Both decks get back the EQ they had before the stem swap
+            for (const [id, bands] of Object.entries(this._stemBefore)) for (const [band, db] of Object.entries(bands)) this.router.setEQ(id, band, db);
+            this._stemBefore = null;
+        }
+
+        if (this._keyLockBefore) {
+            for (const [id, was] of Object.entries(this._keyLockBefore)) { const m = this.decks[id]?.getMediaElement?.(); if (m) m.preservesPitch = was; }
+            this._keyLockBefore = null;
+        }
+
         if (this._filterSweepCleanupNeeded) {
             // Reset both deck filters to center (bypass)
             this.router.setFilter('A', 0.5);
@@ -537,6 +595,20 @@ export class AutoTransition {
 
         // Auto-play the target deck if not playing
         const targetDeck = direction === 'AtoB' ? this.decks.B : this.decks.A;
+
+        // Tempo ride: the new song starts at the old song's tempo and eases back to its own
+        // (the BPM sync below does the riding). Key lock keeps it from sounding sped up.
+        if (options.tempoRide) {
+            const m = targetDeck.getMediaElement?.();
+            if (m) { this._keyLockBefore = { [targetDeck.id]: m.preservesPitch }; m.preservesPitch = true; }
+        }
+
+        // Party: the air horn goes off as the new song lands
+        if (options.airhorn) {
+            const ctx = this.router.getAudioContext?.() || this.router.ctx;
+            const style = options.airhorn === 'double' ? 'double' : 'classic';
+            setTimeout(() => { try { airhorn(ctx, this.router.masterGain, { style }); } catch (e) { /* no horn, the mix goes on */ } }, Math.max(0, (duration || this.duration) * 0.35 * 1000));
+        }
         if (targetDeck.isLoaded && !targetDeck.isPlaying) {
             this.router.resume();
             targetDeck.play();

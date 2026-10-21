@@ -58,15 +58,21 @@ const KEY_COST = { same: 0, up1: 0, down1: 0.05, flip: 0.05, up2: 0.3, unknown: 
 
 // How well two tracks sit next to each other: keys, tempo, and not the same artist twice.
 // Lower is better. The set planner and the Flow Director (FlowDirector.js) both use it.
-export function joinCost(x, y, harmonic) {
+// With `party`, a tempo gap of up to 16% costs little when the keys fit: DJ MixZ rides the tempo.
+export function joinCost(x, y, harmonic, party = false) {
     if (!x || !y) return 0;
     const g = tempoGap(x, y);
-    return KEY_COST[keyRelation(harmonic, x.key, y.key)] + 0.9 * (g.pct === null ? 0.4 : g.doubled ? 0.35 : Math.min(1, Math.abs(g.pct) / 9))
+    const rel = keyRelation(harmonic, x.key, y.key);
+    const ride = party && (rel === 'same' || rel === 'up1' || rel === 'down1' || rel === 'flip');
+    return KEY_COST[rel] + 0.9 * (g.pct === null ? 0.4 : g.doubled ? 0.35 : Math.min(1, Math.abs(g.pct) / (ride ? 24 : 9)))
         + (x.artist && x.artist === y.artist ? 0.25 : 0);
 }
 
 // The move from track a to track b. `prevTypes` are the moves already used, newest last.
-export function planTransition(a, b, harmonic, prevTypes = []) {
+// `opts.party` plays it like a sound-system DJ: short moves, tempo rides, stem swaps, echo outs
+// and the air horn.
+export function planTransition(a, b, harmonic, prevTypes = [], opts = {}) {
+    if (opts.party) return planPartyTransition(a, b, harmonic, prevTypes);
     const rel = keyRelation(harmonic, a.key, b.key);
     const { pct, doubled } = tempoGap(a, b);
     const gap = pct === null ? null : Math.abs(pct);
@@ -101,6 +107,45 @@ export function planTransition(a, b, harmonic, prevTypes = []) {
     return { type, bars, seconds: Math.round(seconds * 10) / 10, why };
 }
 
+// Party moves. Tempos up to 16% apart still mix when the keys fit or the vibe matches (same
+// genre or close energy): the new song is pitched to the old one's tempo, key lock on, and eases
+// back to its own (tempoRide). Mixes are short: 4 to 8 bars. A clash or a big jump echoes out.
+// Every other move, and every echo out, the air horn goes.
+export function planPartyTransition(a, b, harmonic, prevTypes = []) {
+    const rel = keyRelation(harmonic, a.key, b.key);
+    const { pct, doubled } = tempoGap(a, b);
+    const gap = pct === null ? null : Math.abs(pct);
+    const fits = rel === 'same' || rel === 'up1' || rel === 'down1' || rel === 'flip';
+    const vibe = (a.genre && a.genre === b.genre) || Math.abs(energyOf(a) - energyOf(b)) < 0.15;
+    const last = prevTypes[prevTypes.length - 1];
+    let type, bars, why, tempoRide = false;
+
+    if (rel === 'clash' || (gap !== null && gap > 16 && !doubled) || (gap !== null && gap > 4 && !fits && !vibe)) {
+        type = 'echo-out'; bars = 4; why = rel === 'clash' ? 'keys clash: echo out and drop the next one' : 'tempo too far apart: echo out and drop the next one';
+    } else if (doubled) {
+        type = 'echo-out'; bars = 4; why = 'half or double time: echo out, drop in';
+    } else if (gap !== null && gap > 4) {
+        type = 'stem-swap'; bars = 8; tempoRide = true;
+        why = `${Math.round(gap)}% apart but the ${fits ? 'keys fit' : 'vibe matches'}: tempo rides over, old vocal on the new drums`;
+    } else {
+        // Close tempo or none on file: trade between the stem swap and a quick blend
+        type = last === 'stem-swap' ? 'blend' : 'stem-swap'; bars = type === 'blend' ? 8 : 8;
+        why = type === 'stem-swap' ? 'old vocal over the new drums, then the vocals trade' : 'quick bass-swap blend';
+    }
+
+    // A DJ does not do the same move three times in a row
+    const last2 = prevTypes.slice(-2);
+    if (last2.length === 2 && last2[0] === type && last2[1] === type) {
+        if (type === 'echo-out') { type = 'cut'; bars = 1; why += ', a hard cut this time'; }
+        else { type = 'echo-out'; bars = 4; why += ', echo out for variety'; tempoRide = false; }
+    }
+
+    const airhorn = type === 'echo-out' || type === 'cut' || prevTypes.length % 2 === 0 ? (prevTypes.length % 4 === 1 ? 'double' : 'classic') : null;
+    const bpm = num(a.bpm) || 120;
+    const seconds = Math.max(type === 'cut' ? 1.5 : 5, Math.min(20, (bars * 4 * 60) / bpm));
+    return { type, bars, seconds: Math.round(seconds * 10) / 10, why: airhorn ? why + ', air horn' : why, tempoRide, airhorn };
+}
+
 // Order a playlist for a mood. Returns [{ track, energy, target, move }] where `move` is how
 // to get INTO that track from the one before (null for the first).
 export function planSet(tracks, moodId, harmonic, opts = {}) {
@@ -112,7 +157,8 @@ export function planSet(tracks, moodId, harmonic, opts = {}) {
 
     const targets = Array.from({ length: count }, (_, i) => mood.curve(count === 1 ? 0 : i / (count - 1)));
 
-    const join = (x, y) => joinCost(x, y, harmonic);
+    const party = moodId === 'party';
+    const join = (x, y) => joinCost(x, y, harmonic, party);
 
     const seat = new Array(count);
     if (pool.length >= count * 1.5) {
@@ -151,7 +197,7 @@ export function planSet(tracks, moodId, harmonic, opts = {}) {
     const types = [];
     seat.forEach((track, i) => {
         const prev = out[out.length - 1]?.track;
-        const move = prev ? planTransition(prev, track, harmonic, types) : null;
+        const move = prev ? planTransition(prev, track, harmonic, types, { party }) : null;
         if (move) types.push(move.type);
         out.push({ track, energy: energyOf(track), target: targets[i], move });
     });
@@ -309,7 +355,7 @@ export class DjMixz {
         this.plan.splice(at, 1);
         // The song before it now mixes straight into the one after: plan that move afresh
         const next = this.plan[at];
-        if (next) next.move = at === 0 ? null : planTransition(this.plan[at - 1].track, next.track, this.dj.harmonic);
+        if (next) next.move = at === 0 ? null : planTransition(this.plan[at - 1].track, next.track, this.dj.harmonic, [], { party: this.mood === 'party' });
         if (at === this.index + 1) this._armNext();
         this._renderPlan();
         this._renderBar();
@@ -362,9 +408,9 @@ export class DjMixz {
         this.plan.splice(this.index + 1, 0, picked);
         // Both joins changed: plan those two moves afresh
         const types = this.plan.slice(1, this.index + 1).map((p) => p.move?.type).filter(Boolean);
-        picked.move = planTransition(this.plan[this.index].track, picked.track, this.dj.harmonic, types);
+        picked.move = planTransition(this.plan[this.index].track, picked.track, this.dj.harmonic, types, { party: this.mood === 'party' });
         const after = this.plan[this.index + 2];
-        if (after) after.move = planTransition(picked.track, after.track, this.dj.harmonic, [...types, picked.move.type]);
+        if (after) after.move = planTransition(picked.track, after.track, this.dj.harmonic, [...types, picked.move.type], { party: this.mood === 'party' });
         flow.queue = this.plan.slice(this.index + 1).map((p) => p.track);
         this._armNext();
         this._say(`Swapped in: ${picked.track.title} plays next.`);
@@ -385,6 +431,7 @@ export class DjMixz {
         flow.transitionType = move.type;
         flow.transitionWhy = move.why || null;
         flow.transitionDuration = move.seconds;
+        flow.transitionExtras = { tempoRide: !!move.tempoRide, airhorn: move.airhorn || null };
         flow.maxPlaySeconds = MAX_PLAY[this.mood] || 0;
         flow.transitionPointMode = 'fixed';
         // Start early enough that the move finishes a few seconds before the old track runs out.
@@ -393,7 +440,7 @@ export class DjMixz {
 
     stop() {
         const flow = this.dj.flowMode;
-        if (flow) flow.maxPlaySeconds = 0;
+        if (flow) { flow.maxPlaySeconds = 0; flow.transitionExtras = null; }
         if (flow && this._orig) { flow._autoFillQueue = this._orig.fill; flow._triggerTransition = this._orig.trigger; flow.onTransitionComplete = this._orig.done; flow.onTrackDropped = null; }
         if (this.running && this.battle && (this.score.ai || this.score.human)) {
             const { ai, human } = this.score;
@@ -506,7 +553,7 @@ export class DjMixz {
         used.add(idOf(now));
         const rest = this.plan.slice(this.index + 1).map((p) => p.track).filter((t) => !used.has(idOf(t)));
         const tail = planSet(rest, this.mood, this.dj.harmonic);
-        if (tail.length) tail[0].move = planTransition(now, tail[0].track, this.dj.harmonic);
+        if (tail.length) tail[0].move = planTransition(now, tail[0].track, this.dj.harmonic, [], { party: this.mood === 'party' });
         this.plan = [{ track: now, energy: energyOf(now), target: energyOf(now), move: null }, ...tail];
         this.index = 0;
         this.human = false;
@@ -623,31 +670,65 @@ export class DjMixz {
             b.classList.add('active'); this.mood = b.dataset.mood;
         }));
         const artistSel = panel.querySelector('#djmixz-artist');
-        // Tick up to MAX_ARTISTS; once that many are ticked the rest wait until one is unticked.
-        const readArtists = () => {
-            const boxes = [...artistSel.querySelectorAll('input[type=checkbox]')];
-            this.scArtist = boxes.filter((b) => b.checked).map((b) => b.value);
-            const full = this.scArtist.length >= MAX_ARTISTS;
-            boxes.forEach((b) => { b.disabled = full && !b.checked; });
-            const count = artistSel.querySelector('.djmixz-artists-count');
-            if (count) count.textContent = `${this.scArtist.length} of ${MAX_ARTISTS} picked`;
+        // Tap up to MAX_ARTISTS chips; once that many are picked the rest wait until one is let go.
+        // Picked artists sit on top as chips with an x; a search box narrows the long list.
+        const scNames = () => [...new Set((this.dj.library?.zaoTracks || []).filter((t) => t.source === 'songchainn').map((t) => t.artist))].sort((a, b) => a.localeCompare(b));
+        const songCount = (n) => (this.dj.library?.zaoTracks || []).filter((t) => t.source === 'songchainn' && t.artist === n).length;
+        let artistQuery = '';
+        let artistsLoading = false;
+        const renderArtists = () => {
+            const picked = this.scArtist;
+            const full = picked.length >= MAX_ARTISTS;
+            const names = scNames();
+            const q = artistQuery.trim().toLowerCase();
+            const shown = names.filter((n) => !q || n.toLowerCase().includes(q));
+            const chip = (n) => {
+                const on = picked.includes(n);
+                return `<button type="button" class="djmixz-chip${on ? ' on' : ''}" data-artist="${esc(n)}" aria-pressed="${on}"${full && !on ? ' disabled' : ''}><span class="djmixz-chip-name">${esc(n)}</span><span class="djmixz-chip-n">${songCount(n)}</span></button>`;
+            };
+            artistSel.querySelector('.djmixz-artists-count').textContent = `${picked.length} / ${MAX_ARTISTS}`;
+            artistSel.querySelector('.djmixz-artists-picked').innerHTML = picked.length
+                ? picked.map((n) => `<button type="button" class="djmixz-pick" data-artist="${esc(n)}" aria-label="Remove ${esc(n)}">${esc(n)} <b>x</b></button>`).join('')
+                : `<span class="djmixz-artists-hint">Tap up to ${MAX_ARTISTS} artists below</span>`;
+            artistSel.querySelector('.djmixz-artists-grid').innerHTML = artistsLoading && !names.length
+                ? '<div class="djmixz-artists-empty">Loading SongChainn artists…</div>'
+                : !names.length ? '<div class="djmixz-artists-empty">No SongChainn artists yet. Check the connection and pick this again.</div>'
+                : shown.length ? shown.map(chip).join('') : `<div class="djmixz-artists-empty">No artist matches "${esc(artistQuery)}".</div>`;
         };
-        const fillArtists = () => {
-            const names = [...new Set((this.dj.library?.zaoTracks || []).filter((t) => t.source === 'songchainn').map((t) => t.artist))].sort((a, b) => a.localeCompare(b));
-            const picked = new Set(this.scArtist);
-            artistSel.innerHTML = `<div class="djmixz-artists-count"></div>` + (names.length
-                ? names.map((n) => `<label class="djmixz-artist"><input type="checkbox" value="${esc(n)}"${picked.has(n) ? ' checked' : ''}> <span>${esc(n)}</span></label>`).join('')
-                : '<div class="djmixz-artists-empty">No SongChainn artists yet. Press MIX SONGCHAINN NOW once to load them.</div>');
-            readArtists();
+        const toggleArtist = (n) => {
+            const at = this.scArtist.indexOf(n);
+            if (at >= 0) this.scArtist = this.scArtist.filter((x) => x !== n);
+            else if (this.scArtist.length < MAX_ARTISTS) this.scArtist = [...this.scArtist, n];
+            renderArtists();
         };
+        artistSel.innerHTML = `
+            <div class="djmixz-artists-head"><span>Pick artists</span><span class="djmixz-artists-count"></span></div>
+            <div class="djmixz-artists-picked"></div>
+            <input type="search" class="djmixz-artists-search" placeholder="Search artists" aria-label="Search artists">
+            <div class="djmixz-artists-grid"></div>`;
+        artistSel.querySelector('.djmixz-artists-search').addEventListener('input', (e) => { artistQuery = e.target.value; renderArtists(); });
+        artistSel.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-artist]');
+            if (b && !b.disabled) toggleArtist(b.dataset.artist);
+        });
         panel.querySelector('#djmixz-source').addEventListener('change', async (e) => {
             const pick = e.target.value === 'songchainn-artist'; artistSel.hidden = !pick;
             if (!pick) return;
-            fillArtists();
             const crate = this.dj.zaoCrate;
-            if (crate && !(this.dj.library?.zaoTracks || []).some((t) => t.source === 'songchainn')) { this._say('Fetching SongChainn…'); await crate.load(true); fillArtists(); this._say(`Tick up to ${MAX_ARTISTS} artists, then build the set.`); }
+            const missing = crate && !(this.dj.library?.zaoTracks || []).some((t) => t.source === 'songchainn');
+            artistsLoading = !!missing;
+            renderArtists();
+            if (missing) {
+                this._say('Fetching SongChainn…');
+                try { await crate.load(true); } catch (err) { /* the empty list says so */ }
+                // A load already under way (the app's own, at start-up) returns before the songs
+                // are in: keep looking for up to 30 seconds, filling the list as they arrive.
+                for (let i = 0; i < 60 && !scNames().length && !artistSel.hidden; i++) await new Promise((r) => setTimeout(r, 500));
+                artistsLoading = false;
+                renderArtists();
+            }
+            this._say(`Pick up to ${MAX_ARTISTS} artists, a mood, then build the set.`);
         });
-        artistSel.addEventListener('change', readArtists);
         panel.querySelector('#djmixz-sc').addEventListener('click', async () => {
             panel.querySelector('#djmixz-source').value = 'songchainn'; artistSel.hidden = true;
             readB2b(panel.querySelector('#djmixz-b2b').value);
