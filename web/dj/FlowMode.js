@@ -180,6 +180,13 @@ export class FlowMode {
         };
         if (deck.isLoaded && ws.getDuration() > 0) { go(); return; }
         ws.once('ready', go);
+        // Don't wait for the whole waveform: a streamed song can play as soon as its first
+        // seconds are in. The waveform fills in while it plays.
+        const media = deck.getMediaElement?.();
+        if (media) {
+            if (media.readyState >= 3) go();
+            else media.addEventListener('canplay', go, { once: true });
+        }
         ws.once('error', () => {
             if (settled || token !== this._startToken || !this.enabled || deck.isPlaying) return;
             settled = true;

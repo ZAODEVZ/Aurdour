@@ -19,7 +19,7 @@ export const MOODS = [
     { id: 'peak',    label: 'PEAK TIME', hint: 'high the whole way, short breathers', curve: (x) => 0.82 + 0.1 * Math.sin(x * Math.PI * 5) },
     { id: 'journey', label: 'JOURNEY',   hint: 'builds to a peak, then lands',        curve: (x) => (x < 0.72 ? 0.3 + 0.62 * (x / 0.72) : 0.92 - 0.45 * ((x - 0.72) / 0.28)) },
     { id: 'sunset',  label: 'SUNSET',    hint: 'starts warm, winds down',             curve: (x) => 0.62 - 0.38 * x },
-    { id: 'party',   label: 'PARTY',     hint: 'waves: push, release, push',          curve: (x) => 0.7 + 0.22 * Math.sin(x * Math.PI * 4 - 0.6) },
+    { id: 'party',   label: 'PARTY',     hint: 'uptempo all the way, short songs',  curve: (x) => 0.86 + 0.08 * Math.sin(x * Math.PI * 4 - 0.6) },
 ];
 
 const GENRE_ENERGY = [
@@ -221,6 +221,16 @@ export const MAX_ARTISTS = 5;
 // Moods that keep every song short: the longest one is on air, mix included, in seconds.
 export const MAX_PLAY = { party: 120 };
 
+// Party stays uptempo: a song whose tempo is on file and reads slow (under 100 BPM, rap and
+// dancehall half-time counted at the speed it is felt) is left out. A song with no tempo on
+// file stays in, since nothing says it is slow. If that leaves fewer than 4, the fastest half plays.
+export function uptempo(tracks) {
+    const slow = (t) => num(t.bpm) && energyOf({ ...t, energy: undefined }) < energyOf({ bpm: 100, genre: t.genre });
+    const fast = tracks.filter((t) => !slow(t));
+    if (fast.length >= 4 || fast.length === tracks.length) return fast;
+    return tracks.slice().sort((a, b) => energyOf(b) - energyOf(a)).slice(0, Math.max(2, Math.ceil(tracks.length / 2)));
+}
+
 // The tracks a source points at. `artist` narrows the SongChainn artists source: one name, or a list of up to MAX_ARTISTS.
 export function tracksFrom(lib, sourceId, artist = '') {
     const sc = (lib.zaoTracks || []).filter((t) => t.source === 'songchainn');
@@ -275,7 +285,8 @@ export class DjMixz {
 
     build(sourceId, moodId, minutes) {
         // SongChainn stores no tempo, so use the ones the decks measured on earlier plays
-        const tracks = tracksFrom(this.dj.library || {}, sourceId, this.scArtist).map((t) => (!t.bpm && this._bpm[t.id] ? { ...t, bpm: this._bpm[t.id] } : t));
+        let tracks = tracksFrom(this.dj.library || {}, sourceId, this.scArtist).map((t) => (!t.bpm && this._bpm[t.id] ? { ...t, bpm: this._bpm[t.id] } : t));
+        if (moodId === 'party') tracks = uptempo(tracks);
         const maxTracks = tracksForMinutes(tracks, minutes, (MAX_PLAY[moodId] || 0) / 60);
         this.minutes = minutes;
         this.mood = moodId;

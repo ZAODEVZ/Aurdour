@@ -1,5 +1,5 @@
 // Offline check of DJ MixZ's set planning.   node web/dj/DjMixz.test.mjs
-import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes } from './DjMixz.js';
+import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes, uptempo } from './DjMixz.js';
 import { hornPattern } from './Airhorn.js';
 import { HarmonicMixer } from './HarmonicMixer.js';
 
@@ -68,6 +68,11 @@ const partySet = planSet(pool, 'party', h);
 ok('party set: the air horn goes on about every other move', partySet.filter((p) => p.move?.airhorn).length >= Math.floor((partySet.length - 1) / 2));
 ok('party set: never three identical moves in a row', !partySet.slice(1).map((p) => p.move.type).some((t, i, r) => i >= 2 && r[i - 1] === t && r[i - 2] === t));
 ok('other moods never use the party moves', planSet(pool, 'journey', h).every((p) => !p.move || (p.move.type !== 'stem-swap' && !p.move.airhorn)));
+const mixed = [T(60, 85, 'A minor', 'Reggae'), T(61, 128, 'A minor', 'House'), T(62, 124, 'A minor', 'Afro'), T(63, null, null, ''), T(64, 70, 'A minor', 'Lo-Fi'), T(65, 132, 'A minor', 'House'), T(66, 72, 'A minor', 'Trap')];
+const up = uptempo(mixed).map((t) => t.id);
+ok('party: slow songs out, fast and unknown stay, half-time trap counts as fast', !up.includes(60) && !up.includes(64) && [61, 62, 63, 65, 66].every((id) => up.includes(id)));
+ok('party: an all-slow list still plays its fastest half', uptempo([T(70, 80, 'A minor', 'Reggae'), T(71, 90, 'A minor', 'Soul'), T(72, 70, 'A minor', 'Lo-Fi'), T(73, 85, 'A minor', 'Jazz')]).length === 2);
+ok('party energy never dips below 0.75', Array.from({ length: 21 }, (_, i) => MOODS.find((m) => m.id === 'party').curve(i / 20)).every((e) => e >= 0.75));
 ok('the horn: short, short, long', hornPattern().length === 3 && hornPattern()[2].len > hornPattern()[0].len * 3);
 
 

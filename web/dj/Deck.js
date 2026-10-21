@@ -202,6 +202,14 @@ export class Deck {
             };
 
             this._resetState();
+            // Stream it: point the player at the song itself first, so it can play once the
+            // first seconds are in. WaveSurfer then draws the waveform from its own download
+            // and keeps this source (same URL), so playback is never cut to swap files.
+            const media = this.getMediaElement();
+            if (media && /^https?:/i.test(audioUrl)) {
+                media.crossOrigin = 'anonymous'; // the decks run through Web Audio
+                media.src = audioUrl;
+            }
             this.wavesurfer.load(audioUrl);
             this._updateDeckUI();
             return true;
