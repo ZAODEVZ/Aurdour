@@ -1,7 +1,7 @@
 // PartyFX.js — the sound-system tricks: MC shouts, dub siren, air horn and the rewind.
-// Shouts are short voice clips in data/shouts/ (made with the PC's speech voice; drop your own
-// recording in with the same file name to replace one). They play through a dub echo, a little
-// deeper than spoken. The siren and the horn are made on the spot. The rewind ("pull up") winds
+// Shouts are short voice clips in data/shouts/: a male MC (<name>.wav) and a female MC
+// (<name>-f.wav), picked at random so the mic passes around. Drop your own recording in with the
+// same file name to replace one. They play loud, through a dub echo. The siren and the horn are made on the spot. The rewind ("pull up") winds
 // the song down with a spin-back sound, then plays the same song again from the top.
 
 import { airhorn } from './Airhorn.js';
@@ -32,7 +32,7 @@ export class PartyFX {
         this.dj = dj;
         this._buffers = {};
         this._lastHype = null;
-        this.level = 0.9;
+        this.level = 1.0;
     }
 
     get ctx() { return this.dj.audioRouter?.getAudioContext?.() || this.dj.audioRouter?.ctx || null; }
@@ -52,25 +52,32 @@ export class PartyFX {
         setTimeout(() => { try { delay.disconnect(); tone.disconnect(); fb.disconnect(); wet.disconnect(); } catch (e) { /* gone */ } }, 6000);
     }
 
-    async _load(name) {
-        if (this._buffers[name]) return this._buffers[name];
-        const r = await fetch(`data/shouts/${name}.wav`);
-        if (!r.ok) throw new Error(`no shout ${name}`);
-        this._buffers[name] = await this.ctx.decodeAudioData(await r.arrayBuffer());
-        return this._buffers[name];
+    async _load(file) {
+        if (this._buffers[file]) return this._buffers[file];
+        const r = await fetch(`data/shouts/${file}.wav`);
+        if (!r.ok) throw new Error(`no shout ${file}`);
+        this._buffers[file] = await this.ctx.decodeAudioData(await r.arrayBuffer());
+        return this._buffers[file];
+    }
+
+    // The two MCs' takes of a shout, whichever exist
+    async _takes(name) {
+        const out = [];
+        for (const file of [name, `${name}-f`]) { try { out.push(await this._load(file)); } catch (e) { /* no such take */ } }
+        if (!out.length) throw new Error(`no shout ${name}`);
+        return out;
     }
 
     // Warm the clips up so the first shout is not late
-    preload() { Object.keys(SHOUTS).forEach((n) => this._load(n).catch(() => {})); }
+    preload() { Object.keys(SHOUTS).forEach((n) => this._takes(n).catch(() => {})); }
 
     async shout(name) {
         const ctx = this.ctx;
         if (!ctx || !this.out) return;
         try {
-            const buf = await this._load(name);
+            const takes = await this._takes(name);
             const src = ctx.createBufferSource();
-            src.buffer = buf;
-            src.playbackRate.value = 0.9; // a touch deeper
+            src.buffer = takes[Math.floor(Math.random() * takes.length)];
             const g = ctx.createGain(); g.gain.value = this.level;
             const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; // MC on a mic, not a bass bin
             src.connect(hp); hp.connect(g);

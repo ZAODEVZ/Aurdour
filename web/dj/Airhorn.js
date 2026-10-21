@@ -1,11 +1,13 @@
 // Airhorn.js — the dancehall air horn, made on the spot with Web Audio (no sample to license).
-// Three detuned saws through a band-pass, in the sound-system pattern: short, short, long,
-// each blast dropping in pitch as it ends. DJ MixZ fires it on party mixes.
+// Three detuned saws through a band-pass. 'classic' is the big one, three long blasts in one
+// take (the way the famous club horn gets played); 'stabs' is the short-short-long sound-system
+// pattern. Each blast drops in pitch as it ends. DJ MixZ fires it on party mixes.
 
 // When each blast starts and how long it lasts, in seconds from the first one.
 export function hornPattern(style = 'classic') {
     if (style === 'double') return [{ at: 0, len: 0.16 }, { at: 0.2, len: 0.55 }];
-    return [{ at: 0, len: 0.14 }, { at: 0.18, len: 0.14 }, { at: 0.36, len: 0.7 }];
+    if (style === 'stabs') return [{ at: 0, len: 0.14 }, { at: 0.18, len: 0.14 }, { at: 0.36, len: 0.7 }];
+    return [{ at: 0, len: 0.95 }, { at: 1.1, len: 0.95 }, { at: 2.2, len: 1.1 }];
 }
 
 // Plays the horn into `dest` (the master bus). `level` 0 to 1. Returns how long it runs.
