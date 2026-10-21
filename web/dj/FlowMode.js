@@ -253,8 +253,43 @@ export class FlowMode {
         this._updateUI();
     }
 
-    // Calculate the dynamic transition trigger point for the current track
+    // Calculate the dynamic transition trigger point for the current track: seconds before the
+    // end at which the mix starts. The song's own outro (where it goes quiet: a fade, a tail,
+    // silence) wins when it comes earlier than the fixed point, so a song is never left
+    // playing out its last quiet stretch on air, short songs included.
     _getTransitionTriggerTime() {
+        const fixed = this._fixedTriggerTime();
+        const deck = this.dj.decks[this.currentDeck];
+        if (!deck || !deck.isLoaded) return fixed;
+        const duration = deck.getDuration();
+        if (!(duration > 0)) return fixed;
+        const tail = this._outroStart(deck, duration);
+        return tail > 0 ? Math.max(fixed, duration - tail) : fixed;
+    }
+
+    // Where this deck's song goes quiet for good, in seconds from its start (0: no usable
+    // outro). Read once per loaded song from the decoded waveform.
+    _outroStart(deck, duration) {
+        const stamp = `${deck.id}:${Math.round(duration * 10)}`;
+        if (this._outro?.stamp === stamp) return this._outro.seconds;
+        let env = null;
+        try {
+            const ws = deck.wavesurfer;
+            const buf = ws?.getDecodedData?.();
+            if (buf && buf.length) {
+                const ch = buf.getChannelData(0), sr = buf.sampleRate, n = Math.floor(buf.length / sr), step = 16;
+                env = new Float32Array(n);
+                for (let s = 0; s < n; s++) { let a = 0; for (let i = s * sr; i < (s + 1) * sr; i += step) a += ch[i] * ch[i]; env[s] = Math.sqrt(a / (sr / step)); }
+            } else {
+                const peaks = ws?.exportPeaks?.({ maxLength: Math.ceil(duration) });
+                if (peaks?.[0]?.length) env = Float32Array.from(peaks[0], (v) => Math.abs(v));
+            }
+        } catch (e) { env = null; }
+        this._outro = { stamp, seconds: env ? outroStart(env, duration) : 0 };
+        return this._outro.seconds;
+    }
+
+    _fixedTriggerTime() {
         const deck = this.dj.decks[this.currentDeck];
         if (!deck || !deck.isLoaded) return this.transitionPoint;
 
@@ -985,4 +1020,22 @@ export class FlowMode {
             });
         });
     }
+}
+
+// The outro of a song from its loudness, one value a second: where it goes quiet for good and
+// stays quiet to the end (a fade-out, a tail, silence). Returns seconds from the start, or 0
+// when the song is loud to the last second or the tail would cut off more than a third of it.
+// "Quiet" is under half the song's working level (the 60th percentile of its seconds).
+export function outroStart(env, duration) {
+    const n = env?.length || 0;
+    if (n < 20) return 0;
+    const sorted = Array.from(env).sort((a, b) => a - b);
+    const loud = sorted[Math.floor(n * 0.6)];
+    if (!(loud > 0)) return 0;
+    let last = n - 1;
+    while (last >= 0 && env[last] < loud * 0.5) last--;
+    const tail = last + 1; // first quiet second after the last loud one
+    if (duration - tail < 3) return 0; // loud to the end: nothing to cut
+    if (tail < duration * 0.66) return 0; // a tail that long is not an outro
+    return tail;
 }

@@ -54,7 +54,7 @@ export class PartyFX {
 
     async _load(file) {
         if (this._buffers[file]) return this._buffers[file];
-        const r = await fetch(`data/shouts/${file}.wav`);
+        const r = await fetch(`data/shouts/${file}.wav`, { cache: 'no-store' });
         if (!r.ok) throw new Error(`no shout ${file}`);
         this._buffers[file] = await this.ctx.decodeAudioData(await r.arrayBuffer());
         return this._buffers[file];
