@@ -955,3 +955,9 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 .agents-panel button { background: transparent; color: inherit; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 4px 10px; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
 .agent-receipt { font-size: .8rem; padding: 4px 0; border-top: 1px solid rgba(255,255,255,.06); }
 .agent-empty { color: #8a90a6; font-size: .85rem; padding: 6px 0; }
+
+/* Flow Mode: HIDE keeps the set playing; the pill brings the screen back */
+.flow-header-btns { display: flex; gap: 8px; }
+.flow-show-pill { position: fixed; left: 16px; bottom: 16px; z-index: 9000; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--mz-a); background: rgba(var(--mz-a-rgb), 0.18); color: var(--mz-text); font-weight: 800; font-size: 0.8rem; letter-spacing: 0.12em; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+.flow-show-pill[hidden] { display: none; }
+.flow-show-pill::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2ee59d; margin-right: 8px; vertical-align: middle; box-shadow: 0 0 8px #2ee59d; }

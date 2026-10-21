@@ -34,6 +34,7 @@ export class FlowMode {
         this._buildUI();
         document.getElementById('flow-panel')?.classList.remove('hidden');
         document.getElementById('flow-toggle-btn')?.classList.add('active');
+        this._showPill(false);
 
         // Populate initial suggestions from library (including streaming tracks)
         this._populateSuggestions();
@@ -43,8 +44,33 @@ export class FlowMode {
         this.enabled = false;
         document.getElementById('flow-panel')?.classList.add('hidden');
         document.getElementById('flow-toggle-btn')?.classList.remove('active');
+        this._showPill(false);
         this._stopProgressUpdates();
         this.cancelTransition();
+    }
+
+    // Hide the Flow Mode screen while the set keeps playing; show it again any time.
+    // HIDE and the floating AUTO MIX pill do this. Only EXIT stops Flow Mode.
+    setPanelVisible(show) {
+        const panel = document.getElementById('flow-panel');
+        if (!panel || !this.enabled) return;
+        panel.classList.toggle('hidden', !show);
+        this._showPill(!show);
+    }
+
+    _showPill(show) {
+        let pill = document.getElementById('flow-show-pill');
+        if (!pill && show) {
+            pill = document.createElement('button');
+            pill.id = 'flow-show-pill';
+            pill.className = 'flow-show-pill';
+            pill.type = 'button';
+            pill.textContent = 'AUTO MIX: SHOW';
+            pill.title = 'The set is still playing. Show the Auto Mix screen';
+            pill.addEventListener('click', () => this.setPanelVisible(true));
+            document.body.appendChild(pill);
+        }
+        if (pill) pill.hidden = !show;
     }
 
     // Stop waiting on a handover that is under way. Whatever is playing keeps playing.
@@ -76,8 +102,9 @@ export class FlowMode {
     }
 
     toggle() {
-        if (this.enabled) this.disable();
-        else this.enable();
+        // While a set plays, the toolbar button only hides and shows the screen: the music never stops by accident
+        if (this.enabled) { const p = document.getElementById('flow-panel'); this.setPanelVisible(!!p?.classList.contains('hidden')); return; }
+        this.enable();
     }
 
     // Load a track to a deck — handles both local (dataFile) and streaming (streamUrl)
@@ -152,7 +179,9 @@ export class FlowMode {
         this.dj.audioRouter.resume();
         const deckA = this.dj.decks.A;
         const lateFail = () => { if (this.currentTrack === track && !deckA.isPlaying) { console.warn('[FlowMode] First song would not load, trying the next one'); this._startNext(); } };
-        if (this._loadTrackToDeck(deckA, track, lateFail) === false) { this._startNext(); return; }
+        // DJ MixZ may have loaded this song already when the set was built: then just play it
+        const ready = deckA.metadata?._sourceId != null && deckA.metadata._sourceId === (track.id ?? null) && deckA.metadata?.audio_files?.mp3 === track.streamUrl;
+        if (!ready && this._loadTrackToDeck(deckA, track, lateFail) === false) { this._startNext(); return; }
         this._playWhenReady(deckA, track);
 
         // Auto-suggest next tracks
@@ -660,7 +689,10 @@ export class FlowMode {
         panel.innerHTML = `
             <div class="flow-header">
                 <div class="flow-title">FLOW MODE</div>
-                <button class="flow-exit-btn" id="flow-exit-btn">EXIT</button>
+                <div class="flow-header-btns">
+                    <button class="flow-exit-btn flow-hide-btn" id="flow-hide-btn" title="Hide this screen, the music keeps playing">HIDE</button>
+                    <button class="flow-exit-btn" id="flow-exit-btn" title="Stop Flow Mode">EXIT</button>
+                </div>
             </div>
 
             <div class="flow-content">
@@ -759,6 +791,7 @@ export class FlowMode {
 
         // Wire up UI events
         document.getElementById('flow-exit-btn')?.addEventListener('click', () => this.disable());
+        document.getElementById('flow-hide-btn')?.addEventListener('click', () => this.setPanelVisible(false));
         document.getElementById('flow-skip-btn')?.addEventListener('click', () => this.skip());
 
         document.getElementById('flow-trans-type')?.addEventListener('change', (e) => {

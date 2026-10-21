@@ -292,6 +292,7 @@ export class DjMixz {
         this.mood = moodId;
         this._lastBuild = { sourceId, moodId, minutes };
         this.plan = planSet(tracks, moodId, this.dj.harmonic, { maxTracks });
+        this._preloadFirst();
         this.index = 0;
         this._renderPlan();
         return this.plan;
@@ -428,6 +429,19 @@ export class DjMixz {
         this._renderPlan();
         this._renderBar();
         return true;
+    }
+
+    // Load the set's first song on deck A as soon as the set is built, so START plays it at once.
+    // Never while a set runs or deck A is on air.
+    _preloadFirst() {
+        try {
+            const first = this.plan[0]?.track;
+            const deck = this.dj.decks?.A;
+            const flow = this.dj.flowMode;
+            if (!first || !deck || !flow || this.running || deck.isPlaying) return;
+            if (deck.metadata?._sourceId != null && deck.metadata._sourceId === (first.id ?? null)) return;
+            flow._loadTrackToDeck?.(deck, first);
+        } catch (e) { console.warn('[DjMixz] could not preload the first song:', e); }
     }
 
     // Set FlowMode up for the next move: how long before the end to start, and how.
