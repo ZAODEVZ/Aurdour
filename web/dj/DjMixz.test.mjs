@@ -74,7 +74,7 @@ ok('party: slow songs out, half-time trap counts as fast, only known-fast songs 
 ok('party: songs not analyzed yet fill in when the known-fast ones are too few for the set', uptempo(mixed, 8).map((t) => t.id).includes(63) && !uptempo(mixed, 8).map((t) => t.id).includes(60));
 ok('party: an all-slow list still plays its fastest half', uptempo([T(70, 80, 'A minor', 'Reggae'), T(71, 90, 'A minor', 'Soul'), T(72, 70, 'A minor', 'Lo-Fi'), T(73, 85, 'A minor', 'Jazz')]).length === 2);
 ok('party energy never dips below 0.75', Array.from({ length: 21 }, (_, i) => MOODS.find((m) => m.id === 'party').curve(i / 20)).every((e) => e >= 0.75));
-ok('the horn: short, short, long', hornPattern().length === 3 && hornPattern()[2].len > hornPattern()[0].len * 3);
+ok('the horn: three full blasts in one take, and the old short-short-long is still there as stabs', hornPattern().length === 3 && hornPattern().every((b) => b.len > 0.9) && hornPattern('stabs')[2].len > hornPattern('stabs')[0].len * 3);
 
 
 console.log(fail ? `${fail} failed` : 'all passed');

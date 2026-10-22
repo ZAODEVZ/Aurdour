@@ -45,7 +45,7 @@ export class SoundBoard {
         // board.local.json next to the board, never committed, adds them here.
         try {
             const r = await fetch('data/fx/board.local.json', { cache: 'no-store' });
-            if (r.ok) for (const p of (await r.json()).pads || []) if (p && p.id && p.file && !this.pads.some((x) => x.id === p.id)) this.pads.push(p);
+            if (r.ok) { for (const p of (await r.json()).pads || []) if (p && p.id && p.file && !this.pads.some((x) => x.id === p.id)) this.pads.push(p); this.local = true; }
         } catch (e) { /* no local pads */ }
         this._render();
         this.pads.forEach((p) => this._buffer(p).catch(() => {}));
