@@ -28,5 +28,7 @@ dist/
 build/
 *.egg-info/
 
-# Sound FX samples stay on IMan's own copy only (IMan, 22 Oct 2026): not in the PR, not on Zaal's or the public app
-web/data/fx/
+# The MC shouts stay on IMan's own copy only (IMan, 22 Oct 2026): not on Zaal's or the public app.
+# The transition FX and the horn are shared. board.local.json lists the local-only pads.
+web/data/fx/neily-*
+web/data/fx/board.local.json
