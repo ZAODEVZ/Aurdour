@@ -27,3 +27,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# Sound FX samples stay on IMan's own copy only (IMan, 22 Oct 2026): not in the PR, not on Zaal's or the public app
+web/data/fx/
