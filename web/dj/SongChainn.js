@@ -42,6 +42,7 @@ export class SongChainn {
                 if (!a) continue;
                 if (a.bpm && !t.bpm) t.bpm = a.bpm;
                 if (a.key && !t.key) t.key = a.key;
+                if (a.beat != null) t.beat = a.beat; // where the first beat falls, for mashups
                 n++;
             }
             if (n) console.log(`[SongChainn] tempo and key on file for ${n} songs`);

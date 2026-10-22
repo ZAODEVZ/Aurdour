@@ -124,6 +124,7 @@ export class FlowMode {
                 artist: track.artist || '',
                 bpm: track.bpm || null,
                 key: track.key || null,
+                beat: track.beat ?? null,   // where the first beat falls, for mashups
                 genre: track.genre || null,
                 artwork: track.artwork || null,
                 source: track.source || 'stream',

@@ -364,7 +364,6 @@ export class DjMixz {
             else if (next.workflow) { if (next.move?.fxIn) this._fireFx(next.move.fxIn, 300); }
             else if (this.mood === 'party' && next.move?.type === 'echo-out') setTimeout(() => this.dj.partyFX?.siren(), 400);
             else if (this.mood === 'party' && (next.move?.type === 'stem-swap' || next.move?.type === 'cut') && Math.random() < 0.6) this.dj.partyFX?.sweep?.();
-            else if (this.mood !== 'party' && next.move?.type === 'echo-out' && Math.random() < 0.35) setTimeout(() => this.dj.partyFX?.sweep?.(), 400);
             this._orig.trigger();
         };
         flow.onTransitionComplete = (direction) => {
@@ -379,7 +378,7 @@ export class DjMixz {
             else if (this.mood === 'party') {
                 if (Math.random() < 0.5) this.dj.partyFX?.hit?.();
                 if (Math.random() < 0.65) setTimeout(() => this.dj.partyFX?.hype(), 900);
-            } else if (Math.random() < 0.2 && this.dj.soundBoard?.has('vocal')) setTimeout(() => this.dj.partyFX?.hype(), 1200);
+            } // Other moods: no FX of their own (IMan, 23 Oct: drive time and mornings want the music and the mix)
             this.index += 1;
             this._armNext();
             this._renderPlan();
