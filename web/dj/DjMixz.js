@@ -12,7 +12,7 @@ import { keyRelation } from './SwitchPad.js';
 import { advise } from './FlowDirector.js';
 import { adviceData } from './StreamEvents.js';
 import { esc } from './Html.js';
-import { PRESETS, loadWorkflows, saveWorkflows, makeWorkflow, buildSet, MOVES, RULES } from './Workflows.js';
+import { PRESETS, loadWorkflows, saveWorkflows, makeWorkflow, makeStep, buildSet, MOVES, RULES } from './Workflows.js';
 
 // Mood = the energy the room should feel, from the first track (x = 0) to the last (x = 1).
 export const MOODS = [
