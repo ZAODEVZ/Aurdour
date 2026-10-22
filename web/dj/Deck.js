@@ -95,6 +95,16 @@ export class Deck {
         // Regions for loops and hot cues
         this.regionsPlugin = this.wavesurfer.registerPlugin(WaveSurfer.Regions.create());
 
+        // A streamed song is ready to mix as soon as it can play and its length is known. The
+        // waveform ('ready' below) can take half a minute to download, and a mix waiting for it
+        // timed out and let the song play to the end.
+        const mediaReady = () => {
+            const m = this.getMediaElement();
+            if (m && m.src && Number.isFinite(m.duration) && m.duration > 0) this.isLoaded = true;
+        };
+        this.getMediaElement()?.addEventListener('canplay', mediaReady);
+        this.getMediaElement()?.addEventListener('durationchange', () => { if (this.getMediaElement()?.readyState >= 3) mediaReady(); });
+
         this.wavesurfer.on('ready', () => {
             this.isLoaded = true;
             this._buildBeatGrid();
@@ -202,6 +212,14 @@ export class Deck {
             };
 
             this._resetState();
+            // Stream it: point the player at the song itself first, so it can play once the
+            // first seconds are in. WaveSurfer then draws the waveform from its own download
+            // and keeps this source (same URL), so playback is never cut to swap files.
+            const media = this.getMediaElement();
+            if (media && /^https?:/i.test(audioUrl)) {
+                media.crossOrigin = 'anonymous'; // the decks run through Web Audio
+                media.src = audioUrl;
+            }
             this.wavesurfer.load(audioUrl);
             this._updateDeckUI();
             return true;

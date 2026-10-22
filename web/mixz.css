@@ -580,6 +580,24 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 .djmixz-sub { font-size: 0.82rem; color: var(--mz-muted); margin-top: 2px; }
 .djmixz-label { font-family: var(--font-display); font-weight: 800; font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mz-dim); margin-top: 4px; }
 .djmixz-select { width: 100%; height: 38px; border-radius: 9px; padding: 0 10px; background: var(--mz-inset); border: 1px solid var(--mz-line-hi); color: var(--mz-text); font-size: 0.86rem; }
+.djmixz-artists { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--mz-inset); border: 1px solid var(--mz-line-hi); }
+.djmixz-artists[hidden] { display: none; }
+.djmixz-artists-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-weight: 800; font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mz-muted); }
+.djmixz-artists-count { font-size: 0.8rem; letter-spacing: 0.04em; color: var(--mz-a); }
+.djmixz-artists-picked { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; align-items: center; }
+.djmixz-artists-hint { font-size: 0.8rem; color: var(--mz-dim); }
+.djmixz-pick { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--mz-a); background: rgba(var(--mz-a-rgb), 0.16); color: var(--mz-text); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.djmixz-pick b { color: var(--mz-a); font-weight: 800; }
+.djmixz-artists-search { width: 100%; height: 36px; border-radius: 9px; padding: 0 10px; background: var(--mz-panel); border: 1px solid var(--mz-line-hi); color: var(--mz-text); font-size: 0.86rem; }
+.djmixz-artists-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 232px; overflow-y: auto; padding-right: 2px; }
+.djmixz-chip { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 40px; padding: 6px 10px; border-radius: 10px; text-align: left; cursor: pointer; background: var(--mz-panel); border: 1px solid var(--mz-line); color: var(--mz-text); font-size: 0.84rem; }
+.djmixz-chip:hover:not(:disabled) { border-color: var(--mz-line-hi); background: var(--mz-panel-hi); }
+.djmixz-chip.on { border-color: var(--mz-a); background: rgba(var(--mz-a-rgb), 0.16); box-shadow: 0 0 0 1px var(--mz-a) inset; }
+.djmixz-chip:disabled { opacity: 0.35; cursor: default; }
+.djmixz-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.djmixz-chip-n { flex: none; font-size: 0.72rem; color: var(--mz-muted); }
+.djmixz-artists-empty { grid-column: 1 / -1; font-size: 0.82rem; color: var(--mz-muted); padding: 8px 2px; }
+@media (max-width: 420px) { .djmixz-artists-grid { grid-template-columns: 1fr; } }
 .djmixz-moods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .djmixz-mood { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 9px 11px; border-radius: 10px; cursor: pointer; background: var(--mz-inset); border: 1px solid var(--mz-line); color: var(--mz-muted); }
 .djmixz-mood b { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--mz-text); }
@@ -937,3 +955,45 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 .agents-panel button { background: transparent; color: inherit; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 4px 10px; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
 .agent-receipt { font-size: .8rem; padding: 4px 0; border-top: 1px solid rgba(255,255,255,.06); }
 .agent-empty { color: #8a90a6; font-size: .85rem; padding: 6px 0; }
+
+/* Flow Mode: HIDE keeps the set playing; the pill brings the screen back */
+.flow-header-btns { display: flex; gap: 8px; }
+.flow-show-pill { position: fixed; left: 16px; bottom: 16px; z-index: 9000; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--mz-a); background: rgba(var(--mz-a-rgb), 0.18); color: var(--mz-text); font-weight: 800; font-size: 0.8rem; letter-spacing: 0.12em; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+.flow-show-pill[hidden] { display: none; }
+.flow-show-pill::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2ee59d; margin-right: 8px; vertical-align: middle; box-shadow: 0 0 8px #2ee59d; }
+
+/* DJ MixZ party FX pad */
+.djmixz-fx { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.djmixz-fx button { height: 38px; border-radius: 9px; border: 1px solid var(--mz-line-hi); background: var(--mz-inset); color: var(--mz-text); font-weight: 800; font-size: 0.72rem; letter-spacing: 0.08em; cursor: pointer; }
+.djmixz-fx button:hover { border-color: #f5a623; color: #ffd27a; }
+.djmixz-fx button:active { transform: scale(0.97); background: rgba(245, 166, 35, 0.18); }
+.djmixz-fx button[data-fx="rewind"] { border-color: #ff3b5c; color: #ff8fa3; }
+.djmixz-artists-head { gap: 10px; }
+.djmixz-artists-count { margin-left: auto; }
+.djmixz-artists-tools { display: flex; gap: 6px; }
+.djmixz-artists-tools button { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--mz-line-hi); background: var(--mz-panel); color: var(--mz-text); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
+.djmixz-artists-tools button:hover { border-color: var(--mz-a); color: var(--mz-a); }
+
+/* FX board: the DJ's samples on pads, in manual and DJ MixZ mode alike */
+.btn-fxboard { border-color: #f5a623 !important; color: #ffd27a !important; }
+.fxboard { position: fixed; right: 12px; top: 64px; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 90px); overflow: auto; z-index: 60; background: var(--mz-panel, #121419); border: 1px solid var(--mz-line-hi, #2a2f3a); border-radius: 14px; padding: 12px 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+.fxboard.hidden { display: none; }
+.fxboard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.fxboard-head > div { flex: 1; }
+.fxboard-title { font-weight: 900; letter-spacing: .12em; font-size: .85rem; color: #ffd27a; }
+.fxboard-sub { font-size: .72rem; color: var(--mz-dim, #8a93a6); }
+.fxboard-label { font-size: .68rem; letter-spacing: .14em; color: var(--mz-dim, #8a93a6); margin: 10px 0 6px; font-weight: 800; }
+.fxboard-pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.fxboard-pads button { min-height: 44px; padding: 4px 6px; border-radius: 9px; border: 1px solid var(--mz-line-hi, #2a2f3a); background: var(--mz-inset, #0c0e12); color: var(--mz-text, #e8ecf4); font-weight: 800; font-size: .66rem; letter-spacing: .06em; line-height: 1.15; cursor: pointer; white-space: normal; }
+.fxboard-horn .fxboard-pads button { border-color: #f5a623; color: #ffd27a; }
+.fxboard-vocal .fxboard-pads button { border-color: #3ddc84; color: #9df2c0; }
+.fxboard-fx .fxboard-pads button { border-color: #4da3ff; color: #a9d2ff; }
+.fxboard-pads button:hover { filter: brightness(1.25); }
+.fxboard-pads button:active, .fxboard-pads button.hit { transform: scale(0.96); background: rgba(245, 166, 35, 0.22); }
+.fxboard-empty { font-size: .78rem; color: var(--mz-dim, #8a93a6); padding: 8px 0; }
+.djmixz-fx .djmixz-fx-board { grid-column: 1 / -1; border-color: #f5a623; color: #ffd27a; }
+@media (max-width: 640px) { .fxboard { right: 8px; left: 8px; width: auto; top: 56px; } .fxboard-pads { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* DJ MixZ session countdown */
+.djmixz-clock { font-variant-numeric: tabular-nums; font-size: .68rem; font-weight: 800; letter-spacing: .04em; color: #ffd27a; margin-left: 6px; }
+.djmixz-bar-clock { font-variant-numeric: tabular-nums; font-weight: 800; color: #ffd27a; margin: 0 10px; white-space: nowrap; }

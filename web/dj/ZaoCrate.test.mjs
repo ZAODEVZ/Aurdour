@@ -1,5 +1,5 @@
 // Offline check of the off-air list.   node web/dj/ZaoCrate.test.mjs
-import { OFF_AIR, songKey } from './ZaoCrate.js';
+import { OFF_AIR, songKey, artistOffAir } from './ZaoCrate.js';
 
 const off = new Set(OFF_AIR);
 let fail = 0;
@@ -19,6 +19,9 @@ check(!isOff({ artist: '7ROO7H', title: 'TWEAKING' }), '7ROO7H Vol 3 stays');
 check(!isOff({ artist: 'WaveWarZ Africa', title: '7ROO7H - THE SUMO WRESLER' }), 'later 7ROO7H on Audius stays');
 check(!isOff({ artist: 'T3RNNN & 7ROO7H', title: 'MuLiLow' }), 'the T3RNNN collab stays');
 check(!isOff({ artist: 'IMan Afrikah', title: 'Money' }), 'another artist with the same song name stays');
+check(artistOffAir({ artist: 'Geezy2126', title: 'GEEZY2126 & THEE LEASONS Go Getter' }), 'Geezy2126 is off');
+check(artistOffAir({ artist: 'WaveWarZ Africa', title: 'Geezy2126 - Anything' }), 'Geezy2126 posted from another account is off');
+check(!artistOffAir({ artist: 'IMan Afrikah', title: 'Lusaka Nights' }), 'other artists stay');
 
 if (fail) { console.log(`${fail} failed`); process.exit(1); }
 console.log('all passed');

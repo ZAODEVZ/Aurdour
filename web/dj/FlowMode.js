@@ -16,6 +16,7 @@ export class FlowMode {
         this.transitionPointMode = 'fixed'; // 'fixed' (seconds) or 'percent' (% of track length)
         this.transitionPointPercent = 10; // percentage of track length for transition trigger
         this.transitionDuration = 8; // crossfade length in seconds
+        this.maxPlaySeconds = 0; // 0 = play songs to their mix point; DJ MixZ party sets 120
         this.transitionType = 'blend'; // blend, echo-out, cut, filter-sweep
         this.playedInSession = []; // track IDs already played
         this.suggestions = [];
@@ -33,6 +34,7 @@ export class FlowMode {
         this._buildUI();
         document.getElementById('flow-panel')?.classList.remove('hidden');
         document.getElementById('flow-toggle-btn')?.classList.add('active');
+        this._showPill(false);
 
         // Populate initial suggestions from library (including streaming tracks)
         this._populateSuggestions();
@@ -42,8 +44,33 @@ export class FlowMode {
         this.enabled = false;
         document.getElementById('flow-panel')?.classList.add('hidden');
         document.getElementById('flow-toggle-btn')?.classList.remove('active');
+        this._showPill(false);
         this._stopProgressUpdates();
         this.cancelTransition();
+    }
+
+    // Hide the Flow Mode screen while the set keeps playing; show it again any time.
+    // HIDE and the floating AUTO MIX pill do this. Only EXIT stops Flow Mode.
+    setPanelVisible(show) {
+        const panel = document.getElementById('flow-panel');
+        if (!panel || !this.enabled) return;
+        panel.classList.toggle('hidden', !show);
+        this._showPill(!show);
+    }
+
+    _showPill(show) {
+        let pill = document.getElementById('flow-show-pill');
+        if (!pill && show) {
+            pill = document.createElement('button');
+            pill.id = 'flow-show-pill';
+            pill.className = 'flow-show-pill';
+            pill.type = 'button';
+            pill.textContent = 'AUTO MIX: SHOW';
+            pill.title = 'The set is still playing. Show the Auto Mix screen';
+            pill.addEventListener('click', () => this.setPanelVisible(true));
+            document.body.appendChild(pill);
+        }
+        if (pill) pill.hidden = !show;
     }
 
     // Stop waiting on a handover that is under way. Whatever is playing keeps playing.
@@ -75,8 +102,9 @@ export class FlowMode {
     }
 
     toggle() {
-        if (this.enabled) this.disable();
-        else this.enable();
+        // While a set plays, the toolbar button only hides and shows the screen: the music never stops by accident
+        if (this.enabled) { const p = document.getElementById('flow-panel'); this.setPanelVisible(!!p?.classList.contains('hidden')); return; }
+        this.enable();
     }
 
     // Load a track to a deck — handles both local (dataFile) and streaming (streamUrl)
@@ -151,7 +179,9 @@ export class FlowMode {
         this.dj.audioRouter.resume();
         const deckA = this.dj.decks.A;
         const lateFail = () => { if (this.currentTrack === track && !deckA.isPlaying) { console.warn('[FlowMode] First song would not load, trying the next one'); this._startNext(); } };
-        if (this._loadTrackToDeck(deckA, track, lateFail) === false) { this._startNext(); return; }
+        // DJ MixZ may have loaded this song already when the set was built: then just play it
+        const ready = deckA.metadata?._sourceId != null && deckA.metadata._sourceId === (track.id ?? null) && deckA.metadata?.audio_files?.mp3 === track.streamUrl;
+        if (!ready && this._loadTrackToDeck(deckA, track, lateFail) === false) { this._startNext(); return; }
         this._playWhenReady(deckA, track);
 
         // Auto-suggest next tracks
@@ -179,6 +209,13 @@ export class FlowMode {
         };
         if (deck.isLoaded && ws.getDuration() > 0) { go(); return; }
         ws.once('ready', go);
+        // Don't wait for the whole waveform: a streamed song can play as soon as its first
+        // seconds are in. The waveform fills in while it plays.
+        const media = deck.getMediaElement?.();
+        if (media) {
+            if (media.readyState >= 3) go();
+            else media.addEventListener('canplay', go, { once: true });
+        }
         ws.once('error', () => {
             if (settled || token !== this._startToken || !this.enabled || deck.isPlaying) return;
             settled = true;
@@ -216,8 +253,43 @@ export class FlowMode {
         this._updateUI();
     }
 
-    // Calculate the dynamic transition trigger point for the current track
+    // Calculate the dynamic transition trigger point for the current track: seconds before the
+    // end at which the mix starts. The song's own outro (where it goes quiet: a fade, a tail,
+    // silence) wins when it comes earlier than the fixed point, so a song is never left
+    // playing out its last quiet stretch on air, short songs included.
     _getTransitionTriggerTime() {
+        const fixed = this._fixedTriggerTime();
+        const deck = this.dj.decks[this.currentDeck];
+        if (!deck || !deck.isLoaded) return fixed;
+        const duration = deck.getDuration();
+        if (!(duration > 0)) return fixed;
+        const tail = this._outroStart(deck, duration);
+        return tail > 0 ? Math.max(fixed, duration - tail) : fixed;
+    }
+
+    // Where this deck's song goes quiet for good, in seconds from its start (0: no usable
+    // outro). Read once per loaded song from the decoded waveform.
+    _outroStart(deck, duration) {
+        const stamp = `${deck.id}:${Math.round(duration * 10)}`;
+        if (this._outro?.stamp === stamp) return this._outro.seconds;
+        let env = null;
+        try {
+            const ws = deck.wavesurfer;
+            const buf = ws?.getDecodedData?.();
+            if (buf && buf.length) {
+                const ch = buf.getChannelData(0), sr = buf.sampleRate, n = Math.floor(buf.length / sr), step = 16;
+                env = new Float32Array(n);
+                for (let s = 0; s < n; s++) { let a = 0; for (let i = s * sr; i < (s + 1) * sr; i += step) a += ch[i] * ch[i]; env[s] = Math.sqrt(a / (sr / step)); }
+            } else {
+                const peaks = ws?.exportPeaks?.({ maxLength: Math.ceil(duration) });
+                if (peaks?.[0]?.length) env = Float32Array.from(peaks[0], (v) => Math.abs(v));
+            }
+        } catch (e) { env = null; }
+        this._outro = { stamp, seconds: env ? outroStart(env, duration) : 0 };
+        return this._outro.seconds;
+    }
+
+    _fixedTriggerTime() {
         const deck = this.dj.decks[this.currentDeck];
         if (!deck || !deck.isLoaded) return this.transitionPoint;
 
@@ -228,15 +300,21 @@ export class FlowMode {
             // Use percentage of track length
             const triggerSeconds = (this.transitionPointPercent / 100) * duration;
             // Clamp: at least 5 seconds, at most 90% of the track
-            return Math.max(5, Math.min(triggerSeconds, duration * 0.9));
+            return this._capped(Math.max(5, Math.min(triggerSeconds, duration * 0.9)), duration);
         }
 
         // Fixed mode: use transitionPoint but clamp to track length
         // For short tracks (< 2x transition point), use 25% of track length
-        if (duration < this.transitionPoint * 2) {
-            return Math.max(5, duration * 0.25);
-        }
-        return this.transitionPoint;
+        const base = duration < this.transitionPoint * 2 ? Math.max(5, duration * 0.25) : this.transitionPoint;
+        return this._capped(base, duration);
+    }
+
+    // With maxPlaySeconds set (DJ MixZ party mood), a song is mixed out early enough that it is
+    // never on air longer than that, the crossfade included.
+    _capped(base, duration) {
+        if (!(this.maxPlaySeconds > 0)) return base;
+        const mixOutAt = Math.max(20, this.maxPlaySeconds - (this.transitionDuration || 0));
+        return Math.max(base, duration - mixOutAt);
     }
 
     // Called by player.js on every timeupdate — we do our own near-end detection
@@ -399,6 +477,8 @@ export class FlowMode {
                     type: this.transitionType,
                     sourceBPM: this.dj.decks[this.currentDeck].getBPM(),
                     targetBPM: this.dj.decks[idleDeck].getBPM(),
+                    // DJ MixZ party moves: tempo ride and air horn
+                    ...(this.transitionExtras || {}),
                 });
                 if (engine.running) {
                     this._mixing = { track, deck: idleDeck, direction };
@@ -644,7 +724,10 @@ export class FlowMode {
         panel.innerHTML = `
             <div class="flow-header">
                 <div class="flow-title">FLOW MODE</div>
-                <button class="flow-exit-btn" id="flow-exit-btn">EXIT</button>
+                <div class="flow-header-btns">
+                    <button class="flow-exit-btn flow-hide-btn" id="flow-hide-btn" title="Hide this screen, the music keeps playing">HIDE</button>
+                    <button class="flow-exit-btn" id="flow-exit-btn" title="Stop Flow Mode">EXIT</button>
+                </div>
             </div>
 
             <div class="flow-content">
@@ -743,6 +826,7 @@ export class FlowMode {
 
         // Wire up UI events
         document.getElementById('flow-exit-btn')?.addEventListener('click', () => this.disable());
+        document.getElementById('flow-hide-btn')?.addEventListener('click', () => this.setPanelVisible(false));
         document.getElementById('flow-skip-btn')?.addEventListener('click', () => this.skip());
 
         document.getElementById('flow-trans-type')?.addEventListener('change', (e) => {
@@ -936,4 +1020,22 @@ export class FlowMode {
             });
         });
     }
+}
+
+// The outro of a song from its loudness, one value a second: where it goes quiet for good and
+// stays quiet to the end (a fade-out, a tail, silence). Returns seconds from the start, or 0
+// when the song is loud to the last second or the tail would cut off more than a third of it.
+// "Quiet" is under half the song's working level (the 60th percentile of its seconds).
+export function outroStart(env, duration) {
+    const n = env?.length || 0;
+    if (n < 20) return 0;
+    const sorted = Array.from(env).sort((a, b) => a - b);
+    const loud = sorted[Math.floor(n * 0.6)];
+    if (!(loud > 0)) return 0;
+    let last = n - 1;
+    while (last >= 0 && env[last] < loud * 0.5) last--;
+    const tail = last + 1; // first quiet second after the last loud one
+    if (duration - tail < 3) return 0; // loud to the end: nothing to cut
+    if (tail < duration * 0.66) return 0; // a tail that long is not an outro
+    return tail;
 }

@@ -1,5 +1,6 @@
 // Offline check of DJ MixZ's set planning.   node web/dj/DjMixz.test.mjs
-import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes } from './DjMixz.js';
+import { planSet, planTransition, energyOf, MOODS, tracksFrom, tracksForMinutes, uptempo } from './DjMixz.js';
+import { hornPattern } from './Airhorn.js';
 import { HarmonicMixer } from './HarmonicMixer.js';
 
 const h = new HarmonicMixer();
@@ -48,12 +49,33 @@ const sc = (id, artist) => ({ id: 'songchainn:' + id, title: 'S' + id, artist, s
 const lib = { zaoTracks: [sc(1, 'IMan Afrikah'), sc(2, 'N3M3SIS'), sc(3, 'IMAN AFRIKAH ft SANTANA'), { id: 9, title: 'Audius one', artist: 'IMan Afrikah', source: 'audius', streamUrl: 'x' }, { id: 10, title: 'broken', artist: 'X', source: 'songchainn' }], tracks: pool.slice(0, 3), _displayedTracks: pool.slice(0, 2) };
 ok('pointed at SongChainn: only SongChainn songs, and only ones that can play', tracksFrom(lib, 'songchainn').length === 3 && tracksFrom(lib, 'songchainn').every((t) => t.source === 'songchainn'));
 ok('SongChainn, one artist: features count, other artists do not', tracksFrom(lib, 'songchainn-artist', 'iman afrikah').map((t) => t.id).join() === 'songchainn:1,songchainn:3' && tracksFrom(lib, 'songchainn-artist', '').length === 0);
+ok('SongChainn, several artists: songs by any of them, nobody else', tracksFrom(lib, 'songchainn-artist', ['N3M3SIS', 'iman afrikah']).map((t) => t.id).join() === 'songchainn:1,songchainn:2,songchainn:3' && tracksFrom(lib, 'songchainn-artist', []).length === 0 && tracksFrom(lib, 'songchainn-artist', ['N3M3SIS']).length === 1);
 ok('the other sources still work', tracksFrom(lib, 'zao').length === 4 && tracksFrom(lib, 'local').length === 3 && tracksFrom(lib, 'view').length === 2);
 const many = Array.from({ length: 200 }, (_, i) => sc(100 + i, 'A' + (i % 9)));
 ok('session length: 1 hour of SongChainn is about 19 tracks, 4 hours about 75, never more than there are', tracksForMinutes(many, 60) === 19 && tracksForMinutes(many, 240) === 75 && tracksForMinutes(many.slice(0, 10), 240) === 10 && tracksForMinutes(many, 0) === 200);
 ok('session length uses real track lengths when the library has them', tracksForMinutes(Array.from({ length: 50 }, (_, i) => ({ id: i, duration: 120 })), 60) === 34);
 ok('a SongChainn set with no tempo or key on file still plans, every track once', planSet(many, 'journey', h, { maxTracks: 19 }).length === 19 && new Set(planSet(many, 'journey', h, { maxTracks: 19 }).map((p) => p.track.id)).size === 19);
 ok('five moods', MOODS.length === 5);
+// Party: tempo rides, stem swaps, echo outs, air horn
+const P = (a, b, prev = []) => planTransition(a, b, h, prev, { party: true });
+const ride = P(T(40, 120, 'A minor', 'Afro'), T(41, 132, 'A minor', 'Afro'));
+ok('party: 10% apart, same key, rides the tempo with a stem swap', ride.type === 'stem-swap' && ride.tempoRide === true);
+ok('party: keys clash, echo out with the air horn', P(T(42, 120, 'A minor', 'Afro'), T(43, 121, 'F# major', 'Afro')).type === 'echo-out' && !!P(T(42, 120, 'A minor', 'Afro'), T(43, 121, 'F# major', 'Afro')).airhorn);
+ok('party: 25% apart, echo out, no tempo ride', P(T(44, 100, 'A minor', 'Afro'), T(45, 125, 'A minor', 'Afro')).type === 'echo-out' && !P(T(44, 100, 'A minor', 'Afro'), T(45, 125, 'A minor', 'Afro')).tempoRide);
+ok('party: no tempo on file, stem swap and blend take turns', P(T(46, null, null, ''), T(47, null, null, '')).type === 'stem-swap' && P(T(46, null, null, ''), T(47, null, null, ''), ['stem-swap']).type === 'blend');
+ok('party: moves are short (20 seconds at most)', [ride, P(T(48, 70, 'A minor', 'Reggae'), T(49, 72, 'A minor', 'Reggae'))].every((m) => m.seconds <= 20));
+const partySet = planSet(pool, 'party', h);
+ok('party set: the air horn goes on about every other move', partySet.filter((p) => p.move?.airhorn).length >= Math.floor((partySet.length - 1) / 2));
+ok('party set: never three identical moves in a row', !partySet.slice(1).map((p) => p.move.type).some((t, i, r) => i >= 2 && r[i - 1] === t && r[i - 2] === t));
+ok('other moods never use the party moves', planSet(pool, 'journey', h).every((p) => !p.move || (p.move.type !== 'stem-swap' && !p.move.airhorn)));
+const mixed = [T(60, 85, 'A minor', 'Reggae'), T(61, 128, 'A minor', 'House'), T(62, 124, 'A minor', 'Afro'), T(63, null, null, ''), T(64, 70, 'A minor', 'Lo-Fi'), T(65, 132, 'A minor', 'House'), T(66, 72, 'A minor', 'Trap')];
+const up = uptempo(mixed).map((t) => t.id);
+ok('party: slow songs out, half-time trap counts as fast, only known-fast songs when there are enough', !up.includes(60) && !up.includes(64) && [61, 62, 65, 66].every((id) => up.includes(id)) && !up.includes(63));
+ok('party: songs not analyzed yet fill in when the known-fast ones are too few for the set', uptempo(mixed, 8).map((t) => t.id).includes(63) && !uptempo(mixed, 8).map((t) => t.id).includes(60));
+ok('party: an all-slow list still plays its fastest half', uptempo([T(70, 80, 'A minor', 'Reggae'), T(71, 90, 'A minor', 'Soul'), T(72, 70, 'A minor', 'Lo-Fi'), T(73, 85, 'A minor', 'Jazz')]).length === 2);
+ok('party energy never dips below 0.75', Array.from({ length: 21 }, (_, i) => MOODS.find((m) => m.id === 'party').curve(i / 20)).every((e) => e >= 0.75));
+ok('the horn: short, short, long', hornPattern().length === 3 && hornPattern()[2].len > hornPattern()[0].len * 3);
+
 
 console.log(fail ? `${fail} failed` : 'all passed');
 process.exit(fail ? 1 : 0);

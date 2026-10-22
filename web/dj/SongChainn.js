@@ -22,7 +22,50 @@ export class SongChainn {
         if (!resp.ok) throw new Error(`SongChainn error: ${resp.status}`);
         this._all = (await resp.json()).filter((r) => r.audio_url).map((r) => this._normalizeTrack(r));
         this._at = Date.now();
+        await this._useLocalCopies(this._all);
+        await this._useAnalysis(this._all);
         return this._all;
+    }
+
+    // Tempo and key for the catalog, measured once offline (MixZ-Local/analyze-local.mjs) and
+    // shipped as data/analysis.json, so DJ MixZ can keep a party set uptempo and mix in key
+    // without downloading a song to measure it. A song a deck has measured itself keeps its own.
+    async _useAnalysis(tracks) {
+        try {
+            if (!this._analysis) {
+                const r = await fetch('data/analysis.json', { cache: 'no-store' });
+                this._analysis = r.ok ? (await r.json()).songs || {} : {};
+            }
+            let n = 0;
+            for (const t of tracks) {
+                const a = this._analysis[t.id.replace(/^songchainn:/, '')];
+                if (!a) continue;
+                if (a.bpm && !t.bpm) t.bpm = a.bpm;
+                if (a.key && !t.key) t.key = a.key;
+                n++;
+            }
+            if (n) console.log(`[SongChainn] tempo and key on file for ${n} songs`);
+        } catch (e) { /* no analysis file: the decks measure as they play */ }
+    }
+
+    // On a DJ's own PC, the local server can hold a copy of the catalog on disk (map.json from
+    // MixZ-Local/local-songchainn.mjs). Those songs then play from disk, no streaming. The live
+    // site has no such map (404), so everyone else keeps streaming as before.
+    async _useLocalCopies(tracks) {
+        const h = typeof location !== 'undefined' ? location.hostname : '';
+        if (h !== '127.0.0.1' && h !== 'localhost') return;
+        try {
+            if (!this._local) {
+                const r = await fetch('/local-songchainn/map.json', { cache: 'no-store' });
+                this._local = r.ok ? (await r.json()).map || {} : {};
+            }
+            let n = 0;
+            for (const t of tracks) {
+                const rel = this._local[t.id.replace(/^songchainn:/, '')];
+                if (rel) { t.streamUrl = `${location.origin}/local-songchainn/${rel}`; t.local = true; n++; }
+            }
+            if (n) console.log(`[SongChainn] ${n} songs playing from this PC's disk`);
+        } catch (e) { /* no local copies: stream */ }
     }
 
     // Songs by the artists named (matched anywhere in the artist line, so features count).
