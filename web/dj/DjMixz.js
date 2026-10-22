@@ -148,12 +148,22 @@ export function planPartyTransition(a, b, harmonic, prevTypes = []) {
 
 // Order a playlist for a mood. Returns [{ track, energy, target, move }] where `move` is how
 // to get INTO that track from the one before (null for the first).
+// `opts.shuffle` (0 to 1) makes a fresh order out of the same songs: the pool is dealt out at
+// random and every energy reads a little off, so the same crate comes around in a new order
+// (the 24-hour loop uses it). `opts.avoid` lists ids that must not open the set (the last songs
+// of the round before): they are kept out of the first half.
+const baseEnergy = energyOf;
 export function planSet(tracks, moodId, harmonic, opts = {}) {
     const mood = MOODS.find((m) => m.id === moodId) || MOODS[2];
     const seen = new Set();
     const pool = (tracks || []).filter((t) => t && !seen.has(idOf(t)) && seen.add(idOf(t)));
     const count = Math.min(pool.length, opts.maxTracks || pool.length);
     if (!count) return [];
+    const rnd = opts.random || Math.random;
+    const jitter = Math.max(0, Math.min(1, Number(opts.shuffle) || 0));
+    if (jitter) for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const off = new Map(pool.map((t) => [idOf(t), jitter ? (rnd() - 0.5) * 0.3 * jitter : 0]));
+    const energyOf = (t) => clamp01(baseEnergy(t) + (off.get(idOf(t)) || 0));
 
     const targets = Array.from({ length: count }, (_, i) => mood.curve(count === 1 ? 0 : i / (count - 1)));
 
@@ -195,11 +205,27 @@ export function planSet(tracks, moodId, harmonic, opts = {}) {
 
     const out = [];
     const types = [];
+    // The songs that closed the round before do not open this one
+    const avoid = new Set(opts.avoid || []);
+    if (avoid.size && count > 3) {
+        const half = Math.floor(count / 2);
+        for (let i = 0; i < half; i++) {
+            if (!avoid.has(idOf(seat[i]))) continue;
+            let best = -1, bestGap = Infinity;
+            for (let j = half; j < count; j++) {
+                if (avoid.has(idOf(seat[j]))) continue;
+                const gap = Math.abs(energyOf(seat[j]) - energyOf(seat[i]));
+                if (gap < bestGap) { bestGap = gap; best = j; }
+            }
+            if (best >= 0) [seat[i], seat[best]] = [seat[best], seat[i]];
+        }
+    }
+
     seat.forEach((track, i) => {
         const prev = out[out.length - 1]?.track;
         const move = prev ? planTransition(prev, track, harmonic, types, { party }) : null;
         if (move) types.push(move.type);
-        out.push({ track, energy: energyOf(track), target: targets[i], move });
+        out.push({ track, energy: baseEnergy(track), target: targets[i], move });
     });
     return out;
 }
@@ -286,7 +312,9 @@ export class DjMixz {
         ];
     }
 
-    build(sourceId, moodId, minutes) {
+    // `extra.round` > 0 is a later round of the same crate (the 24-hour loop): new order, and
+    // `extra.avoid` (ids) keeps the songs that just played away from the top of the set.
+    build(sourceId, moodId, minutes, extra = {}) {
         // SongChainn stores no tempo, so use the ones the decks measured on earlier plays
         let tracks = tracksFrom(this.dj.library || {}, sourceId, this.scArtist).map((t) => (!t.bpm && this._bpm[t.id] ? { ...t, bpm: this._bpm[t.id] } : t));
         if (moodId === 'party') { this.dj.trackAnalyzer?.prioritize?.(tracks); tracks = uptempo(tracks, tracksForMinutes(tracks, minutes, 2)); }
@@ -294,7 +322,8 @@ export class DjMixz {
         this.minutes = minutes;
         this.mood = moodId;
         this._lastBuild = { sourceId, moodId, minutes };
-        this.plan = planSet(tracks, moodId, this.dj.harmonic, { maxTracks });
+        this.loop = minutes === 1440; // 24 hours: when the crate runs out it comes back around
+        this.plan = planSet(tracks, moodId, this.dj.harmonic, { maxTracks, shuffle: extra.round ? 1 : 0, avoid: extra.avoid });
         this._preloadFirst();
         this.index = 0;
         this._renderPlan();
@@ -306,6 +335,9 @@ export class DjMixz {
         if (!flow || this.plan.length < 2) { this._say('Add at least two tracks, then build the set.'); return false; }
         if (!flow.enabled) flow.enable();
         this.running = true;
+        if (this.loop && !this._endAt) { this._endAt = Date.now() + 24 * 3600 * 1000; this._round = 0; }
+        this._startedAt = Date.now();
+        this._startClock();
         this.index = 0;
 
         // DJ MixZ owns the queue while it plays: no auto-suggestions sneaking in.
@@ -316,15 +348,22 @@ export class DjMixz {
             const next = this.plan[this.index + 1];
             if (!next) { this._finish(); return; }
             this._applyMove(next.move);
-            // Party: the dub siren rides an echo out
+            // Party: the dub siren (or the DJ's own sweep) rides an echo out; a riser leads a
+            // stem swap or a cut in. Other moods: a sweep on an echo out, now and then.
             if (this.mood === 'party' && next.move?.type === 'echo-out') setTimeout(() => this.dj.partyFX?.siren(), 400);
+            else if (this.mood === 'party' && (next.move?.type === 'stem-swap' || next.move?.type === 'cut') && Math.random() < 0.6) this.dj.partyFX?.sweep?.();
+            else if (this.mood !== 'party' && next.move?.type === 'echo-out' && Math.random() < 0.35) setTimeout(() => this.dj.partyFX?.sweep?.(), 400);
             this._orig.trigger();
         };
         flow.onTransitionComplete = (direction) => {
             this._orig.done(direction);
             this._songStart = Date.now(); this._rewound = false;
-            // Party: the MC bigs up the tune that just landed, most of the time
-            if (this.mood === 'party' && Math.random() < 0.65) setTimeout(() => this.dj.partyFX?.hype(), 900);
+            // Party: a hit as the tune lands, then the MC bigs it up, most of the time.
+            // Other moods: a drop now and then, so the board gets used without wearing thin.
+            if (this.mood === 'party') {
+                if (Math.random() < 0.5) this.dj.partyFX?.hit?.();
+                if (Math.random() < 0.65) setTimeout(() => this.dj.partyFX?.hype(), 900);
+            } else if (Math.random() < 0.2 && this.dj.soundBoard?.has('vocal')) setTimeout(() => this.dj.partyFX?.hype(), 1200);
             this.index += 1;
             this._armNext();
             this._renderPlan();
@@ -504,19 +543,61 @@ export class DjMixz {
         this.running = false;
         this.human = false;
         clearInterval(this._turnTimer);
+        this._stopClock();
         document.getElementById('djmixz-open')?.classList.remove('live');
         const stopBtn = document.getElementById('djmixz-stop'); if (stopBtn) stopBtn.hidden = true;
         this._renderPlan();
         this._renderBar();
     }
 
+    // When this session ends: the clock set at start for a timed session or the 24-hour loop,
+    // else ("everything it has") an estimate from the songs still to play.
+    sessionEndsAt() {
+        if (this.loop && this._endAt) return this._endAt;
+        if (this.minutes > 0 && this._startedAt) return this._startedAt + this.minutes * 60000;
+        const cap = MAX_PLAY[this.mood] || 0;
+        let left = 0;
+        for (let i = this.index; i < this.plan.length; i++) { const d = num(this.plan[i]?.track?.duration) || 210; left += cap ? Math.min(d, cap) : d; }
+        const deck = this.dj.decks?.[this.dj.flowMode?.currentDeck];
+        const played = deck?.isLoaded && deck.getCurrentTime ? deck.getCurrentTime() : 0;
+        return Date.now() + Math.max(0, left - played) * 1000;
+    }
+
+    _startClock() { this._stopClock(); this._tickClock(); this._clockTimer = setInterval(() => this._tickClock(), 1000); }
+
+    _stopClock() {
+        if (this._clockTimer) { clearInterval(this._clockTimer); this._clockTimer = null; }
+        if (typeof document === 'undefined') return;
+        for (const id of ['djmixz-open-clock', 'djmixz-clock']) { const el = document.getElementById(id); if (el) { el.hidden = true; el.textContent = ''; } }
+    }
+
+    _tickClock() {
+        if (typeof document === 'undefined' || !this.running) return;
+        const ms = Math.max(0, this.sessionEndsAt() - Date.now());
+        const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        const clock = `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        const label = (this.minutes > 0 || this.loop ? clock : '~' + clock) + ' left';
+        const title = this.loop ? `24-hour session, round ${(this._round || 0) + 1}: when the crate runs out it comes back around in a new order` : this.minutes > 0 ? `${this.minutes}-minute session` : 'Everything it has: a guess from the songs still to play';
+        for (const id of ['djmixz-open-clock', 'djmixz-clock']) { const el = document.getElementById(id); if (el) { el.textContent = label; el.title = title; el.hidden = false; } }
+    }
+
     _finish() {
-        if (this.endless && this._lastBuild) {
+        const timeLeft = this.loop && this._endAt && Date.now() < this._endAt;
+        if ((this.endless || timeLeft) && this._lastBuild) {
             const b = this._lastBuild;
+            const avoid = this.plan.slice(-12).map((p) => idOf(p.track));
+            const round = (this._round || 0) + 1;
+            const endAt = this._endAt;
             this.stop();
-            const plan = this.build(b.sourceId, b.moodId, b.minutes);
-            if (plan.length >= 2 && this.start()) { this._say(`End of the set. Endless is on: the next ${plan.length} tracks are rolling.`); return; }
+            this._endAt = endAt; this._round = round;
+            const plan = this.build(b.sourceId, b.moodId, b.minutes, { round, avoid });
+            if (plan.length >= 2 && this.start()) {
+                const left = timeLeft ? Math.round((this._endAt - Date.now()) / 3600000) : 0;
+                this._say(timeLeft ? `Round ${round + 1}: same crate, new order, ${plan.length} tracks. About ${left} hours to go.` : `End of the set. Endless is on: the next ${plan.length} tracks are rolling.`);
+                return;
+            }
         }
+        this._endAt = null; this._round = 0;
         this._say('That was the set. DJ MixZ is off.');
         this.stop();
     }
@@ -674,7 +755,7 @@ export class DjMixz {
         bar.classList.toggle('human', this.human);
         bar.innerHTML = this.human
             ? `<span class="djmixz-bar-who">YOU HAVE THE DECKS</span><span class="djmixz-bar-next">DJ MixZ is standing by</span>${turn}${score}<button class="djmixz-bar-btn" data-act="back">HAND BACK TO DJ MIXZ</button>`
-            : `<span class="djmixz-bar-who">DJ MIXZ IS MIXING</span><span class="djmixz-bar-next">${next ? 'next: ' + esc(next.track.title) + ', ' + esc(next.move?.type.replace('-', ' ')) : 'last track'}</span>${why}${swaps}${picks}${turn}${score}${votes}<button class="djmixz-bar-btn" data-act="take">TAKE OVER</button>`;
+            : `<span class="djmixz-bar-who">DJ MIXZ IS MIXING</span><span class="djmixz-bar-clock" id="djmixz-clock" hidden></span><span class="djmixz-bar-next">${next ? 'next: ' + esc(next.track.title) + ', ' + esc(next.move?.type.replace('-', ' ')) : 'last track'}</span>${why}${swaps}${picks}${turn}${score}${votes}<button class="djmixz-bar-btn" data-act="take">TAKE OVER</button>`;
     }
 
     // ── Panel ──────────────────────────────────────────────────
@@ -686,7 +767,7 @@ export class DjMixz {
         open.id = 'djmixz-open';
         open.className = 'btn-toolbar djmixz-open';
         open.title = 'DJ MixZ plays your playlist as a full set';
-        open.innerHTML = '<span class="djmixz-dot"></span>DJ MIXZ<span class="djmixz-pro">PRO</span>';
+        open.innerHTML = '<span class="djmixz-dot"></span>DJ MIXZ<span class="djmixz-pro">PRO</span><span class="djmixz-clock" id="djmixz-open-clock" hidden></span>';
         const anchor = document.getElementById('flow-toggle-btn');
         if (anchor) anchor.insertAdjacentElement('beforebegin', open); else bar.appendChild(open);
 
@@ -705,6 +786,7 @@ export class DjMixz {
                 <button type="button" data-fx="horn">AIR HORN</button><button type="button" data-fx="siren">SIREN</button><button type="button" data-fx="rewind">REWIND</button>
                 <button type="button" data-fx="big-tune">BIG TUNE</button><button type="button" data-fx="massive">MASSIVE</button><button type="button" data-fx="reload">RELOAD</button>
                 <button type="button" data-fx="wheel-up">WHEEL UP</button><button type="button" data-fx="badman">BAD MAN</button><button type="button" data-fx="hold-tight">HOLD TIGHT</button>
+                <button type="button" data-fx="board" class="djmixz-fx-board">FX BOARD: ALL THE SAMPLES</button>
             </div>
             <label class="djmixz-label" for="djmixz-source">Or choose the music</label>
             <select id="djmixz-source" class="toolbar-select djmixz-select">${this._sources().map((s) => `<option value="${s.id}">${s.label}</option>`).join('')}</select>
@@ -712,7 +794,7 @@ export class DjMixz {
             <div class="djmixz-label">Mood</div>
             <div class="djmixz-moods">${MOODS.map((m) => `<button class="djmixz-mood${m.id === this.mood ? ' active' : ''}" data-mood="${m.id}"><b>${m.label}</b><span>${m.hint}</span></button>`).join('')}</div>
             <label class="djmixz-label" for="djmixz-length">Session length</label>
-            <select id="djmixz-length" class="toolbar-select djmixz-select"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="0">Everything it has</option></select>
+            <select id="djmixz-length" class="toolbar-select djmixz-select"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="1440">24 hours: loops the crate, reshuffled every round</option><option value="0">Everything it has</option></select>
             <label class="djmixz-label" for="djmixz-b2b">Back to back with a live DJ</label>
             <select id="djmixz-b2b" class="toolbar-select djmixz-select"><option value="0" selected>Off. DJ MixZ plays the whole set</option><option value="1">Trade every track: one each</option><option value="2">Trade every 2 tracks</option><option value="3">Trade every 3 tracks</option><option value="b1">Contest: one track each, the room scores every round</option><option value="b2">Contest: two tracks each, the room scores every round</option></select>
             <div class="djmixz-actions">
@@ -729,6 +811,7 @@ export class DjMixz {
             const fx = e.target.closest('[data-fx]')?.dataset.fx; const p = this.dj.partyFX;
             if (!fx || !p) return;
             this.dj.audioRouter?.resume?.();
+            if (fx === 'board') { document.getElementById('fxboard')?.classList.toggle('hidden'); return; }
             if (fx === 'horn') p.horn();
             else if (fx === 'siren') p.siren();
             else if (fx === 'rewind') { const d = this.dj.decks?.[this.dj.flowMode?.currentDeck || 'A']; const live = d?.isPlaying ? d : ['A', 'B'].map((id) => this.dj.decks?.[id]).find((x) => x?.isPlaying); if (live) p.rewind(live); else this._say('Nothing is playing to rewind.'); }

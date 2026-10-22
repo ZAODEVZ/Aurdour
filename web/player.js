@@ -28,6 +28,7 @@ import { Storage } from './dj/Storage.js';
 import { BpmDetector } from './dj/BpmDetector.js';
 import { TrackAnalyzer } from './dj/TrackAnalyzer.js';
 import { PartyFX } from './dj/PartyFX.js';
+import { SoundBoard } from './dj/SoundBoard.js';
 import { JogWheel } from './dj/JogWheel.js';
 import { DragDrop } from './dj/DragDrop.js';
 import { CrashRecovery } from './dj/CrashRecovery.js';
@@ -175,6 +176,7 @@ class DJPlayer {
         this.trackAnalyzer = safeInit('TrackAnalyzer', () => new TrackAnalyzer(this));
         // Shouts, siren, horn and the rewind for DJ MixZ's party sets and the FX pad
         this.partyFX = safeInit('PartyFX', () => new PartyFX(this));
+        this.soundBoard = safeInit('SoundBoard', () => new SoundBoard(this));
         this.deadAir = safeInit('DeadAir', () => new DeadAir(this));
         // Stream events: the on-air song, each handover and stream health (docs/STREAM-EVENTS.md)
         this.streamEvents = safeInit('StreamEvents', () => new StreamEvents(this));

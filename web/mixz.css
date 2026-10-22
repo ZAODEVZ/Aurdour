@@ -973,3 +973,27 @@ body.pro-mode #pro-mode-toggle { height: 34px; padding: 3px; }
 .djmixz-artists-tools { display: flex; gap: 6px; }
 .djmixz-artists-tools button { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--mz-line-hi); background: var(--mz-panel); color: var(--mz-text); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; }
 .djmixz-artists-tools button:hover { border-color: var(--mz-a); color: var(--mz-a); }
+
+/* FX board: the DJ's samples on pads, in manual and DJ MixZ mode alike */
+.btn-fxboard { border-color: #f5a623 !important; color: #ffd27a !important; }
+.fxboard { position: fixed; right: 12px; top: 64px; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 90px); overflow: auto; z-index: 60; background: var(--mz-panel, #121419); border: 1px solid var(--mz-line-hi, #2a2f3a); border-radius: 14px; padding: 12px 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+.fxboard.hidden { display: none; }
+.fxboard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.fxboard-head > div { flex: 1; }
+.fxboard-title { font-weight: 900; letter-spacing: .12em; font-size: .85rem; color: #ffd27a; }
+.fxboard-sub { font-size: .72rem; color: var(--mz-dim, #8a93a6); }
+.fxboard-label { font-size: .68rem; letter-spacing: .14em; color: var(--mz-dim, #8a93a6); margin: 10px 0 6px; font-weight: 800; }
+.fxboard-pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.fxboard-pads button { min-height: 44px; padding: 4px 6px; border-radius: 9px; border: 1px solid var(--mz-line-hi, #2a2f3a); background: var(--mz-inset, #0c0e12); color: var(--mz-text, #e8ecf4); font-weight: 800; font-size: .66rem; letter-spacing: .06em; line-height: 1.15; cursor: pointer; white-space: normal; }
+.fxboard-horn .fxboard-pads button { border-color: #f5a623; color: #ffd27a; }
+.fxboard-vocal .fxboard-pads button { border-color: #3ddc84; color: #9df2c0; }
+.fxboard-fx .fxboard-pads button { border-color: #4da3ff; color: #a9d2ff; }
+.fxboard-pads button:hover { filter: brightness(1.25); }
+.fxboard-pads button:active, .fxboard-pads button.hit { transform: scale(0.96); background: rgba(245, 166, 35, 0.22); }
+.fxboard-empty { font-size: .78rem; color: var(--mz-dim, #8a93a6); padding: 8px 0; }
+.djmixz-fx .djmixz-fx-board { grid-column: 1 / -1; border-color: #f5a623; color: #ffd27a; }
+@media (max-width: 640px) { .fxboard { right: 8px; left: 8px; width: auto; top: 56px; } .fxboard-pads { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* DJ MixZ session countdown */
+.djmixz-clock { font-variant-numeric: tabular-nums; font-size: .68rem; font-weight: 800; letter-spacing: .04em; color: #ffd27a; margin-left: 6px; }
+.djmixz-bar-clock { font-variant-numeric: tabular-nums; font-weight: 800; color: #ffd27a; margin: 0 10px; white-space: nowrap; }

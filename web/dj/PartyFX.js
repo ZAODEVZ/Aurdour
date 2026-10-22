@@ -1,4 +1,6 @@
 // PartyFX.js — the sound-system tricks: MC shouts, dub siren, air horn and the rewind.
+// The DJ's own samples on the FX board (SoundBoard.js) come first: real vocal drops for the
+// shouts, a real sweep or riser for the siren, a real horn. What follows is the fallback.
 // Shouts are short voice clips in data/shouts/: a male MC (<name>.wav) and a female MC
 // (<name>-f.wav), picked at random so the mic passes around. Drop your own recording in with the
 // same file name to replace one. They play loud, through a dub echo. The siren and the horn are made on the spot. The rewind ("pull up") winds
@@ -71,9 +73,19 @@ export class PartyFX {
     // Warm the clips up so the first shout is not late
     preload() { Object.keys(SHOUTS).forEach((n) => this._takes(n).catch(() => {})); }
 
+    // Words on the board that do the job of each built-in shout
+    static BOARD_WORDS = { rewind: /pull up|rewind|wheel|again/i, reload: /reload|again|one more|run it/i, mixz: /mixz|zao/i };
+
     async shout(name) {
         const ctx = this.ctx;
         if (!ctx || !this.out) return;
+        const board = this.dj.soundBoard;
+        if (board?.pads.length) {
+            const re = PartyFX.BOARD_WORDS[name];
+            const pad = re ? board.find(re) : null;
+            if (pad) { board.play(pad.id, { echo: true }); return; }
+            if (board.has('vocal')) { board.fire('vocal', { echo: true }); return; }
+        }
         try {
             const takes = await this._takes(name);
             const src = ctx.createBufferSource();
@@ -88,7 +100,30 @@ export class PartyFX {
         }
     }
 
-    hype() { this._lastHype = nextHype(this._lastHype); return this.shout(this._lastHype); }
+    hype() {
+        const board = this.dj.soundBoard;
+        if (board?.has('vocal')) return board.fire('vocal', { echo: true });
+        this._lastHype = nextHype(this._lastHype); return this.shout(this._lastHype);
+    }
+
+    // A real riser or sweep from the board on the way out of a song, when the DJ has one
+    sweep() {
+        const board = this.dj.soundBoard;
+        if (!board?.pads.length) return false;
+        const pads = board.pads.filter((p) => p.kind === 'riser' || p.kind === 'sweep' || p.kind === 'whoosh');
+        if (!pads.length) return false;
+        board.play(pads[Math.floor(Math.random() * pads.length)].id);
+        return true;
+    }
+
+    // A real hit or boom as the new song lands, when the DJ has one
+    hit() {
+        const board = this.dj.soundBoard;
+        const pads = board?.pads.filter((p) => p.kind === 'hit') || [];
+        if (!pads.length) return false;
+        board.play(pads[Math.floor(Math.random() * pads.length)].id);
+        return true;
+    }
 
     // The air horn: a real one from data/fx/airhorn.(wav|mp3) when the DJ has dropped one in
     // (IMan's own sample), else the synthesized one.
@@ -101,6 +136,7 @@ export class PartyFX {
                 try { const r = await fetch(name); if (r.ok) { this._hornFile = await ctx.decodeAudioData(await r.arrayBuffer()); break; } } catch (e) { /* try the next */ }
             }
         }
+        if (!this._hornFile && this.dj.soundBoard?.has('horn')) { this.dj.soundBoard.fire('horn'); return; }
         if (this._hornFile) {
             const src = ctx.createBufferSource(); src.buffer = this._hornFile;
             const g = ctx.createGain(); g.gain.value = 0.85;
@@ -115,6 +151,7 @@ export class PartyFX {
     siren(seconds = 2.4) {
         const ctx = this.ctx;
         if (!ctx || !this.out) return;
+        if (this.sweep()) return; // the DJ's own sweep beats the synth siren
         const t0 = ctx.currentTime + 0.02;
         const osc = ctx.createOscillator(); osc.type = 'square';
         const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 2.2;
