@@ -27,3 +27,8 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# The MC shouts stay on IMan's own copy only (IMan, 22 Oct 2026): not on Zaal's or the public app.
+# The transition FX and the horn are shared. board.local.json lists the local-only pads.
+web/data/fx/*
+!web/data/fx/board.json

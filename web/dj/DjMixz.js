@@ -350,7 +350,8 @@ export class DjMixz {
             this._applyMove(next.move);
             // Party: the dub siren (or the DJ's own sweep) rides an echo out; a riser leads a
             // stem swap or a cut in. Other moods: a sweep on an echo out, now and then.
-            if (this.mood === 'party' && next.move?.type === 'echo-out') setTimeout(() => this.dj.partyFX?.siren(), 400);
+            if (!this._fxOn()) { /* music only: no sounds of its own */ }
+            else if (this.mood === 'party' && next.move?.type === 'echo-out') setTimeout(() => this.dj.partyFX?.siren(), 400);
             else if (this.mood === 'party' && (next.move?.type === 'stem-swap' || next.move?.type === 'cut') && Math.random() < 0.6) this.dj.partyFX?.sweep?.();
             else if (this.mood !== 'party' && next.move?.type === 'echo-out' && Math.random() < 0.35) setTimeout(() => this.dj.partyFX?.sweep?.(), 400);
             this._orig.trigger();
@@ -360,7 +361,8 @@ export class DjMixz {
             this._songStart = Date.now(); this._rewound = false;
             // Party: a hit as the tune lands, then the MC bigs it up, most of the time.
             // Other moods: a drop now and then, so the board gets used without wearing thin.
-            if (this.mood === 'party') {
+            if (!this._fxOn()) { /* music only */ }
+            else if (this.mood === 'party') {
                 if (Math.random() < 0.5) this.dj.partyFX?.hit?.();
                 if (Math.random() < 0.65) setTimeout(() => this.dj.partyFX?.hype(), 900);
             } else if (Math.random() < 0.2 && this.dj.soundBoard?.has('vocal')) setTimeout(() => this.dj.partyFX?.hype(), 1200);
@@ -483,7 +485,7 @@ export class DjMixz {
     // seconds in (pull up, back to the top, reload); never during a mix or while a person has the decks.
     _partyOn() {
         this._partyOff();
-        if (this.mood !== 'party' || !this.dj.partyFX) return;
+        if (this.mood !== 'party' || !this.dj.partyFX || !this._fxOn()) return;
         this.dj.partyFX.preload();
         this._songStart = Date.now(); this._rewound = false;
         setTimeout(() => this.dj.partyFX?.shout('mixz'), 1500);
@@ -524,7 +526,7 @@ export class DjMixz {
         flow.transitionType = move.type;
         flow.transitionWhy = move.why || null;
         flow.transitionDuration = move.seconds;
-        flow.transitionExtras = { tempoRide: !!move.tempoRide, airhorn: move.airhorn || null };
+        flow.transitionExtras = { tempoRide: !!move.tempoRide, airhorn: this._fxOn() ? move.airhorn || null : null };
         flow.maxPlaySeconds = MAX_PLAY[this.mood] || 0;
         flow.transitionPointMode = 'fixed';
         // Start early enough that the move finishes a few seconds before the old track runs out.
@@ -900,6 +902,10 @@ export class DjMixz {
         panel.querySelector('#djmixz-start').addEventListener('click', () => { readB2b(panel.querySelector('#djmixz-b2b').value); if (this.start()) { panel.querySelector('#djmixz-stop').hidden = false; } });
         panel.querySelector('#djmixz-stop').addEventListener('click', () => { this.stop(); this.dj.flowMode?.disable(); panel.querySelector('#djmixz-stop').hidden = true; this._say('Stopped. The decks are yours.'); });
     }
+
+    // DJ MixZ adds sounds of its own (horn, siren, sweeps, drops, rewind) only where the DJ keeps
+    // a local board (board.local.json). Zaal's and the public app play music only (Zaal, 22 Oct).
+    _fxOn() { return !!this.dj.soundBoard?.local; }
 
     _say(text) { const el = typeof document !== 'undefined' && document.getElementById('djmixz-say'); if (el) el.textContent = text; }
 

@@ -41,6 +41,12 @@ export class SoundBoard {
             const r = await fetch('data/fx/board.json', { cache: 'no-store' });
             if (r.ok) this.pads = ((await r.json()).pads || []).filter((p) => p && p.id && p.file);
         } catch (e) { /* no board: the built-in sounds carry on */ }
+        // Pads kept off the shared app (the MC drops live on IMan's copy only): an optional
+        // board.local.json next to the board, never committed, adds them here.
+        try {
+            const r = await fetch('data/fx/board.local.json', { cache: 'no-store' });
+            if (r.ok) { for (const p of (await r.json()).pads || []) if (p && p.id && p.file && !this.pads.some((x) => x.id === p.id)) this.pads.push(p); this.local = true; }
+        } catch (e) { /* no local pads */ }
         this._render();
         this.pads.forEach((p) => this._buffer(p).catch(() => {}));
     }
