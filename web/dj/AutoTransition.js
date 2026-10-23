@@ -166,6 +166,9 @@ export class AutoTransition {
                 this._stemBefore = {};
                 for (const id of [sourceDeckId, targetDeckId]) this._stemBefore[id] = { low: this._bandEQ(id, 'low'), mid: this._bandEQ(id, 'mid'), high: this._bandEQ(id, 'high') };
                 this.router.setEQ(targetDeckId, 'mid', -26);
+                // The mashup holds back the new song's highs too, so only its drums and bass come in
+                // under the old vocal: no second voice on top (IMan, 23 Oct).
+                if (this.transitionType === 'mashup') this.router.setEQ(targetDeckId, 'high', -24);
                 break;
 
             case 'blend':
@@ -441,6 +444,7 @@ export class AutoTransition {
         const trade = (progress - 0.84) / 0.08;
         this.router.setEQ(src, 'mid', lerp(before[src]?.mid ?? 0, -30, trade));
         this.router.setEQ(dst, 'mid', lerp(-26, before[dst]?.mid ?? 0, trade));
+        this.router.setEQ(dst, 'high', lerp(-24, before[dst]?.high ?? 0, trade));
         const targetGain = Math.sin(Math.min(1, progress / 0.08) * Math.PI / 2);
         const sourceGain = progress < 0.92 ? 1 : Math.cos(((progress - 0.92) / 0.08) * Math.PI / 2);
         const cf = document.getElementById('crossfader');
