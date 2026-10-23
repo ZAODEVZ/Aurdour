@@ -238,17 +238,37 @@ export class SwitchPad {
         anchor.insertAdjacentElement('afterend', bar);
         bar.querySelectorAll('.switch-btn').forEach((b) => b.addEventListener('click', () => this.trigger(b.dataset.mode)));
         bar.querySelector('#switch-pad-auto').addEventListener('change', (e) => { this.autoMatch = e.target.checked; });
+        this._buildMini();
+    }
+
+    // The same eight switches, small, in the top bar beside SIMPLE | PRO. SIMPLE view only (Zaal could
+    // not find the pad under the decks).
+    _buildMini() {
+        const toggle = document.getElementById('pro-mode-toggle')?.closest('.toolbar-group');
+        if (!toggle || document.getElementById('switch-mini')) return;
+        const mini = document.createElement('div');
+        mini.id = 'switch-mini';
+        mini.className = 'toolbar-group switch-mini';
+        mini.setAttribute('role', 'group');
+        mini.setAttribute('aria-label', 'Next track: loads a good next song on the other deck');
+        mini.innerHTML = SWITCH_MODES.map((m, i) => `<button class="switch-mini-btn" data-mode="${m.id}" title="${m.label}: ${m.hint}. Loads it on the other deck.">${i + 1} ${m.label}</button>`).join('');
+        toggle.insertAdjacentElement('afterend', mini);
+        mini.querySelectorAll('.switch-mini-btn').forEach((b) => b.addEventListener('click', () => this.trigger(b.dataset.mode)));
     }
 
     _say(text) {
         const el = typeof document !== 'undefined' && document.getElementById('switch-pad-say');
         if (el) el.textContent = text;
+        const mini = typeof document !== 'undefined' && document.getElementById('switch-mini');
+        if (mini) mini.title = text; // the pad's message, on hover, when only the top bar is in view
     }
 
     _flash(mode, ok) {
-        const b = typeof document !== 'undefined' && document.getElementById(`switch-btn-${mode}`);
-        if (!b) return;
-        b.classList.add(ok ? 'hit' : 'miss');
-        setTimeout(() => b.classList.remove('hit', 'miss'), 700);
+        if (typeof document === 'undefined') return;
+        const btns = [document.getElementById(`switch-btn-${mode}`), document.querySelector(`#switch-mini [data-mode="${mode}"]`)].filter(Boolean);
+        for (const b of btns) {
+            b.classList.add(ok ? 'hit' : 'miss');
+            setTimeout(() => b.classList.remove('hit', 'miss'), 700);
+        }
     }
 }
