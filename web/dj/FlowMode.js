@@ -112,6 +112,8 @@ export class FlowMode {
     // fetch, or the deck refused it): no ready or error event comes for that, so without it the
     // first song sat silent and a song mid-set waited out the 25 second timeout.
     _loadTrackToDeck(deck, track, onLateFail = null) {
+        // A broken file on record (analysis.json "bad"): never load it, the set moves on
+        if (track.bad) { console.warn('[FlowMode] Skipping a broken file:', track.title, track.bad); return false; }
         if (track.streamUrl || track.source === 'audius' || track.source === 'soundcloud' || track.source === 'spotify') {
             // Streaming track — use loadDirect
             const streamUrl = track.streamUrl;
@@ -438,6 +440,17 @@ export class FlowMode {
                 return;
             }
             if (!incoming.isLoaded) { setTimeout(checkReady, 100); return; }
+            // A bad wave: a file that loads but is only a second or two long ends before the mix
+            // does and the set stopped dead. Drop it and go to the one after.
+            const len = incoming.getDuration?.() || 0;
+            if (len > 0 && len < 30) {
+                console.warn('[FlowMode] Too short to mix, skipping', nextTrack.title, len);
+                nextTrack.bad = 'too short';
+                this._dropNext(nextTrack, 'too short to mix');
+                if (this.queue.length) this._triggerTransition();
+                this._updateUI();
+                return;
+            }
             this._loadFails = 0;
             this._beginMix(idleDeck, direction, nextTrack);
         };
