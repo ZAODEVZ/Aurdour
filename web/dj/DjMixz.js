@@ -154,6 +154,7 @@ export function planPartyTransition(a, b, harmonic, prevTypes = []) {
 // (the 24-hour loop uses it). `opts.avoid` lists ids that must not open the set (the last songs
 // of the round before): they are kept out of the first half.
 const baseEnergy = energyOf;
+const RECENT_KEY = 'mixz-recent-openers';
 export function planSet(tracks, moodId, harmonic, opts = {}) {
     const mood = MOODS.find((m) => m.id === moodId) || MOODS[2];
     const seen = new Set();
@@ -326,6 +327,11 @@ export class DjMixz {
         this.loop = minutes === 1440; // 24 hours: when the crate runs out it comes back around
         // Recipes picked in the panel (Workflows.js) decide every move; none picked, the mood does.
         const recipe = (this.recipe || []).map((id) => (this.workflows || []).find((w) => w.id === id)).filter(Boolean);
+        // Every set is a fresh deal (IMan, 23 Oct: same playlist, same first song is not creative),
+        // and the songs that opened the last set stay out of this one's opening.
+        let recent = [];
+        try { recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { /* no storage */ }
+        extra = { ...extra, round: true, avoid: [...(extra.avoid || []), ...recent] };
         if (recipe.length) {
             let pool = tracks.slice();
             if (extra.round) for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
@@ -333,6 +339,7 @@ export class DjMixz {
             if (avoid.size) pool = [...pool.filter((t) => !avoid.has(String(t.id ?? t.sourceId))), ...pool.filter((t) => avoid.has(String(t.id ?? t.sourceId)))];
             this.plan = buildSet(recipe, pool, maxTracks, this.dj.harmonic);
         } else this.plan = planSet(tracks, moodId, this.dj.harmonic, { maxTracks, shuffle: extra.round ? 1 : 0, avoid: extra.avoid });
+        try { localStorage.setItem(RECENT_KEY, JSON.stringify(this.plan.slice(0, 10).map((x) => String(x.track?.id ?? x.track?.sourceId)))); } catch (e) { /* no storage */ }
         this._preloadFirst();
         this.index = 0;
         this._renderPlan();
