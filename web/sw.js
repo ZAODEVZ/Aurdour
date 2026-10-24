@@ -100,6 +100,7 @@ const APP_SHELL = [
     '/dj/SwitchPad.js',
     '/dj/ZaoCrate.js',
     '/dj/DjMixz.js',
+    '/dj/Workflows.js',
     '/dj/SongChainn.js',
     '/dj/CloudSync.js',
     '/dj/PluginManager.js',
