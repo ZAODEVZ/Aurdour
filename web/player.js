@@ -61,6 +61,7 @@ import { TravelMode } from './dj/TravelMode.js';
 import { BeatGridOverlay } from './dj/BeatGridOverlay.js';
 import { Archive } from './dj/Archive.js';
 import { ArtistTab } from './dj/ArtistTab.js';
+import { StreamView } from './dj/StreamView.js';
 
 class DJPlayer {
     constructor() {
@@ -198,6 +199,8 @@ class DJPlayer {
         this.archive = safeInit('Archive', () => new Archive(this));
         // Artist pages in the library: JANGO first (Zaal, 18 Oct)
         this.artistTab = safeInit('ArtistTab', () => new ArtistTab(this));
+        // /stream: the same desk as a display-only page for the stream (Zaal, 25 Oct)
+        this.streamView = safeInit('StreamView', () => new StreamView(this));
 
         // Wire mixer crossfader to stream broadcast
         if (this.broadcast && this.mixer) {
