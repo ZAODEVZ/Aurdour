@@ -9,7 +9,7 @@
 // Everything above the page itself is pure and runs under node: see MixPage.test.mjs.
 
 import { cleanTitle, audiusPage } from './NowPlaying.js';
-import { ENDPOINT as SONGCHAINN_ENDPOINT, ANON_KEY as SONGCHAINN_KEY } from './SongChainn.js';
+import { ENDPOINT as SONGCHAINN_ENDPOINT, ANON_KEY as SONGCHAINN_KEY, allowed as scAllowed } from './SongChainn.js';
 import { resolveAudio } from './MusicSource.js';
 
 export const MIX_VERSION = 1;
@@ -189,6 +189,7 @@ export async function resolveTracks(mix, fetchFn = fetch, siteBase = '/') {
             for (const t of sc) {
                 const r = byId.get(scId(t.id));
                 if (!r) { t.title = 'A SongChainn song that is no longer public'; continue; }
+                if (!scAllowed(r.artist_name)) { t.title = 'A song that does not play on ZAO MixZ'; t.stream = null; continue; }
                 t.title = cleanTitle(r.title, r.artist_name); t.artist = r.artist_name || ''; t.art = r.cover_art_url || null; t.stream = r.audio_url || null; t.page = 'https://songchainn.xyz';
             }
         } catch (e) { for (const t of sc) t.title = t.title || 'SongChainn song (could not be read right now)'; }

@@ -8,6 +8,24 @@
 export const ENDPOINT = 'https://wsjhbfmzbonxmxaaassu.supabase.co/rest/v1/songchainn_public_songs';
 export const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzamhiZm16Ym9ueG14YWFhc3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyMTAyNDgsImV4cCI6MjA4Mjc4NjI0OH0.AlniOnpK7BGYaYBIJvuGj4FrDdX-0OZfV8LYUNzq-fs';
 
+// Artists whose music never plays in MixZ, here or online (IMan, 25 Oct 2026).
+export const BLOCKED_ARTISTS = ['Ludah wolf'];
+
+// The verified ZAO roster. Online, only these artists play from SongChainn; a collab plays when
+// every name on it is on the roster. IMan's own copy on this PC plays the rest too (not the blocked).
+export const VERIFIED_ARTISTS = ['IMan Afrikah', '7ROO7H', 'BERL', 'C3DDC3SSION', 'Champion Boy Psyko', 'DenaJah', 'FAITH',
+    'GESD1', 'JettDigital3211', 'JMN', 'MatJamEz', 'N3M3SIS', 'NDA', 'PRP', 'RVSSIAN', 'S.R.Chappell', 'SAMMIE', 'Sanchy',
+    'Santana', 'T-RAW', 'T3RNNN', 'THE ZAO', 'YUNG KIMOW', 'ZIZOX'];
+
+const squash = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const names = (artist) => String(artist || '').split(/\s+(?:&|x|ft\.?|feat\.?|and)\s+|,/i).map(squash).filter(Boolean);
+const BLOCKED = new Set(BLOCKED_ARTISTS.map(squash));
+const VERIFIED = new Set(VERIFIED_ARTISTS.map(squash));
+export const isBlocked = (artist) => BLOCKED.has(squash(artist)) || names(artist).some((n) => BLOCKED.has(n));
+export const isVerified = (artist) => { const n = names(artist); return n.length > 0 && n.every((x) => VERIFIED.has(x)); };
+const onThisPC = () => typeof location !== 'undefined' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+export const allowed = (artist, local = onThisPC()) => !isBlocked(artist) && (local || isVerified(artist));
+
 export class SongChainn {
     constructor() {
         this._all = null;
