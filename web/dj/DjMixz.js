@@ -673,6 +673,31 @@ export class DjMixz {
     }
 
     // why: 'button' (pressed TAKE OVER), 'touch' (grabbed a control), 'turn' (back to back)
+    // From the phone: one recipe, and the set keeps mixing that way until another is picked (Zaal,
+    // 25 Oct: "buttons I can click so it stays in that format til I come back"). An empty id hands
+    // the moves back to the mood. While a set runs, the song playing and the one armed stay put and
+    // the rest of the set is dealt again under the recipe.
+    useWorkflow(id = '') {
+        const wf = (this.workflows || []).find((w) => w.id === id);
+        this.recipe = wf ? [wf.id] : [];
+        this._renderWf?.();
+        if (!this.running || !this._lastBuild || !this.plan.length) {
+            this._say(wf ? `Recipe ${wf.name} picked. START plays it.` : 'No recipe: the mood decides every move.');
+            return true;
+        }
+        const keep = this.plan.slice(0, this.index + 2);
+        const kept = new Set(keep.map((p) => idOf(p.track)));
+        const tracks = tracksFrom(this.dj.library || {}, this._lastBuild.sourceId, this.scArtist).filter((t) => !kept.has(idOf(t)));
+        const count = Math.max(2, this.plan.length - keep.length);
+        const rest = wf ? buildSet([wf], tracks, count, this.dj.harmonic) : planSet(tracks, this.mood, this.dj.harmonic, { maxTracks: count, shuffle: 1 });
+        if (!rest.length) { this._say('No more songs to deal under that recipe.'); return false; }
+        rest[0].move = planTransition(keep[keep.length - 1].track, rest[0].track, this.dj.harmonic, [], { party: this.mood === 'party' });
+        this.plan = [...keep, ...rest];
+        this._renderPlan();
+        this._say(wf ? `Now mixing as ${wf.name}, from the next song on.` : 'Recipe off: the mood decides the moves from the next song on.');
+        return true;
+    }
+
     takeOver(why = 'button') {
         if (!this.running || this.human) return;
         this.human = true;
@@ -926,6 +951,7 @@ export class DjMixz {
                 this._say(`Recipe "${w.name}" saved and picked: ${w.steps.length} ${w.steps.length === 1 ? 'step' : 'steps'}. Build the set to hear it.`);
             }
         });
+        this._renderWf = renderWf;
         renderWf();
 
         const artistSel = panel.querySelector('#djmixz-artist');

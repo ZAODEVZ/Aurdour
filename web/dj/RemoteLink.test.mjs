@@ -179,5 +179,10 @@ check('the dead free relay is gone', !ICE_SERVERS.some(s => String(s.urls).inclu
     check(`chat: at most ${CHAT_MAX_WAITING} chat requests wait at once, so phones keep a turn`, host.requests.waiting().filter((x) => x.from === 'chat').length === CHAT_MAX_WAITING);
 }
 
+// WORKFLOW from the phone: one recipe id, cleaned; empty turns recipes off; the desk's DJ MixZ gets it
+check('a workflow command keeps a clean recipe id', cleanCommand({ a: 'workflow', id: 'smooth-ride' }).id === 'smooth-ride' && cleanCommand({ a: 'workflow', id: '<x>"y' }).id === 'xy');
+check('an empty workflow command turns recipes off', cleanCommand({ a: 'workflow' }).id === '');
+{ let got = null; const r = applyCommand({ decks: {}, djMixz: { useWorkflow: (id) => { got = id; } } }, { a: 'workflow', id: 'dancehall-ramp' }); check('the workflow command reaches DJ MixZ', r === 'workflow' && got === 'dancehall-ramp'); }
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
