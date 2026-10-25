@@ -77,6 +77,8 @@ export function cleanCommand(raw) {
             return { a: raw.a, on: !!raw.on };
         case 'mixz':
             return { a: 'mixz', on: !!raw.on };
+        case 'workflow':   // one recipe from the phone; empty turns recipes off
+            return { a: 'workflow', id: String(raw.id || '').replace(/[^a-z0-9-]/gi, '').slice(0, 60) };
         case 'songchainn': case 'takeover': case 'handback':
             return { a: raw.a };
         case 'request': {   // the request line: a listener calls in a song
@@ -131,6 +133,7 @@ export function snapshot(dj) {
             running: !!m.running, human: !!m.human, endless: !!m.endless, mood: m.mood || 'journey',
             index: m.index || 0, total: m.plan?.length || 0, minutes: m.minutes || 0, source: m._lastBuild?.sourceId || '',
             now: brief(now), next: brief(next),
+            recipe: (m.recipe || [])[0] || '', workflows: (m.workflows || []).slice(0, 24).map((w) => ({ id: w.id, name: String(w.name).slice(0, 40) })),
         },
         req: dj.requestLine?.board?.() || null,
     };
@@ -171,6 +174,7 @@ export function applyCommand(dj, cmd, host = null) {
         case 'next': dj.switchPad?.trigger(cmd.mode); return 'next';
         case 'load': { const track = host?.trackById(cmd.id); if (track) dj.library?.loadToDeck(track, cmd.d); return track ? 'load' : 'load-miss'; }
         case 'mixz': if (cmd.on) mixz?.start?.(); else mixz?.stop?.(); return 'mixz';
+        case 'workflow': mixz?.useWorkflow?.(cmd.id); return 'workflow';
         case 'songchainn': mixz?.mixSongChainn?.(); return 'songchainn';
         case 'takeover': mixz?.takeOver?.('button'); return 'takeover';
         case 'handback': mixz?.handBack?.(); return 'handback';

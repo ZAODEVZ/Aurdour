@@ -1036,3 +1036,21 @@ body:not(.pro-mode) .top-bar .switch-mini { display: flex; }
 .djmixz-wf-check { user-select: none; }
 .djmixz-wf-save { flex: none; height: 36px; padding: 0 14px; }
 .djmixz-wf-tag { font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: #ffd27a; border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 5px; padding: 1px 5px; margin-right: 4px; }
+
+/* AUTO MIX first in the top bar, ahead of the eight switches: the bar scrolls sideways and
+   Zaal could not find AUTO MIX live on stream (25 Oct). */
+.top-bar .simple-flow-group { order: -2; flex: 0 0 auto; }
+
+/* The eight switches in color (Zaal, 25 Oct: "it's just white"): each one its own color,
+   dark fill, colored text and edge, so they read at a glance on stream. */
+.top-bar .switch-mini-btn { --sw: var(--mz-muted); background: rgba(5, 6, 10, 0.85) !important; color: var(--sw) !important; border: 1px solid var(--sw) !important; }
+.top-bar .switch-mini-btn[data-mode="smooth"] { --sw: #00d4ff; }
+.top-bar .switch-mini-btn[data-mode="up"]     { --sw: #ff6b35; }
+.top-bar .switch-mini-btn[data-mode="down"]   { --sw: #4d9bff; }
+.top-bar .switch-mini-btn[data-mode="key"]    { --sw: #c77dff; }
+.top-bar .switch-mini-btn[data-mode="mood"]   { --sw: #ff5fa2; }
+.top-bar .switch-mini-btn[data-mode="genre"]  { --sw: #2bff9a; }
+.top-bar .switch-mini-btn[data-mode="double"] { --sw: #ffc533; }
+.top-bar .switch-mini-btn[data-mode="wild"]   { --sw: #ff4d6d; }
+.top-bar .switch-mini-btn:hover { background: var(--sw) !important; color: #05060a !important; }
+.top-bar .switch-mini-btn.hit { background: var(--sw) !important; color: #05060a !important; }

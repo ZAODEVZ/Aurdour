@@ -37,7 +37,7 @@ const filled = fillWorkflow(ramp, pool, from, h);
 ok('a 3-step workflow out of a playing song gives 3 songs, none repeated, none the one on air', filled.length === 3 && new Set(ids(filled)).size === 3 && !ids(filled).includes(6));
 ok('step 1 took a song about 6% faster than 122', filled[0].track.bpm >= 127 && filled[0].track.bpm <= 132);
 ok('each slot carries the step move, with the horn and tempo ride from the step', filled[0].move.type === 'echo-out' && filled[0].move.airhorn === 'classic' && filled[1].move.type === 'stem-swap' && filled[1].move.tempoRide === true && filled[2].move.type === 'blend');
-ok('move seconds follow the bars at the outgoing tempo', filled[0].move.seconds > 5 && filled[0].move.seconds < 10 && filled[2].move.seconds > 25);
+ok('move seconds follow the bars, capped at 10 s', filled[0].move.seconds > 5 && filled[0].move.seconds < 10 && filled[2].move.seconds === 10);
 ok('every slot says why in words', filled.every((x) => typeof x.why === 'string' && x.why.length > 8));
 
 const opened = fillWorkflow(ramp, pool, null, h);
