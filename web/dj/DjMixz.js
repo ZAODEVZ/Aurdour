@@ -673,6 +673,15 @@ export class DjMixz {
     }
 
     // why: 'button' (pressed TAKE OVER), 'touch' (grabbed a control), 'turn' (back to back)
+    // HOOK HOP on or off, from the top bar or the phone.
+    setHookHop(on) {
+        if (this.dj.flowMode) this.dj.flowMode.hookHop = !!on;
+        const b = typeof document !== 'undefined' && document.getElementById('hookhop-btn');
+        if (b) { b.classList.toggle('active', !!on); b.setAttribute('aria-pressed', String(!!on)); }
+        this._say(on ? 'HOOK HOP on: each song comes in on its hook and goes out when its first verse ends.' : 'HOOK HOP off: songs play through to their mix point.');
+        return !!on;
+    }
+
     // From the phone: one recipe, and the set keeps mixing that way until another is picked (Zaal,
     // 25 Oct: "buttons I can click so it stays in that format til I come back"). An empty id hands
     // the moves back to the mood. While a set runs, the song playing and the one armed stay put and
@@ -817,6 +826,17 @@ export class DjMixz {
         open.innerHTML = '<span class="djmixz-dot"></span>DJ MIXZ<span class="djmixz-pro">PRO</span><span class="djmixz-clock" id="djmixz-open-clock" hidden></span>';
         const anchor = document.getElementById('flow-toggle-btn');
         if (anchor) anchor.insertAdjacentElement('beforebegin', open); else bar.appendChild(open);
+
+        // HOOK HOP beside it: every song comes in on its hook and goes out when verse 1 ends,
+        // into the next song's hook (Zaal, 25 Oct). On and off with one tap, set or no set.
+        const hop = document.createElement('button');
+        hop.id = 'hookhop-btn';
+        hop.className = 'btn-toolbar hookhop-btn';
+        hop.title = 'HOOK HOP: each song starts on its hook and mixes out when its first verse ends';
+        hop.textContent = 'HOOK HOP';
+        hop.setAttribute('aria-pressed', 'false');
+        hop.addEventListener('click', () => this.setHookHop(!this.dj.flowMode?.hookHop));
+        open.insertAdjacentElement('afterend', hop);
 
         const panel = document.createElement('div');
         panel.id = 'djmixz-panel';

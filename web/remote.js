@@ -195,6 +195,8 @@ function draw() {
     $('st-skip').classList.toggle('hidden', !m.running);
     $('st-start').textContent = m.running ? 'RESTART WITH THESE SETTINGS' : 'START THE STREAM';
     if (!$('st-endless').dataset.touched) setEndless(!!m.endless, false);
+    $('st-hookhop').classList.toggle('on', !!m.hookhop);
+    $('st-hookhop').querySelector('b').textContent = m.hookhop ? 'HOOK HOP ON' : 'HOOK HOP OFF';
     // WORKFLOW chips: one recipe at a time, it sticks until another is tapped
     const wfKey = (m.workflows || []).map((w) => w.id).join(',') + '|' + (m.recipe || '');
     if ($('st-workflows').dataset.key !== wfKey) {
@@ -308,6 +310,7 @@ $('st-start').onclick = () => {
     $('mixz-say').textContent = 'Asking the desk to build the set';
 };
 $('st-deadair').onclick = () => send('deadair', { on: !state?.deadair });
+$('st-hookhop').onclick = () => send('hookhop', { on: !state?.mixz?.hookhop });
 $('st-stop').onclick = () => send('mixz', { on: false });
 $('st-skip').onclick = () => send('skip');
 $('mixz-take').onclick = () => send('takeover');

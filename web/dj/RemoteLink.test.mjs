@@ -184,5 +184,9 @@ check('a workflow command keeps a clean recipe id', cleanCommand({ a: 'workflow'
 check('an empty workflow command turns recipes off', cleanCommand({ a: 'workflow' }).id === '');
 { let got = null; const r = applyCommand({ decks: {}, djMixz: { useWorkflow: (id) => { got = id; } } }, { a: 'workflow', id: 'dancehall-ramp' }); check('the workflow command reaches DJ MixZ', r === 'workflow' && got === 'dancehall-ramp'); }
 
+// HOOK HOP from the phone: on and off reach DJ MixZ
+check('a hookhop command is on or off', cleanCommand({ a: 'hookhop', on: 1 }).on === true && cleanCommand({ a: 'hookhop' }).on === false);
+{ let got = null; const r = applyCommand({ decks: {}, djMixz: { setHookHop: (on) => { got = on; } } }, { a: 'hookhop', on: true }); check('the hookhop command reaches DJ MixZ', r === 'hookhop' && got === true); }
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

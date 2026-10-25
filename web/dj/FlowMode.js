@@ -17,6 +17,9 @@ export class FlowMode {
         this.transitionPointPercent = 10; // percentage of track length for transition trigger
         this.transitionDuration = 8; // crossfade length in seconds
         this.maxPlaySeconds = 0; // 0 = play songs to their mix point; DJ MixZ party sets 120
+        // HOOK HOP (Zaal, 25 Oct): each song comes in on its hook and goes out when its first verse
+        // ends, straight into the next song's hook: hook, verse 1, move, hook, verse 1, move.
+        this.hookHop = false;
         this.transitionType = 'blend'; // blend, echo-out, cut, filter-sweep
         this.playedInSession = []; // track IDs already played
         this.suggestions = [];
@@ -266,6 +269,10 @@ export class FlowMode {
         if (!deck || !deck.isLoaded) return fixed;
         const duration = deck.getDuration();
         if (!(duration > 0)) return fixed;
+        if (this.hookHop) {
+            const s = this._sections(deck);
+            if (s?.verseEnd > 0) return Math.max(1, duration - s.verseEnd + (this.transitionDuration || 0));
+        }
         const tail = this._outroStart(deck, duration);
         return tail > 0 ? Math.max(fixed, duration - tail) : fixed;
     }
@@ -275,6 +282,27 @@ export class FlowMode {
     _outroStart(deck, duration) {
         const stamp = `${deck.id}:${Math.round(duration * 10)}`;
         if (this._outro?.stamp === stamp) return this._outro.seconds;
+        const env = this._envelope(deck, duration);
+        this._outro = { stamp, seconds: env ? outroStart(env, duration) : 0 };
+        return this._outro.seconds;
+    }
+
+    // HOOK HOP: where this deck's song has its first hook and where verse 1 after it ends, in
+    // seconds (songSections). Read once per loaded song.
+    _sections(deck) {
+        const duration = deck?.getDuration?.() || 0;
+        if (!(duration > 0)) return null;
+        const stamp = `${deck.id}:${Math.round(duration * 10)}`;
+        this._sec = this._sec || {};
+        if (this._sec[deck.id]?.stamp === stamp) return this._sec[deck.id].s;
+        const env = this._envelope(deck, duration);
+        const s = env ? songSections(env, deck.getBPM?.() || 0, duration) : null;
+        this._sec[deck.id] = { stamp, s };
+        return s;
+    }
+
+    // The song's loudness, one value a second, from the decoded audio (or the drawn peaks).
+    _envelope(deck, duration) {
         let env = null;
         try {
             const ws = deck.wavesurfer;
@@ -288,8 +316,7 @@ export class FlowMode {
                 if (peaks?.[0]?.length) env = Float32Array.from(peaks[0], (v) => Math.abs(v));
             }
         } catch (e) { env = null; }
-        this._outro = { stamp, seconds: env ? outroStart(env, duration) : 0 };
-        return this._outro.seconds;
+        return env;
     }
 
     _fixedTriggerTime() {
@@ -452,6 +479,10 @@ export class FlowMode {
                 return;
             }
             this._loadFails = 0;
+            if (this.hookHop) {
+                const s = this._sections(incoming);
+                try { if (s?.hook > 0 && len > 0) incoming.wavesurfer?.seekTo?.(s.hook / len); } catch (e) { /* plays from the top */ }
+            }
             this._beginMix(idleDeck, direction, nextTrack);
         };
         checkReady();
@@ -1052,4 +1083,41 @@ export function outroStart(env, duration) {
     if (duration - tail < 3) return 0; // loud to the end: nothing to cut
     if (tail < duration * 0.66) return 0; // a tail that long is not an outro
     return tail;
+}
+
+// HOOK HOP: a song's first hook and the end of the verse after it, from its loudness (one value a
+// second) and tempo. The song is cut into 8-bar phrases from where the intro ends; a hook is a
+// phrase close to the loudest one. Verse 1 runs from the end of the first hook to the next hook.
+// Returns { hook, verseEnd } in seconds, or null when the song is too short or flat to tell.
+export function songSections(env, bpm, duration) {
+    const n = env?.length || 0;
+    if (n < 40) return null;
+    const P = Math.max(8, Math.min(24, 1920 / (bpm > 60 && bpm < 200 ? bpm : 120))); // 8 bars
+    const sorted = Array.from(env).sort((a, b) => a - b);
+    const loud = sorted[Math.floor(n * 0.6)];
+    if (!(loud > 0)) return null;
+    let start = 0;
+    while (start < n && env[start] < loud * 0.5) start++;
+    const phrases = [];
+    for (let t = start; t + P / 2 < n; t += P) {
+        let a = 0, c = 0;
+        for (let i = Math.floor(t); i < Math.min(n, Math.floor(t + P)); i++) { a += env[i]; c++; }
+        phrases.push({ t, e: c ? a / c : 0 });
+    }
+    if (phrases.length < 3) return null;
+    const es = phrases.map((p) => p.e).sort((a, b) => a - b);
+    const top = es[es.length - 1], mid = es[Math.floor(es.length / 2)];
+    if (!(top > mid * 1.08)) return null; // flat all the way: no hook to find
+    const isHook = (p) => p.e >= top - (top - mid) * 0.35; // close to the loudest phrase
+    const h = phrases.findIndex(isHook);
+    if (h < 0) return null;
+    let i = h;
+    while (i < phrases.length && isHook(phrases[i])) i++;  // the hook, one or more phrases
+    let j = i;
+    while (j < phrases.length && !isHook(phrases[j])) j++; // verse 1, until the next hook
+    const hook = Math.round(phrases[h].t * 10) / 10;
+    let verseEnd = j < phrases.length && j > i ? phrases[j].t : phrases[Math.min(i, phrases.length - 1)].t + 2 * P;
+    verseEnd = Math.min(verseEnd, hook + 6 * P, duration - 5); // never longer than six phrases
+    if (verseEnd - hook < P) return null;
+    return { hook, verseEnd: Math.round(verseEnd * 10) / 10 };
 }

@@ -11,6 +11,8 @@ export function swUpdatePrompt(doc, { playing = () => false, reload } = {}) {
     const banner = doc.createElement('div');
     banner.id = BANNER_ID;
     banner.className = 'sw-update-banner';
+    // While a deck plays (a set, a stream) it sits small in the corner, off the library and decks.
+    if (playing()) banner.classList.add('compact');
     const text = doc.createElement('span');
     text.textContent = playing() ? 'New version ready - reload after the set' : 'New version ready';
     const go = doc.createElement('button');

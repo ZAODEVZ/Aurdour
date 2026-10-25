@@ -1054,3 +1054,16 @@ body:not(.pro-mode) .top-bar .switch-mini { display: flex; }
 .top-bar .switch-mini-btn[data-mode="wild"]   { --sw: #ff4d6d; }
 .top-bar .switch-mini-btn:hover { background: var(--sw) !important; color: #05060a !important; }
 .top-bar .switch-mini-btn.hit { background: var(--sw) !important; color: #05060a !important; }
+
+/* Top bar clean-up (research 1939, Zaal 25 Oct): AUTO MIX is the biggest thing in the bar, the
+   switches sit as their own cluster, and gaps separate the groups instead of one long row. */
+body:not(.pro-mode) .top-bar #flow-toggle-btn { padding: 10px 26px; font-size: 0.86rem; letter-spacing: 0.1em; border-width: 2px; box-shadow: 0 0 18px rgba(0, 212, 255, 0.35); }
+.top-bar .simple-flow-group { margin-right: 10px; }
+.top-bar .switch-mini { padding: 0 10px; margin-right: 10px; border-left: 1px solid var(--mz-line-hi); border-right: 1px solid var(--mz-line-hi); }
+/* "New version ready" while music plays: a small pill in the corner, not over the library */
+.sw-update-banner.compact { left: auto !important; right: 12px !important; bottom: 12px !important; transform: none !important; padding: 6px 10px !important; font-size: 0.68rem !important; opacity: 0.85; }
+.sw-update-banner.compact button { padding: 4px 8px !important; font-size: 0.62rem !important; }
+
+/* HOOK HOP beside DJ MIXZ: magenta, lit when on */
+.top-bar .hookhop-btn { color: #ff5fa2; border: 1.5px solid rgba(255, 95, 162, 0.55); background: rgba(5, 6, 10, 0.85); font-weight: 800; letter-spacing: 0.08em; margin-left: 6px; }
+.top-bar .hookhop-btn.active { background: #ff5fa2; color: #05060a; box-shadow: 0 0 14px rgba(255, 95, 162, 0.5); }
