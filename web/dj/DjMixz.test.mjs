@@ -36,7 +36,7 @@ ok('set length: maxTracks trims the set', planSet(pool, 'peak', h, { maxTracks: 
 ok('first track has no move in; every other track does', warm[0].move === null && warm.slice(1).every((p) => p.move && p.move.seconds > 0 && p.move.why));
 
 const blend = planTransition(T(20, 124, 'A minor', 'House'), T(21, 125, 'E minor', 'House'), h);
-ok('keys fit and tempo close: a long blend, in bars', blend.type === 'blend' && blend.bars >= 16 && Math.abs(blend.seconds - (blend.bars * 4 * 60) / 124) < 0.2);
+ok('keys fit and tempo close: a long blend, in bars, 5 to 10 s', blend.type === 'blend' && blend.bars >= 16 && blend.seconds >= 5 && blend.seconds <= 10);
 const clashHi = planTransition(T(22, 128, 'A minor', 'Techno'), T(23, 128, 'F# major', 'Techno'), h);
 const clashLo = planTransition(T(24, 96, 'A minor', 'Lo-Fi'), T(25, 96, 'F# major', 'Lo-Fi'), h);
 ok('keys clash: a cut when the energy is high, an echo out when it is low', clashHi.type === 'cut' && clashLo.type === 'echo-out');

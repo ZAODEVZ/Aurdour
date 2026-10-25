@@ -104,7 +104,7 @@ export function planTransition(a, b, harmonic, prevTypes = [], opts = {}) {
     }
 
     const bpm = num(a.bpm) || 120;
-    const seconds = Math.max(type === 'cut' ? 1.5 : 6, Math.min(40, (bars * 4 * 60) / bpm));
+    const seconds = Math.max(type === 'cut' ? 1.5 : 5, Math.min(10, (bars * 4 * 60) / bpm)); // 5 to 10 s (Zaal, 25 Oct: 20 s was too long)
     return { type, bars, seconds: Math.round(seconds * 10) / 10, why };
 }
 
@@ -143,7 +143,7 @@ export function planPartyTransition(a, b, harmonic, prevTypes = []) {
 
     const airhorn = type === 'echo-out' || type === 'cut' || prevTypes.length % 2 === 0 ? (prevTypes.length % 4 === 1 ? 'double' : 'classic') : null;
     const bpm = num(a.bpm) || 120;
-    const seconds = Math.max(type === 'cut' ? 1.5 : 5, Math.min(20, (bars * 4 * 60) / bpm));
+    const seconds = Math.max(type === 'cut' ? 1.5 : 5, Math.min(10, (bars * 4 * 60) / bpm)); // 5 to 10 s
     return { type, bars, seconds: Math.round(seconds * 10) / 10, why: airhorn ? why + ', air horn' : why, tempoRide, airhorn };
 }
 
