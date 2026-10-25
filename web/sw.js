@@ -76,6 +76,7 @@ const APP_SHELL = [
     '/dj/BeatGridOverlay.js',
     '/dj/Archive.js',
     '/dj/ArtistTab.js',
+    '/dj/StreamView.js',
     '/dj/Setlist.js',
     '/dj/HarmonicMixer.js',
     '/dj/StemSeparator.js',

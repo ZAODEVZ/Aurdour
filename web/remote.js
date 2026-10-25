@@ -12,7 +12,8 @@ const $ = id => document.getElementById(id);
 // one is kept on this phone and used again.
 const fromLink = location.hash.slice(1);
 if (validToken(fromLink)) localStorage.setItem('mixz-remote-link', fromLink);
-const token = validToken(fromLink) ? fromLink : (localStorage.getItem('mixz-remote-link') || '');
+// /admin in the same browser as the desk (or /stream) needs no link: it uses the desk's own key.
+const token = validToken(fromLink) ? fromLink : (localStorage.getItem('mixz-remote-link') || (validToken(localStorage.getItem('mixz-remote-token')) ? localStorage.getItem('mixz-remote-token') : ''));
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 // This phone's own id, so the desk only has to allow it once.
