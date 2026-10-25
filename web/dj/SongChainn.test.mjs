@@ -1,0 +1,19 @@
+// node dj/SongChainn.test.mjs — blocked and verified artists
+import { isBlocked, isVerified, allowed } from './SongChainn.js';
+let pass = 0, fail = 0;
+const t = (name, got, want) => { if (got === want) pass++; else { fail++; console.log('FAIL', name, got, 'want', want); } };
+t('blocked', isBlocked('Ludah wolf'), true);
+t('blocked any case', isBlocked('LUDAH WOLF'), true);
+t('blocked on a feature', isBlocked('IMan Afrikah ft Ludah wolf'), true);
+t('roster', isVerified('IMan Afrikah'), true);
+t('roster collab', isVerified('T3RNNN & 7ROO7H'), true);
+t('roster ft', isVerified('IMAN AFRIKAH ft SANTANA'), true);
+t('roster x', isVerified('SANTANA x RVSSIAN'), true);
+t('not on roster', isVerified('Geezy2126'), false);
+t('collab with an outsider', isVerified('NDA x Geezy2126'), false);
+t('online: roster only', allowed('Geezy2126', false), false);
+t('online: roster plays', allowed('N3M3SIS', false), true);
+t('local: others play', allowed('Geezy2126', true), true);
+t('local: blocked never', allowed('Ludah wolf', true), false);
+console.log(fail ? `${pass} passed, ${fail} failed` : `${pass} passed, 0 failed`);
+if (fail) process.exit(1);
