@@ -1036,3 +1036,7 @@ body:not(.pro-mode) .top-bar .switch-mini { display: flex; }
 .djmixz-wf-check { user-select: none; }
 .djmixz-wf-save { flex: none; height: 36px; padding: 0 14px; }
 .djmixz-wf-tag { font-style: normal; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: #ffd27a; border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 5px; padding: 1px 5px; margin-right: 4px; }
+
+/* AUTO MIX first in the top bar, ahead of the eight switches: the bar scrolls sideways and
+   Zaal could not find AUTO MIX live on stream (25 Oct). */
+.top-bar .simple-flow-group { order: -2; flex: 0 0 auto; }
