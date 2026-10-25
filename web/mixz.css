@@ -1013,3 +1013,7 @@ body:not(.pro-mode) .top-bar .switch-mini { display: flex; }
 .switch-mini-btn.hit { color: #05060a; background: var(--mz-a); border-color: var(--mz-a); }
 .switch-mini-btn.miss { border-color: #ff5a5a; color: #ff5a5a; }
 @media (max-width: 900px) { body:not(.pro-mode) .top-bar .switch-mini { display: none; } }
+
+/* AUTO MIX first in the top bar, ahead of the eight switches: the bar scrolls sideways and
+   Zaal could not find AUTO MIX live on stream (25 Oct). */
+.top-bar .simple-flow-group { order: -2; flex: 0 0 auto; }
