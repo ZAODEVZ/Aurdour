@@ -90,7 +90,7 @@ export function stepCost(step, from, cand, harmonic) {
 export function moveFor(step, from, cand, why = '') {
     const bpm = num(from?.bpm) || 120;
     const cap = step.move === 'cut' ? 1.5 : step.move === 'stem-swap' || step.move === 'echo-out' ? 5 : 6;
-    const seconds = Math.max(cap, Math.min(40, (step.bars * 4 * 60) / bpm));
+    const seconds = Math.max(cap, Math.min(10, (step.bars * 4 * 60) / bpm)); // 5 to 10 s mixes (Zaal, 25 Oct)
     return { type: step.move, bars: step.bars, seconds: Math.round(seconds * 10) / 10, why: why || MOVES.find((m) => m.id === step.move)?.hint || '', tempoRide: step.tempoRide, airhorn: step.airhorn, fxIn: step.fxIn, fxOut: step.fxOut };
 }
 

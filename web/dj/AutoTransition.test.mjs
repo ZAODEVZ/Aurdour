@@ -24,7 +24,8 @@ for (const [type, step] of [['blend', '_animateBlend'], ['filter-sweep', '_anima
         at[step](1); const end = g();
         check(`${direction}: starts with ${from} at full and ${to} silent`, near(start[from], 1) && near(start[to], 0));
         check(`${direction}: ends with ${to} at full and ${from} silent`, near(end[to], 1) && near(end[from], 0));
-        if (type !== 'echo-out') check(`${direction}: equal power through the middle`, near(mid.A * mid.A + mid.B * mid.B, 1));
+        // the incoming song comes in quiet (sin squared): under half way up at the middle, never louder than the outgoing
+        if (type !== 'echo-out') check(`${direction}: the incoming song stays quiet through the middle`, mid[to] <= 0.5 + 1e-9 && mid[to] <= mid[from] + 1e-9);
     }
 }
 

@@ -236,9 +236,9 @@ export class AutoTransition {
 
         if (this.direction === 'AtoB') {
             fadeOut = Math.cos(angle); // A fades from 1 to 0
-            fadeIn = Math.sin(angle);  // B fades from 0 to 1
+            fadeIn = Math.sin(angle) ** 2;  // B fades from 0 to 1, quiet at first (Zaal: songs came in too loud)
         } else {
-            fadeIn = Math.sin(angle);  // A fades from 0 to 1
+            fadeIn = Math.sin(angle) ** 2;  // A fades from 0 to 1, quiet at first
             fadeOut = Math.cos(angle); // B fades from 1 to 0
         }
 
@@ -288,7 +288,7 @@ export class AutoTransition {
         let sourceGain, targetGain;
 
         // Equal-power for the target fade-in
-        targetGain = Math.sin(angle);
+        targetGain = Math.sin(angle) ** 2;
 
         // Source: faster fade-out (done by 70%), echo tail carries the rest
         if (progress < 0.7) {
@@ -386,7 +386,7 @@ export class AutoTransition {
         // Also do an equal-power crossfade underneath the filter sweep
         const angle = progress * Math.PI / 2;
         const fadeOut = Math.cos(angle);
-        const fadeIn = Math.sin(angle);
+        const fadeIn = Math.sin(angle) ** 2;
 
         // Update crossfader UI
         const position = this.startPos + (this.endPos - this.startPos) * progress;
@@ -421,7 +421,7 @@ export class AutoTransition {
         this.router.setEQ(targetDeckId, 'mid', lerp(-26, before[targetDeckId]?.mid ?? 0, p2));
 
         const sourceGain = progress < 0.7 ? 1 : Math.cos(((progress - 0.7) / 0.3) * Math.PI / 2);
-        const targetGain = Math.sin(Math.min(1, progress / 0.35) * Math.PI / 2);
+        const targetGain = Math.sin(Math.min(1, progress / 0.6) * Math.PI / 2) ** 2;
         const position = this.startPos + (this.endPos - this.startPos) * progress;
         const cf = document.getElementById('crossfader');
         if (cf) cf.value = Math.round(position * 100);
