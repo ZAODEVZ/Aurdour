@@ -102,6 +102,7 @@ export class SoundBoard {
         open.id = 'fxboard-open';
         open.textContent = 'FX BOARD';
         open.title = this.pads.length ? `${this.pads.length} samples: horns, drops and FX, one tap each` : 'No samples yet: drop packs in with MixZ-Local/cut-fx.mjs';
+        if (!this.pads.length) open.style.display = 'none'; // nothing to tap on the shared app (sounds off there): no button
         const anchor = document.getElementById('library-open');
         if (anchor) anchor.insertAdjacentElement('beforebegin', open);
         else document.querySelector('.toolbar-group')?.appendChild(open);
