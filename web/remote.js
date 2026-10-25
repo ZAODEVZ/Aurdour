@@ -195,6 +195,18 @@ function draw() {
     $('st-skip').classList.toggle('hidden', !m.running);
     $('st-start').textContent = m.running ? 'RESTART WITH THESE SETTINGS' : 'START THE STREAM';
     if (!$('st-endless').dataset.touched) setEndless(!!m.endless, false);
+    // WORKFLOW chips: one recipe at a time, it sticks until another is tapped
+    const wfKey = (m.workflows || []).map((w) => w.id).join(',') + '|' + (m.recipe || '');
+    if ($('st-workflows').dataset.key !== wfKey) {
+        $('st-workflows').dataset.key = wfKey;
+        $('st-workflows').replaceChildren(...(m.workflows || []).map((w) => {
+            const b = document.createElement('button');
+            b.textContent = w.name.toUpperCase();
+            b.classList.toggle('on', w.id === m.recipe);
+            b.onclick = () => send('workflow', { id: w.id === m.recipe ? '' : w.id });
+            return b;
+        }));
+    }
     $('st-deadair').classList.toggle('on', !!state.deadair);
     $('st-deadair').querySelector('b').textContent = state.deadair ? 'ON' : 'OFF';
     $('mixz-say').textContent = !m.running ? 'DJ MixZ is off. Pick the music and a mood, then START: it builds the set and plays it on the desk while you are away.'
