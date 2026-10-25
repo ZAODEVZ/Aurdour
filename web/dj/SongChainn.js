@@ -42,6 +42,7 @@ export class SongChainn {
         this._at = Date.now();
         await this._useLocalCopies(this._all);
         await this._useAnalysis(this._all);
+        this._all = this._all.filter((t) => allowed(t.artist));
         return this._all;
     }
 
