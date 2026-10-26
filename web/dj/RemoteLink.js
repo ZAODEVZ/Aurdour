@@ -384,7 +384,9 @@ export class RemoteHost {
         if (!device) return;
         let phone = this.phones.get(device);
         if (!phone) {
-            phone = { device, name: 'Phone', allowed: this._allowed().includes(device), seen: 0, askedAt: 0, call: null };
+            // /admin opened in this same browser is the DJ's own: no need to allow it
+            const own = (() => { try { return localStorage.getItem('mixz-remote-device') === device; } catch (e) { return false; } })();
+            phone = { device, name: own ? 'Admin' : 'Phone', allowed: own || this._allowed().includes(device), seen: 0, askedAt: 0, call: null };
             this.phones.set(device, phone);
         }
         phone.seen = Date.now();

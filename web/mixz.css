@@ -1072,3 +1072,36 @@ body:not(.pro-mode) .top-bar #flow-toggle-btn { padding: 10px 26px; font-size: 0
 .artist-wait-card { margin: 28px auto; max-width: 520px; padding: 22px 24px; border-radius: 14px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.07); text-align: center; }
 .artist-wait-title { font-family: var(--font-display); font-weight: 900; font-size: 1.15rem; letter-spacing: 0.06em; color: #ffd23a; margin-bottom: 8px; text-transform: uppercase; }
 .artist-wait-text { color: var(--mz-text, #f1f3f8); opacity: 0.85; line-height: 1.45; }
+
+/* /stream: the desk as a display (StreamView.js). Covers every control; the audio keeps playing. */
+#stream-view { display: none; }
+body.stream-view #stream-view { display: block; position: fixed; inset: 0; z-index: 99990; background: #05060a; color: #fff; overflow: hidden; font-family: var(--font-display, 'Inter', sans-serif); }
+body.stream-view { overflow: hidden; }
+#stream-view .sv-bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(40px) brightness(0.35) saturate(1.3); }
+#stream-view .sv-top { position: absolute; top: 28px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; }
+#stream-view .sv-logo { font-size: 1.6rem; font-weight: 900; letter-spacing: 0.12em; }
+#stream-view .sv-logo b { color: var(--mz-a, #00d4ff); }
+#stream-view .sv-live { font-weight: 900; letter-spacing: 0.15em; padding: 6px 14px; border-radius: 6px; background: #333; opacity: 0.5; }
+#stream-view .sv-live.on { background: #e8173a; opacity: 1; }
+#stream-view .sv-main { position: absolute; left: 6vw; right: 6vw; top: 50%; transform: translateY(-58%); display: flex; gap: 4vw; align-items: center; }
+#stream-view .sv-art { flex: 0 0 auto; width: min(36vh, 30vw); height: min(36vh, 30vw); border-radius: 18px; background: #0f1118 center / cover no-repeat; box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 2px rgba(0,212,255,0.35); }
+#stream-view.deck-b .sv-art { box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,107,53,0.45); }
+#stream-view .sv-text { min-width: 0; flex: 1; }
+#stream-view .sv-label { font-weight: 800; letter-spacing: 0.2em; color: var(--mz-a, #00d4ff); font-size: 1rem; }
+#stream-view.deck-b .sv-label, #stream-view.deck-b .sv-logo b { color: var(--mz-b, #ff6b35); }
+#stream-view .sv-title { font-size: clamp(2rem, 6vw, 5.2rem); font-weight: 900; line-height: 1.02; margin: 10px 0 8px; overflow-wrap: anywhere; }
+#stream-view .sv-artist { font-size: clamp(1.1rem, 2.6vw, 2.2rem); font-weight: 700; opacity: 0.85; }
+#stream-view .sv-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.12); margin: 26px 0 8px; overflow: hidden; }
+#stream-view .sv-fill { height: 100%; width: 0; background: var(--mz-a, #00d4ff); transition: width 0.5s linear; }
+#stream-view.deck-b .sv-fill { background: var(--mz-b, #ff6b35); }
+#stream-view .sv-time { font-variant-numeric: tabular-nums; opacity: 0.7; font-weight: 700; }
+#stream-view .sv-next { margin-top: 18px; font-size: clamp(0.9rem, 1.6vw, 1.3rem); opacity: 0.75; }
+#stream-view .sv-viz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 22vh; }
+/* press A on /stream: the admin link and code show over the display, nothing else */
+body.stream-view.stream-admin #remote-panel { position: fixed; z-index: 99999; top: 20px; right: 20px; }
+
+/* MORE menu: the extras off the top bar (StreamView.js moreMenu) */
+.top-bar .more-menu { position: relative; }
+.more-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 9000; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 170px; background: var(--mz-panel, #0f1118); border: 1px solid var(--mz-line-hi, rgba(255,255,255,.14)); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.more-panel.hidden { display: none; }
+.more-panel > * { width: 100%; justify-content: flex-start; text-align: left; }
