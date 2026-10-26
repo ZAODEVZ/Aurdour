@@ -50,7 +50,21 @@ export class ArtistTab {
         lib.viewingPlaylist = null;
         const list = tracksFor(lib.tracks, tab);
         lib.filteredTracks = list;
-        if (!list.length) { lib._renderError?.(tab.waiting); return; }
+        if (!list.length) { lib._renderError?.(tab.waiting); this._card(tab); return; }
         lib._renderPaginatedTracks(list, 'local');
+    }
+
+    // An empty artist page looked broken (Zaal, 25 Oct call: "when I press Jango it still doesn't
+    // do anything"): show a clear card in the list instead of one small grey line.
+    _card(tab) {
+        const td = this.dj.library?.tableBody?.querySelector('td');
+        if (!td) return;
+        td.textContent = '';
+        const card = document.createElement('div');
+        card.className = 'artist-wait-card';
+        const h = document.createElement('div'); h.className = 'artist-wait-title'; h.textContent = `${tab.label}'s songs are coming`;
+        const p = document.createElement('div'); p.className = 'artist-wait-text'; p.textContent = tab.waiting;
+        card.append(h, p);
+        td.appendChild(card);
     }
 }
