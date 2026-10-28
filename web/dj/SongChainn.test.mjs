@@ -12,6 +12,8 @@ t('roster x', isVerified('SANTANA x RVSSIAN'), true);
 t('not on roster', isVerified('Geezy2126'), false);
 t('collab with an outsider', isVerified('NDA x Geezy2126'), false);
 t('online: roster only', allowed('Geezy2126', false), false);
+t('online: NDA off (YouTube claims)', allowed('NDA', false), false);
+t('local: NDA still plays', allowed('NDA', true), true);
 t('online: roster plays', allowed('N3M3SIS', false), true);
 t('local: others play', allowed('Geezy2126', true), true);
 t('local: blocked never', allowed('Ludah wolf', true), false);

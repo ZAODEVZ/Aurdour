@@ -55,8 +55,17 @@ export const OFF_AIR = [
 
 // Whole artists kept out of the crate, squashed. Matched in the artist line and the title, so a
 // song posted from another account or a feature stays out too. Geezy2126: IMan's word, 21 Oct 2026.
-export const OFF_AIR_ARTISTS = ['geezy2126'];
-export const artistOffAir = (t) => OFF_AIR_ARTISTS.some((a) => squash(t.artist).includes(a) || squash(t.title).includes(a));
+// Camstar and Krytic: "Flip" (on the WaveWarZ Africa Audius page) is distributed by TuneCore, and
+// YouTube claimed it on Zaal's ZAO MixZ stream, 28 Oct 2026.
+export const OFF_AIR_ARTISTS = ['geezy2126', 'camstar', 'krytic'];
+// Names too short to match inside other words: matched as a whole name only, in the artist line or
+// before " - " in the title. NDA: his music goes out through Revelator (Merlin), and YouTube claims
+// all of it (B.T.T.B and BOSSED UP, 28 Oct 2026), not only Vol 1 and 2.
+export const OFF_AIR_NAMES = ['nda'];
+const namesIn = (s) => String(s || '').split(/\s+(?:&|x|ft\.?|feat\.?|and)\s+|,/i).map(squash).filter(Boolean);
+const titleArtist = (t) => { const p = String(t.title || '').split(' - '); return p.length > 1 ? p[0] : ''; };
+export const artistOffAir = (t) => OFF_AIR_ARTISTS.some((a) => squash(t.artist).includes(a) || squash(t.title).includes(a))
+    || [...namesIn(t.artist), ...namesIn(titleArtist(t))].some((n) => OFF_AIR_NAMES.includes(n));
 
 // Returns the track with the sheet's tempo and key when its title is on the sheet.
 export function applySheet(track) {

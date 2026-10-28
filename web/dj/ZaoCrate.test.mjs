@@ -22,6 +22,13 @@ check(!isOff({ artist: 'IMan Afrikah', title: 'Money' }), 'another artist with t
 check(artistOffAir({ artist: 'Geezy2126', title: 'GEEZY2126 & THEE LEASONS Go Getter' }), 'Geezy2126 is off');
 check(artistOffAir({ artist: 'WaveWarZ Africa', title: 'Geezy2126 - Anything' }), 'Geezy2126 posted from another account is off');
 check(!artistOffAir({ artist: 'IMan Afrikah', title: 'Lusaka Nights' }), 'other artists stay');
+check(artistOffAir({ artist: 'NDA', title: 'B.T.T.B' }), 'NDA B.T.T.B (YouTube claim 28 Oct) is off');
+check(artistOffAir({ artist: 'NDA', title: 'BOSSED UP' }), 'NDA Bossed Up (YouTube claim 28 Oct) is off');
+check(artistOffAir({ artist: 'WaveWarZ Africa', title: 'NDA - PREACH' }), 'NDA posted by WaveWarZ Africa is off');
+check(artistOffAir({ artist: 'NDA x Geezy2126', title: 'Anything' }), 'an NDA collab is off');
+check(artistOffAir({ artist: 'WaveWarZ Africa', title: 'Camstar & Krytic Ft Dagger - Flip ' }), 'Flip (TuneCore claim 28 Oct) is off');
+check(!artistOffAir({ artist: 'Santana', title: 'SUNDAY' }), '"nda" inside another word stays');
+check(!artistOffAir({ artist: 'Amanda', title: 'Rwanda - Home' }), 'Amanda and Rwanda stay');
 
 if (fail) { console.log(`${fail} failed`); process.exit(1); }
 console.log('all passed');
