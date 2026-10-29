@@ -48,6 +48,9 @@ body { background: var(--mz-bg); color: var(--mz-text); }
     border-bottom: 1px solid var(--mz-line);
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
+/* When the buttons do not fit on one line (a laptop in PRO), they wrap onto a second line
+   instead of running off the right edge, where SETTINGS and MASTER could not be reached. */
+.top-bar { flex-wrap: wrap; height: auto; min-height: 58px; row-gap: 6px; padding-top: 7px; padding-bottom: 7px; overflow: visible; }
 .logo {
     font-family: var(--font-display);
     font-weight: 800;
@@ -527,7 +530,7 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 /* Laptop screens (1366 x 768): keep the library on the first screen */
 @media (max-height: 860px) {
     :root { --mz-jog: 176px; }
-    .top-bar { height: 50px; }
+    .top-bar { height: auto; min-height: 50px; }
     .deck { padding: 12px 16px 14px; row-gap: 8px; }
     .deck-label { width: 38px; height: 38px; font-size: 1.1rem; }
     .waveform-main { min-height: 96px; }
@@ -1067,6 +1070,9 @@ body:not(.pro-mode) .top-bar #flow-toggle-btn { padding: 10px 26px; font-size: 0
 /* HOOK HOP beside DJ MIXZ: magenta, lit when on */
 .top-bar .hookhop-btn { color: #ff5fa2; border: 1.5px solid rgba(255, 95, 162, 0.55); background: rgba(5, 6, 10, 0.85); font-weight: 800; letter-spacing: 0.08em; margin-left: 6px; }
 .top-bar .hookhop-btn.active { background: #ff5fa2; color: #05060a; box-shadow: 0 0 14px rgba(255, 95, 162, 0.5); }
+.top-bar .wavewarz-btn { color: #39d0ff; border: 1.5px solid rgba(57, 208, 255, 0.55); background: rgba(5, 6, 10, 0.85); font-weight: 800; letter-spacing: 0.08em; margin-left: 6px; }
+.top-bar .wavewarz-btn.active { background: #39d0ff; color: #05060a; box-shadow: 0 0 14px rgba(57, 208, 255, 0.5); }
+.top-bar .stream-page-btn { color: #f5f5f5; border: 1.5px solid rgba(245, 245, 245, 0.4); background: rgba(5, 6, 10, 0.85); font-weight: 800; letter-spacing: 0.08em; margin-left: 6px; text-decoration: none; display: inline-flex; align-items: center; }
 
 /* An artist page with no songs yet: a clear card, not a small grey line (ArtistTab.js) */
 .artist-wait-card { margin: 28px auto; max-width: 520px; padding: 22px 24px; border-radius: 14px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.07); text-align: center; }

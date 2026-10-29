@@ -8,6 +8,16 @@ export const CRATE_HANDLES = ['IManAfrikah', 'WaveWarzAfrica'];
 // there turns up here. To limit it, list names instead: ['IMan Afrikah', 'N3M3SIS'].
 export const SONGCHAINN_ARTISTS = '*';
 
+// The WAVEWARZ button plays this Audius playlist instead of the crate (Zaal, 29 Oct 2026).
+export const WAVEWARZ_PLAYLIST = 'https://audius.co/CandyToyBoxYT1/playlist/wavewarz-powerhouse';
+
+// Artists of whom only the songs named here play (Zaal, 29 Oct 2026: no N3M3SIS diss songs, ever;
+// IMan: keep her dancehall). Artist and song names squashed, as songKey makes them.
+export const ONLY_SONGS = {
+    n3m3sis: [],
+};
+export const notOnlySong = (k) => { const [a, t] = k.split('|'); return a in ONLY_SONGS && !ONLY_SONGS[a].includes(t); };
+
 // How often the crate looks for new uploads while the app is open.
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -66,6 +76,9 @@ const namesIn = (s) => String(s || '').split(/\s+(?:&|x|ft\.?|feat\.?|and)\s+|,/
 const titleArtist = (t) => { const p = String(t.title || '').split(' - '); return p.length > 1 ? p[0] : ''; };
 export const artistOffAir = (t) => OFF_AIR_ARTISTS.some((a) => squash(t.artist).includes(a) || squash(t.title).includes(a))
     || [...namesIn(t.artist), ...namesIn(titleArtist(t))].some((n) => OFF_AIR_NAMES.includes(n));
+
+// True when a song must not play anywhere in MixZ: the crate, the WaveWarZ playlist or the mix page.
+export const offAirTrack = (t) => { const k = songKey(t); return OFF_AIR.includes(k) || notOnlySong(k) || artistOffAir(t); };
 
 // Returns the track with the sheet's tempo and key when its title is on the sheet.
 export function applySheet(track) {
@@ -147,7 +160,7 @@ export class ZaoCrate {
         const songs = new Set();
         const next = all.filter((t) => {
             const k = songKey(t);
-            if (seen.has(t.id) || songs.has(k) || offAir.has(k) || artistOffAir(t)) return false;
+            if (seen.has(t.id) || songs.has(k) || offAir.has(k) || notOnlySong(k) || artistOffAir(t)) return false;
             seen.add(t.id); songs.add(k);
             return true;
         }).map(applySheet);
@@ -163,6 +176,15 @@ export class ZaoCrate {
         this.dj.trackAnalyzer?.refresh?.(); // tempo and key back onto the fresh copies
         const count = document.getElementById('zao-crate-count');
         if (count) count.textContent = this.tracks.length ? ` ${this.tracks.length}` : '';
+        // The WaveWarZ playlist, under the same off-air rules.
+        try {
+            if (audius.getPlaylistTracks) {
+                const ww = (await audius.getPlaylistTracks(WAVEWARZ_PLAYLIST)).filter((t) => { const k = songKey(t); return !offAir.has(k) && !notOnlySong(k) && !artistOffAir(t); }).map(applySheet);
+                if (ww.length) lib.wavewarzTracks = ww;
+            }
+        } catch (e) {
+            console.warn('[ZaoCrate] could not load the WaveWarZ playlist:', e.message);
+        }
         const tab = document.getElementById('zao-crate-tab');
         if (tab) { tab.classList.toggle('has-new', added.length > 0); if (added.length) tab.title = `${added.length} new: ${added.slice(0, 3).map((t) => t.title).join(', ')}`; }
     }

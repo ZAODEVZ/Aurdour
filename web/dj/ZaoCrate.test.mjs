@@ -1,5 +1,5 @@
 // Offline check of the off-air list.   node web/dj/ZaoCrate.test.mjs
-import { OFF_AIR, songKey, artistOffAir } from './ZaoCrate.js';
+import { OFF_AIR, songKey, artistOffAir, offAirTrack, ONLY_SONGS } from './ZaoCrate.js';
 
 const off = new Set(OFF_AIR);
 let fail = 0;
@@ -29,6 +29,13 @@ check(artistOffAir({ artist: 'NDA x Geezy2126', title: 'Anything' }), 'an NDA co
 check(artistOffAir({ artist: 'WaveWarZ Africa', title: 'Camstar & Krytic Ft Dagger - Flip ' }), 'Flip (TuneCore claim 28 Oct) is off');
 check(!artistOffAir({ artist: 'Santana', title: 'SUNDAY' }), '"nda" inside another word stays');
 check(!artistOffAir({ artist: 'Amanda', title: 'Rwanda - Home' }), 'Amanda and Rwanda stay');
+
+// N3M3SIS: only the songs named in ONLY_SONGS play (Zaal, 29 Oct: no diss songs)
+const nemKeep = ONLY_SONGS.n3m3sis;
+check(offAirTrack({ artist: 'N3M3SIS', title: 'LUI WHO?' }) === !nemKeep.includes('luiwho'), 'N3M3SIS songs not on her list are off');
+check(offAirTrack({ artist: 'WaveWarZ Africa', title: 'N3M3SIS - THE CALL OUT' }) === !nemKeep.includes('thecallout'), 'an N3M3SIS song posted from another account follows the same list');
+check(!offAirTrack({ artist: 'IMan Afrikah', title: 'ROYALTY' }), 'IMan songs stay');
+check(offAirTrack({ artist: 'NDA', title: 'Still' }), 'offAirTrack covers the NDA rule too');
 
 if (fail) { console.log(`${fail} failed`); process.exit(1); }
 console.log('all passed');
