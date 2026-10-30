@@ -218,6 +218,9 @@ export const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.c
 export const FRESH_MS = 30000;
 export const MQTT_SRC = 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
 const PEER_SRC = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+// True on the /stream page, the one shared to the stream.
+const onAir = () => typeof document !== 'undefined' && !!document.body?.classList.contains('stream-view');
+
 const QR_SRC = 'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js';
 
 const text = new TextEncoder();
@@ -631,7 +634,8 @@ export class RemoteHost {
         });
     }
 
-    _openPanel() { this.panel?.classList.remove('hidden'); }
+    // On /stream the panel would land on the broadcast, so it only opens there with A (StreamView).
+    _openPanel() { if (!onAir()) this.panel?.classList.remove('hidden'); }
 
     _status(text) {
         const el = document.getElementById('remote-status');
@@ -646,7 +650,9 @@ export class RemoteHost {
         this.btn?.classList.toggle('active', live.length > 0);
         if (this.btn) this.btn.textContent = live.length > 0 ? `PHONE ${live.length}` : 'PHONE';
         this._renderRequests();
-        const url = on && validToken(this.token) ? remoteUrl(location.origin, this.token) : '';
+        // Never on /stream: that page is what goes out to YouTube and Twitch, and anyone who scans the
+        // code joins the set. Pair the phone from the desk or /admin; COPY LINK still works here.
+        const url = on && validToken(this.token) && !onAir() ? remoteUrl(location.origin, this.token) : '';
         const linkEl = document.getElementById('remote-link');
         if (linkEl && linkEl.textContent !== url) linkEl.textContent = url;
         const list = document.getElementById('remote-phones');
@@ -658,7 +664,8 @@ export class RemoteHost {
                 const row = document.createElement('div');
                 row.className = 'remote-ask';
                 const label = document.createElement('span');
-                label.textContent = `${p.name} wants to control the set`;
+                // The phone picks its own name, so the desk says so and shows the device too.
+                label.textContent = `"${p.name}" (unverified name, device ${p.device.slice(0, 6)}) wants to control the set`;
                 const yes = document.createElement('button'); yes.className = 'btn-toolbar btn-sm'; yes.textContent = 'ALLOW'; yes.onclick = () => this._allow(p);
                 const no = document.createElement('button'); no.className = 'btn-toolbar btn-sm'; no.textContent = 'DENY'; no.onclick = () => this._deny(p);
                 row.append(label, yes, no);

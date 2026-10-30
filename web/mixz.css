@@ -1105,3 +1105,6 @@ body.stream-view.stream-admin #remote-panel { position: fixed; z-index: 99999; t
 .more-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 9000; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 170px; background: var(--mz-panel, #0f1118); border: 1px solid var(--mz-line-hi, rgba(255,255,255,.14)); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
 .more-panel.hidden { display: none; }
 .more-panel > * { width: 100%; justify-content: flex-start; text-align: left; }
+
+/* /stream goes out on the broadcast: never show the phone link or its code there (doc 1971). */
+body.stream-view #remote-qr, body.stream-view #remote-link { display: none; }

@@ -113,10 +113,10 @@ const APP_SHELL = [
 
 // CDN resources to cache after install
 const CDN_ASSETS = [
-    'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js',
-    'https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js',
-    'https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js',
-    'https://unpkg.com/wavesurfer.js@7/dist/plugins/minimap.min.js',
+    'https://unpkg.com/wavesurfer.js@7.12.12/dist/wavesurfer.min.js',
+    'https://unpkg.com/wavesurfer.js@7.12.12/dist/plugins/timeline.min.js',
+    'https://unpkg.com/wavesurfer.js@7.12.12/dist/plugins/regions.min.js',
+    'https://unpkg.com/wavesurfer.js@7.12.12/dist/plugins/minimap.min.js',
 ];
 
 // ============ IndexedDB for offline audio ============

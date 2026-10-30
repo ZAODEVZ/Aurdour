@@ -25,6 +25,10 @@ const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${co
     check('long messages are cut to 2000', clean({ message: 'x'.repeat(5000) }).message.length === 2000);
     check('a JSON string body is read', (await handle('POST', JSON.stringify({ message: 'from a string' }), { FEEDBACK_GITHUB_TOKEN: 'G' }, okFetch))[0] === 200);
     check('the text names the sender or says none was given', /From: \(no name given\)/.test(asText(clean({ message: 'abc' }))));
+    const flood = [];
+    for (let i = 0; i < 7; i++) flood.push((await handle('POST', { message: 'spam spam' }, both, okFetch, '9.9.9.9'))[0]);
+    check('one sender gets 5 an hour, then 429', flood.slice(0, 5).every((s) => s === 200) && flood[5] === 429 && flood[6] === 429);
+    check('another sender still gets through', (await handle('POST', { message: 'hello there' }, both, okFetch, '8.8.8.8'))[0] === 200);
 
     console.log(`\n${passed} passed, ${failed} failed`);
     process.exit(failed ? 1 : 0);

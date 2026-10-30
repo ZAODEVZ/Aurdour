@@ -58,8 +58,25 @@ async function toGitHub(f, env, fetchFn) {
     if (!res.ok) throw new Error(`github ${res.status}`);
 }
 
-async function handle(method, body, env = process.env, fetchFn = fetch) {
+// A cap so one script cannot flood Zaal's Telegram and the issues (doc 1971): per sender, and for
+// everyone together. Kept in memory, so it counts per running copy of the function; a Vercel
+// firewall rate-limit rule on /api/feedback is the hard stop on top of this.
+const PER_IP = 5, ALL = 30, WINDOW_MS = 60 * 60 * 1000;
+const sends = new Map(); // ip -> times, '*' -> everyone
+
+function tooMany(ip, now = Date.now()) {
+    const recent = (k) => (sends.get(k) || []).filter((t) => now - t < WINDOW_MS);
+    const mine = ip ? recent(ip) : [], all = recent('*');
+    if ((ip && mine.length >= PER_IP) || all.length >= ALL) return true;
+    if (ip) sends.set(ip, [...mine, now]);
+    sends.set('*', [...all, now]);
+    if (sends.size > 5000) sends.clear();
+    return false;
+}
+
+async function handle(method, body, env = process.env, fetchFn = fetch, ip = '') {
     if (method !== 'POST') return [405, { ok: false, error: 'POST only' }];
+    if (tooMany(ip)) return [429, { ok: false, error: 'too many messages, try again later' }];
     const f = clean(typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return null; } })() : body);
     if (typeof f === 'string') return [f === 'spam' ? 200 : 400, f === 'spam' ? { ok: true } : { ok: false, error: f }];
     const routes = [];
@@ -74,9 +91,11 @@ async function handle(method, body, env = process.env, fetchFn = fetch) {
 }
 
 module.exports = async (req, res) => {
-    const [status, json] = await handle(req.method, req.body);
+    const ip = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+    const [status, json] = await handle(req.method, req.body, process.env, fetch, ip);
     res.status(status).json(json);
 };
 module.exports.handle = handle;
+module.exports.tooMany = tooMany;
 module.exports.clean = clean;
 module.exports.asText = asText;
