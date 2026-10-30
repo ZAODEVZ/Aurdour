@@ -13,8 +13,10 @@ export const BLOCKED_ARTISTS = ['Ludah wolf'];
 
 // The verified ZAO roster. Online, only these artists play from SongChainn; a collab plays when
 // every name on it is on the roster. IMan's own copy on this PC plays the rest too (not the blocked).
+// NDA is off the roster (28 Oct 2026): his music goes out through Revelator (Merlin), so YouTube
+// claims every NDA song on a stream (B.T.T.B and BOSSED UP blocked Zaal's ZAO MixZ video).
 export const VERIFIED_ARTISTS = ['IMan Afrikah', '7ROO7H', 'BERL', 'C3DDC3SSION', 'Champion Boy Psyko', 'DenaJah', 'FAITH',
-    'GESD1', 'JettDigital3211', 'JMN', 'MatJamEz', 'N3M3SIS', 'NDA', 'PRP', 'RVSSIAN', 'S.R.Chappell', 'SAMMIE', 'Sanchy',
+    'GESD1', 'JettDigital3211', 'JMN', 'MatJamEz', 'N3M3SIS', 'PRP', 'RVSSIAN', 'S.R.Chappell', 'SAMMIE', 'Sanchy',
     'Santana', 'T-RAW', 'T3RNNN', 'THE ZAO', 'YUNG KIMOW', 'ZIZOX'];
 
 const squash = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]/g, '');

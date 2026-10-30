@@ -59,6 +59,15 @@ export class Audius {
         return (data.data || []).map(t => this._normalizeTrack(t));
     }
 
+    // Every track on an Audius playlist, by its page link (audius.co/<handle>/playlist/<name>).
+    async getPlaylistTracks(url) {
+        const found = await this._apiGet(`/v1/resolve?url=${encodeURIComponent(url)}`);
+        const p = Array.isArray(found?.data) ? found.data[0] : found?.data;
+        if (!p?.id) return [];
+        const data = await this._apiGet(`/v1/playlists/${p.id}/tracks`);
+        return (data.data || []).map(t => this._normalizeTrack(t));
+    }
+
     getStreamUrl(trackId) {
         return `${this.host}/v1/tracks/${trackId}/stream?app_name=${this.appName}`;
     }

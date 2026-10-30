@@ -270,6 +270,7 @@ export function tracksFrom(lib, sourceId, artist = '') {
         view: lib._displayedTracks || [],
         zao: lib.zaoTracks || [],
         battles: lib.battleTracks || [],
+        wavewarz: lib.wavewarzTracks || [],
         local: lib.tracks || [],
         songchainn: sc,
         'songchainn-artist': sc.filter((t) => names.some((n) => String(t.artist).toLowerCase().includes(n))),
@@ -309,6 +310,7 @@ export class DjMixz {
             { id: 'songchainn-artist', label: 'SongChainn: pick artists' },
             { id: 'zao', label: 'ZAO crate: SongChainn and Audius' },
             { id: 'battles', label: 'WaveWarZ quick battles: last battle night' },
+            { id: 'wavewarz', label: 'WaveWarZ Powerhouse playlist (Audius)' },
             { id: 'view', label: 'What the library is showing' },
             { id: 'local', label: 'LOCAL tab' },
         ];
@@ -682,6 +684,19 @@ export class DjMixz {
         return !!on;
     }
 
+    // WaveWarZ playlist on, or back to the ZAO crate. Starts a fresh endless set from that music.
+    async toggleWaveWarz() {
+        const on = this._lastBuild?.sourceId !== 'wavewarz' || !this.running;
+        const lib = this.dj.library || {};
+        if (on && !(lib.wavewarzTracks || []).length) { this._say('Fetching the WaveWarZ playlist…'); await this.dj.zaoCrate?.load(true); }
+        const ok = await this.startFrom(on ? 'wavewarz' : 'zao', this.mood, 60, true);
+        const b = typeof document !== 'undefined' && document.getElementById('wavewarz-btn');
+        const live = ok !== false && on;
+        if (b) { b.classList.toggle('active', live); b.setAttribute('aria-pressed', String(live)); }
+        if (ok !== false) this._say(on ? 'WAVEWARZ: playing the WaveWarZ Powerhouse playlist.' : 'Back to the ZAO crate.');
+        return ok;
+    }
+
     // From the phone: one recipe, and the set keeps mixing that way until another is picked (Zaal,
     // 25 Oct: "buttons I can click so it stays in that format til I come back"). An empty id hands
     // the moves back to the mood. While a set runs, the song playing and the one armed stay put and
@@ -837,6 +852,28 @@ export class DjMixz {
         hop.setAttribute('aria-pressed', 'false');
         hop.addEventListener('click', () => this.setHookHop(!this.dj.flowMode?.hookHop));
         open.insertAdjacentElement('afterend', hop);
+
+        // WAVEWARZ: one tap moves the set from the ZAO crate to the WaveWarZ Powerhouse playlist,
+        // and a second tap moves it back (Zaal, 29 Oct).
+        const ww = document.createElement('button');
+        ww.id = 'wavewarz-btn';
+        ww.className = 'btn-toolbar wavewarz-btn';
+        ww.title = 'Play the WaveWarZ Powerhouse playlist. Tap again for the ZAO crate';
+        ww.textContent = 'WAVEWARZ';
+        ww.setAttribute('aria-pressed', 'false');
+        ww.addEventListener('click', () => this.toggleWaveWarz());
+        hop.insertAdjacentElement('afterend', ww);
+
+        // STREAM PAGE: opens /stream, the page to put on the live stream.
+        const sp = document.createElement('a');
+        sp.id = 'stream-page-btn';
+        sp.className = 'btn-toolbar stream-page-btn';
+        sp.href = '/stream';
+        sp.target = '_blank';
+        sp.rel = 'noopener';
+        sp.title = 'Open the /stream page for the live stream';
+        sp.textContent = 'STREAM PAGE';
+        ww.insertAdjacentElement('afterend', sp);
 
         const panel = document.createElement('div');
         panel.id = 'djmixz-panel';
