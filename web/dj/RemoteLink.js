@@ -12,7 +12,7 @@
 // This file is shared by the desktop (RemoteHost below) and the phone page (remote.js).
 // The top half is pure and runs under node: see RemoteLink.test.mjs.
 
-import { cleanTitle, liveDeck } from './NowPlaying.js';
+import { cleanTitle, onAirDeck } from './NowPlaying.js';
 import { MOODS, tracksFrom } from './DjMixz.js';
 import { RequestQueue, cleanRequest, forCaller, canTape, autoPick } from './RequestLine.js';
 import { requestData } from './StreamEvents.js';
@@ -127,7 +127,7 @@ export function snapshot(dj) {
         A: deck('A'), B: deck('B'),
         xf: dj.audioRouter?._lastCrossfadePosition ?? 0.5,
         vol: { A: slider('vol-a', 0.8), B: slider('vol-b', 0.8) }, master: slider('master-volume', 0.8),
-        live_deck: liveDeck(dj.decks, dj.audioRouter?._lastCrossfadePosition ?? 0.5),
+        live_deck: onAirDeck(dj),
         live: !!dj.broadcast?.isLive, liveSince: dj.broadcast?.liveSince || 0,
         deadair: !!dj.deadAir?.on,
         agents: dj.agents ? { n: dj.agents.connectedCount?.() || 0, muted: !!dj.agents.muted } : null,
@@ -501,7 +501,7 @@ export class RemoteHost {
     // slots the oldest request in; otherwise requests wait for PLAY NEXT at the desk.
     _requestTick() {
         if (!this.relay) return;
-        const live = liveDeck(this.dj.decks, this.dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+        const live = onAirDeck(this.dj);
         const m = live ? this.dj.decks[live]?.metadata?.metadata || {} : {};
         const changed = this.requests.nowPlaying(live ? m.title : '', m.artist || '');
         const mixz = this.dj.djMixz;
@@ -518,7 +518,7 @@ export class RemoteHost {
         if (mixz?.running && !mixz.human) {
             if (!mixz.playNext?.(r.track)) return;
         } else {
-            const live = liveDeck(this.dj.decks, this.dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+            const live = onAirDeck(this.dj);
             this.dj.library?.loadToDeck(r.track, live === 'A' ? 'B' : 'A');
         }
         this.requests.items.filter((x) => x.status === 'next' && x !== r).forEach((x) => { x.status = 'waiting'; this._tell(x); });

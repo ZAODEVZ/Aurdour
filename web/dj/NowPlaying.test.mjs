@@ -1,5 +1,5 @@
 // node web/dj/NowPlaying.test.mjs
-import { cleanTitle, liveDeck, songPage, audiusPage } from './NowPlaying.js';
+import { cleanTitle, liveDeck, deckLevels, onAirDeck, songPage, audiusPage } from './NowPlaying.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -14,6 +14,13 @@ check('never empty', cleanTitle('IMan Afrikah - ', 'IMan Afrikah') === 'IMan Afr
 
 check('the playing deck is live', liveDeck({ A: { isPlaying: true }, B: { isPlaying: false } }, 1) === 'A' && liveDeck({ A: { isPlaying: false }, B: { isPlaying: true } }, 0) === 'B');
 check('both playing: the crossfader decides', liveDeck({ A: { isPlaying: true }, B: { isPlaying: true } }, 0.2) === 'A' && liveDeck({ A: { isPlaying: true }, B: { isPlaying: true } }, 0.8) === 'B');
+const both = { A: { isPlaying: true }, B: { isPlaying: true } };
+check('both playing: the louder deck is live, whatever xf says', liveDeck(both, 0.5, { A: 0.05, B: 0.98 }) === 'B' && liveDeck(both, 0.9, { A: 1, B: 0 }) === 'A');
+check('both playing, levels equal or missing: xf decides', liveDeck(both, 0.8, { A: 0.7, B: 0.7 }) === 'B' && liveDeck(both, 0.2, { A: null, B: 1 }) === 'A');
+const g = (v) => ({ gain: { value: v } });
+const router = { _lastCrossfadePosition: 0.5, channels: { A: { channelGain: g(0.8), crossfadeGain: g(0) }, B: { channelGain: g(0.8), crossfadeGain: g(1) } } };
+check('deck levels: channel fader times crossfade gain', JSON.stringify(deckLevels(router)) === JSON.stringify({ A: 0, B: 0.8 }) && deckLevels(null).A === null);
+check('auto mix done, xf left at 0.5: the new song is on air', onAirDeck({ decks: both, audioRouter: router }) === 'B');
 check('nothing playing: nothing is live', liveDeck({ A: {}, B: {} }, 0.5) === null && liveDeck(null) === null);
 
 check('an Audius song links to its page', songPage({ source: 'audius', permalink: '/imanafrikah/rude-boy' }) === 'https://audius.co/imanafrikah/rude-boy');

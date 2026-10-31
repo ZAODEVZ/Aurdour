@@ -12,7 +12,7 @@
 // Nothing here carries a credential or a deck's audio URL; the song's public page is the
 // only link. The builders are pure and run under node: see StreamEvents.test.mjs.
 
-import { cleanTitle, liveDeck, songPage } from './NowPlaying.js';
+import { cleanTitle, onAirDeck, songPage } from './NowPlaying.js';
 
 export const EVENT_VERSION = 1;
 export const OUT_TYPES = ['track.changed', 'transition.started', 'transition.finished', 'stream.health', 'request.updated', 'chat.message', 'director.advice', 'agent.post'];
@@ -122,7 +122,7 @@ export class StreamEvents {
             }
         }
         // The song the room hears
-        const live = liveDeck(decks, dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+        const live = onAirDeck(dj);
         const deck = live ? decks[live] : null;
         const key = deck?.metadata ? `${live}|${deck.metadata.metadata?.id ?? ''}|${deck.metadata.metadata?.title ?? ''}` : '';
         if (key && key !== this._live?.key) {

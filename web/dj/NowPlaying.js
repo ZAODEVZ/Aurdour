@@ -20,15 +20,35 @@ export function cleanTitle(title, artist = '') {
     return t || String(title || '').trim() || 'Untitled';
 }
 
-// Which deck the room hears: the playing one, or on the crossfader's side when both play.
-// Null when nothing plays. xf is 0 (all A) to 1 (all B).
-export function liveDeck(decks, xf = 0.5) {
+// Which deck the room hears: the playing one, or the louder one when both play. Null when
+// nothing plays. xf is 0 (all A) to 1 (all B). levels ({ A, B }, 0 to 1) is how loud each deck
+// really reaches the master: auto mixes set the crossfade gains directly and leave xf where it
+// was, so when both decks play the levels decide and xf is only the fallback.
+export function liveDeck(decks, xf = 0.5, levels = null) {
     const a = !!decks?.A?.isPlaying, b = !!decks?.B?.isPlaying;
     if (a && !b) return 'A';
     if (b && !a) return 'B';
-    if (a && b) return xf > 0.5 ? 'B' : 'A';
+    if (a && b) {
+        const la = levels?.A, lb = levels?.B;
+        if (Number.isFinite(la) && Number.isFinite(lb) && Math.abs(la - lb) > 0.01) return lb > la ? 'B' : 'A';
+        return xf > 0.5 ? 'B' : 'A';
+    }
     return null;
 }
+
+// How loud each deck reaches the master: its channel fader times its crossfade gain.
+export function deckLevels(router) {
+    const level = (id) => {
+        const ch = router?.channels?.[id];
+        const v = (ch?.channelGain?.gain?.value ?? 1) * (ch?.crossfadeGain?.gain?.value ?? NaN);
+        return Number.isFinite(v) ? v : null;
+    };
+    return { A: level('A'), B: level('B') };
+}
+
+// The deck on air for this desk: what the strip, /stream, the phone and the overlays all show.
+export const onAirDeck = (dj) =>
+    liveDeck(dj?.decks, dj?.audioRouter?._lastCrossfadePosition ?? 0.5, deckLevels(dj?.audioRouter));
 
 // Where a track lives on the web, for a link under the title. Null when there is none
 // (a local file, or a source without a page).
@@ -81,8 +101,7 @@ export class NowPlaying {
     _tick() {
         if (!this.el) return;
         const decks = this.dj.decks || {};
-        const xf = this.dj.audioRouter?._lastCrossfadePosition ?? 0.5;
-        const live = liveDeck(decks, xf);
+        const live = onAirDeck(this.dj);
         for (const id of ['A', 'B']) document.getElementById(`deck-${id.toLowerCase()}`)?.classList.toggle('on-air', live === id);
         if (!live) { this.el.classList.add('hidden'); this._last = ''; return; }
         const deck = decks[live];
