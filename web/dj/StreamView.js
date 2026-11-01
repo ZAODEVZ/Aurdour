@@ -8,7 +8,7 @@
 // admin link and code; press A again to hide it. Nothing on the stream ever asks to be clicked.
 
 import { snapshot } from './RemoteLink.js';
-import { liveDeck } from './NowPlaying.js';
+import { onAirDeck } from './NowPlaying.js';
 
 export const isStreamView = (loc = typeof location !== 'undefined' ? location : null) =>
     !!loc && (/^\/stream\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
@@ -74,7 +74,7 @@ export class StreamView {
     _card() {
         let state;
         try { state = snapshot(this.dj); } catch (e) { return; }
-        state.live_deck = state.live_deck || liveDeck(this.dj.decks || {}, this.dj.audioRouter?._lastCrossfadePosition ?? 0.5);
+        state.live_deck = state.live_deck || onAirDeck(this.dj);
         const art = state.live_deck ? this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null : null;
         const c = streamCard(state, art);
         const set = (id, v) => { const e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
