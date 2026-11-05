@@ -1,5 +1,5 @@
 // /stream: what the display shows, from the desk state.
-import { streamCard, isStreamView, chatChannel, chatLines, DEFAULT_CHAT } from './StreamView.js';
+import { streamCard, isStreamView, chatChannel, chatLines, DEFAULT_CHAT, upNext, upNextHtml, QUEUE_MAX } from './StreamView.js';
 
 let passed = 0, failed = 0;
 const check = (name, cond) => { if (cond) { passed++; console.log('  ok  ', name); } else { failed++; console.log('  FAIL', name); } };
@@ -24,6 +24,23 @@ let lines = [];
 for (let i = 0; i < 12; i++) lines = chatLines(lines, { user: 'u' + i, text: 'hi' }, 1000 + i);
 check('only the newest 8 lines stay', lines.length === 8 && lines[0].user === 'u4' && lines[7].user === 'u11');
 check('old lines fade out after 90 s', chatLines(lines, null, 1011 + 90000).length === 0 && chatLines(lines, null, 1006 + 90000).length === 5);
+
+// The request line on the display
+{
+    const board = { up: [
+        { rid: 'r2', title: 'Rude Boy', artist: 'IMan Afrikah', name: 'Ana', note: 'for my mum', status: 'next' },
+        ...Array.from({ length: 6 }, (_, i) => ({ rid: `r${i + 3}`, title: `Song ${i}`, artist: '', name: `U${i}`, status: 'waiting' })),
+    ] };
+    const rows = upNext(board);
+    check(`up next keeps the board order, at most ${QUEUE_MAX}`, rows.length === QUEUE_MAX && rows[0].title === 'Rude Boy' && rows[0].next && rows[1].title === 'Song 0');
+    check('song, artist and the caller\'s name only: no note', !JSON.stringify(rows).includes('mum') && rows[0].name === 'Ana' && rows[0].artist === 'IMan Afrikah');
+    const html = upNextHtml(rows);
+    check('it reads "requested by" the name', html.includes('requested by Ana') && html.includes('<b>Rude Boy</b>'));
+    const evil = upNextHtml(upNext({ up: [{ title: '<img src=x onerror=alert(1)>', artist: '"><script>', name: '<b>x</b>', status: 'waiting' }] }));
+    check('a title, artist or name never becomes markup', !evil.includes('<img') && !evil.includes('<script') && !evil.includes('<b>x</b>') && evil.includes('&lt;img'));
+    check('nothing waiting: nothing to show', upNextHtml(upNext(null)) === '' && upNextHtml(upNext({ up: [] })) === '');
+    check('no em dash in what the panel says', !html.includes(String.fromCharCode(0x2014)));
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

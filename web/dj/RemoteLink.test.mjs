@@ -165,7 +165,7 @@ check('the dead free relay is gone', !ICE_SERVERS.some(s => String(s.urls).inclu
             decks: { A: { isPlaying: true, metadata: { metadata: { title: 'On Now' } } }, B: { isPlaying: false } }, audioRouter: { _lastCrossfadePosition: 0 },
             djMixz: { running: true, human: false, playNext: () => { sent.push('PLAYED'); return true; } }, streamEvents: { emit: (type, data) => sent.push({ type, data }) } },
     };
-    host._announce = RemoteHost.prototype._announce; host._tell = RemoteHost.prototype._tell;
+    for (const k of ['_announce', '_tell', '_chatFull', '_chatAdd', '_chatLink']) host[k] = RemoteHost.prototype[k];
     const res = RemoteHost.prototype.chatRequest.call(host, { platform: 'twitch', user: 'Ana', query: 'rude boy' });
     const r = host.requests.items[0];
     check('chat: a matched !sr goes on the board, marked from chat, with its platform', res.ok && r.title === 'Rude Boy' && r.from === 'chat' && r.note === 'via Twitch' && r.name === 'Ana');
@@ -177,6 +177,37 @@ check('the dead free relay is gone', !ICE_SERVERS.some(s => String(s.urls).inclu
     for (let i = 0; i < CHAT_MAX_WAITING + 3; i++) host.dj.library.zaoTracks.push({ id: 's' + i, title: 'Song Number ' + i, artist: 'Z', source: 'audius', streamUrl: 'https://x' });
     for (let i = 0; i < CHAT_MAX_WAITING + 3; i++) RemoteHost.prototype.chatRequest.call(host, { platform: 'youtube', user: 'u' + i, query: 'song number ' + i });
     check(`chat: at most ${CHAT_MAX_WAITING} chat requests wait at once, so phones keep a turn`, host.requests.waiting().filter((x) => x.from === 'chat').length === CHAT_MAX_WAITING);
+}
+
+// A "!sr <link>" from stream chat: an Audius or SongChainn song page is looked up and waits on the
+// board; another site's link is a suggestion only; anything else is refused
+{
+    const sent = [];
+    const asked = [];
+    const audiusRaw = { id: 'Xy1', title: 'Rude Boy', permalink: '/imanafrikah/rude-boy', user: { handle: 'imanafrikah', name: 'IMan Afrikah' } };
+    const host = {
+        relay: null, autoPlay: true, requests: new RequestQueue(), _renderRequests() {},
+        dj: { library: { zaoTracks: [], tracks: [], battleTracks: [] }, decks: { A: { isPlaying: true, metadata: { metadata: { title: 'On Now' } } }, B: { isPlaying: false } },
+            audioRouter: { _lastCrossfadePosition: 0 }, djMixz: { running: true, human: false, playNext: () => { sent.push('PLAYED'); return true; } },
+            streamEvents: { emit: (type, data) => sent.push({ type, data }) },
+            audius: { async resolveTrack(url, accept) { asked.push(url); const raw = url.endsWith('/rude-boy') ? audiusRaw : { ...audiusRaw, permalink: '/someone/other' }; return accept(raw) ? { id: raw.id, title: raw.title, artist: raw.user.name, source: 'audius', streamUrl: 'https://x' } : null; } },
+            songchainn: { async all() { return [{ id: 'songchainn:94e4377c-bb84-4bea-8b3f-324e1aded3e5', title: 'Jewellry', artist: 'C3DDC3SSION', source: 'songchainn', streamUrl: 'https://y' }]; } } },
+    };
+    for (const k of ['_announce', '_tell', '_chatFull', '_chatAdd', '_chatLink']) host[k] = RemoteHost.prototype[k];
+    const ask = (user, query) => RemoteHost.prototype.chatRequest.call(host, { platform: 'twitch', user, query });
+    const a = await ask('Ana', 'https://audius.co/imanafrikah/rude-boy');
+    const r = host.requests.items[0];
+    check('link: an Audius track link is looked up and waits on the board, marked from chat', a.ok && asked[0] === 'https://audius.co/imanafrikah/rude-boy' && r?.title === 'Rude Boy' && r.from === 'chat' && r.status === 'waiting');
+    host.relay = { send() {} }; RemoteHost.prototype._requestTick.call(host);
+    check('link: it never plays by itself, AUTO-PLAY or not', !sent.includes('PLAYED') && r.status === 'waiting');
+    check('link: Audius sending back a different track puts nothing on the board', !(await ask('Bo', 'https://audius.co/imanafrikah/other-song')).ok && host.requests.items.length === 1);
+    const s = await ask('Cy', 'https://songchainn.xyz/song/94e4377c-bb84-4bea-8b3f-324e1aded3e5');
+    check('link: a SongChainn song page finds that song', s.ok && host.requests.items[1]?.title === 'Jewellry');
+    const before = asked.length;
+    check('link: http and lookalike hosts are refused before any lookup', !ask('Di', 'http://audius.co/imanafrikah/rude-boy').ok && !ask('Di', 'https://audius.co.evil.com/imanafrikah/rude-boy').ok && asked.length === before);
+    const y = ask('Ed', 'https://www.youtube.com/watch?v=abc');
+    check('link: a YouTube link is a suggestion, not a request', y.ok && host.requests.openSuggestions()[0]?.name === 'Ed' && host.requests.openSuggestions()[0].site === 'YouTube' && host.requests.items.length === 2);
+    check('link: a suggestion never goes out to the stream', !sent.some((e) => e.type === 'request.updated' && /youtube/i.test(JSON.stringify(e.data))));
 }
 
 // WORKFLOW from the phone: one recipe id, cleaned; empty turns recipes off; the desk's DJ MixZ gets it

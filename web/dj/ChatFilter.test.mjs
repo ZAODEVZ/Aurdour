@@ -1,12 +1,13 @@
 // What from stream chat may reach the desk and the stream.   node web/dj/ChatFilter.test.mjs
-import { moderate, matchRequest, chatDevice, CHAT_MAX } from './ChatFilter.js';
+import { moderate, matchRequest, chatDevice, looksLikeLink, CHAT_MAX } from './ChatFilter.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
 
 console.log('ChatFilter: moderation');
 check('a plain line passes, trimmed and tidied', moderate('  great   set!! ').ok && moderate('  great   set!! ').text === 'great set!!');
-check('a link never reaches the stream', !moderate('check https://evil.example now').ok && !moderate('go to www.spam.tv').ok && !moderate('cheap stuff at spam.com').ok && moderate('spam.com x').reason === 'link');
+check('a song link is still held from the stream, Audius and YouTube alike', moderate('https://audius.co/imanafrikah/rude-boy').reason === 'link' && moderate('https://youtu.be/abc').reason === 'link' && looksLikeLink('audius.co/a/b') && !looksLikeLink('rude boy'));
+check('a link never reaches the stream',!moderate('check https://evil.example now').ok && !moderate('go to www.spam.tv').ok && !moderate('cheap stuff at spam.com').ok && moderate('spam.com x').reason === 'link');
 check('a blocked word is held, as a whole word only', !moderate('you are a Badword', { blocked: ['badword'] }).ok && moderate('notbadwordy', { blocked: ['badword'] }).ok);
 check('hidden characters cannot sneak a link past', !moderate('h​tt​ps://x.com').ok);
 check('empty or only hidden characters is dropped', !moderate('   ').ok && !moderate('​​').ok);

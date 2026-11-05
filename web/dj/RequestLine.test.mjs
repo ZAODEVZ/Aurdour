@@ -1,5 +1,5 @@
 // node web/dj/RequestLine.test.mjs
-import { cleanRequest, RequestQueue, songKey, forCaller, statusLine, canTape, autoPick, PER_PHONE, MAX_WAITING, NAME_MAX, NOTE_MAX } from './RequestLine.js';
+import { cleanRequest, RequestQueue, songKey, forCaller, statusLine, canTape, autoPick, PER_PHONE, MAX_WAITING, NAME_MAX, NOTE_MAX, SUGGEST_MAX, SUGGEST_PER_USER } from './RequestLine.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -78,6 +78,22 @@ console.log('RequestLine: a request goes on air only with a tap, or with AUTO-PL
     q.set(q.first().rid, 'next');
     q.add('p2', { name: 'Bo' }, song('Second'));
     check('only one request lined up next at a time', autoPick(q, { ...run, on: true }) === null);
+}
+
+console.log('RequestLine: songs suggested by a link to another site');
+{
+    const q = fresh();
+    const yt = (n) => ({ kind: 'suggest', site: 'YouTube', host: 'www.youtube.com', title: '', key: `www.youtube.com/watch${n}` });
+    const res = q.suggest('chat:twitch:ana', 'Ana', yt(1));
+    check('a suggestion keeps who and where, and is open', res.ok && res.suggestion.name === 'Ana' && res.suggestion.host === 'www.youtube.com' && q.openSuggestions().length === 1);
+    check('a suggestion is never a request: not waiting, not on the board, never picked', q.waiting().length === 0 && q.board().count === 0 && q.first() === null
+        && autoPick(q, { on: true, running: true }) === null);
+    check(`one waiting suggestion per chat user (${SUGGEST_PER_USER})`, !q.suggest('chat:twitch:ana', 'Ana', yt(2)).ok);
+    check('the same link twice is one suggestion', !q.suggest('chat:twitch:bo', 'Bo', yt(1)).ok);
+    for (let i = 0; i < SUGGEST_MAX + 3; i++) q.suggest(`chat:twitch:u${i}`, `U${i}`, yt(100 + i));
+    check(`at most ${SUGGEST_MAX} suggestions wait at once`, q.openSuggestions().length === SUGGEST_MAX);
+    const s = q.openSuggestions()[0];
+    check('NOT TONIGHT waves one off', q.dismiss(s.sid)?.status === 'dismissed' && !q.openSuggestions().includes(s) && q.dismiss('nope') === null);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
