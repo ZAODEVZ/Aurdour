@@ -11,6 +11,11 @@ export const SONGCHAINN_ARTISTS = '*';
 // The WAVEWARZ button plays this Audius playlist instead of the crate (Zaal, 29 Oct 2026).
 export const WAVEWARZ_PLAYLIST = 'https://audius.co/CandyToyBoxYT1/playlist/wavewarz-powerhouse';
 
+// The JANGO button plays only Jango's songs, from his Audius page "Jango UU" (Zaal, 5 Nov 2026:
+// "i want a jango button", "just go right into it"). Audius tracks play under Audius's terms
+// (Licence.js), so these need no signed form. The id saves a lookup; the handle is the fallback.
+export const JANGO_AUDIUS = { handle: 'jango.uu', id: 'k2YadvK', name: 'Jango UU' };
+
 // Artists of whom only the songs named here play (Zaal, 29 Oct 2026: no N3M3SIS diss songs, ever;
 // IMan: keep her dancehall). Artist and song names squashed, as songKey makes them.
 export const ONLY_SONGS = {
@@ -79,6 +84,18 @@ export const artistOffAir = (t) => OFF_AIR_ARTISTS.some((a) => squash(t.artist).
 
 // True when a song must not play anywhere in MixZ: the crate, the WaveWarZ playlist or the mix page.
 export const offAirTrack = (t) => { const k = songKey(t); return OFF_AIR.includes(k) || notOnlySong(k) || artistOffAir(t); };
+
+// Jango's songs as Audius lists them, ready to play: streamable, not off air, one copy each.
+export function jangoSongs(tracks) {
+    const seen = new Set();
+    return (tracks || []).filter((t) => {
+        if (!t || !t.streamUrl || t.streamable === false || offAirTrack(t)) return false;
+        const k = songKey(t);
+        if (seen.has('id:' + t.id) || seen.has(k)) return false;
+        seen.add('id:' + t.id); seen.add(k);
+        return true;
+    }).map(applySheet);
+}
 
 // Returns the track with the sheet's tempo and key when its title is on the sheet.
 export function applySheet(track) {
@@ -187,6 +204,34 @@ export class ZaoCrate {
         }
         const tab = document.getElementById('zao-crate-tab');
         if (tab) { tab.classList.toggle('has-new', added.length > 0); if (added.length) tab.title = `${added.length} new: ${added.slice(0, 3).map((t) => t.title).join(', ')}`; }
+    }
+
+    // Jango UU's songs from Audius into lib.jangoTracks, read once and kept (fresh = true reads
+    // again). Returns the list; empty when Audius did not answer. Two calls at once share one read.
+    async loadJango(fresh = false) {
+        const lib = this.dj.library;
+        if (!lib) return [];
+        if (!fresh && (lib.jangoTracks || []).length) return lib.jangoTracks;
+        if (!this._jango) {
+            this._jango = (async () => {
+                const audius = this.dj.audius;
+                let raw = [];
+                try {
+                    raw = audius?.getUserIdTracks ? await audius.getUserIdTracks(JANGO_AUDIUS.id) : [];
+                } catch (e) {
+                    console.warn('[ZaoCrate] could not load Jango UU by id:', e.message);
+                }
+                try {
+                    if (!raw.length && audius?.getUserTracks) raw = await audius.getUserTracks(JANGO_AUDIUS.handle);
+                } catch (e) {
+                    console.warn('[ZaoCrate] could not load Jango UU from Audius:', e.message);
+                }
+                const songs = jangoSongs(raw);
+                if (songs.length) lib.jangoTracks = songs;
+                return lib.jangoTracks || [];
+            })().finally(() => { this._jango = null; });
+        }
+        return this._jango;
     }
 
     _buildTab() {

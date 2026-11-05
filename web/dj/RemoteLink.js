@@ -21,7 +21,7 @@ import { moderate, matchRequest, chatDevice, CHAT_MAX_WAITING } from './ChatFilt
 
 export const STATE_HZ = 5;
 export const NEXT_MODES = ['smooth', 'up', 'down', 'key', 'mood', 'genre', 'double', 'wild'];
-export const TRACK_SOURCES = ['view', 'zao', 'songchainn', 'local'];
+export const TRACK_SOURCES = ['view', 'zao', 'songchainn', 'local', 'jango'];
 export const SET_MINUTES = [0, 15, 30, 60, 90, 120, 180, 240];
 const MOOD_IDS = MOODS.map((m) => m.id);
 
@@ -421,10 +421,15 @@ export class RemoteHost {
         }
         if (cmd.a === 'tracks') {
             const lib = this.dj.library || {};
-            const full = cmd.src === 'view' ? (lib._getCurrentList?.() || []) : tracksFrom(lib, cmd.src);
-            if (this._tracks.size > 5000) this._tracks.clear();   // kept between searches: a request names a track from any phone's list
-            for (const t of full) this._tracks.set(idOfTrack(t), t);
-            this.relay.send({ t: 'tracks', to: device, list: trackList(full, cmd.q) });
+            const answer = () => {
+                const full = cmd.src === 'view' ? (lib._getCurrentList?.() || []) : tracksFrom(lib, cmd.src);
+                if (this._tracks.size > 5000) this._tracks.clear();   // kept between searches: a request names a track from any phone's list
+                for (const t of full) this._tracks.set(idOfTrack(t), t);
+                this.relay.send({ t: 'tracks', to: device, list: trackList(full, cmd.q) });
+            };
+            // Jango's songs are read from Audius the first time anyone asks for them.
+            if (cmd.src === 'jango' && !(lib.jangoTracks || []).length && this.dj.zaoCrate?.loadJango) { this.dj.zaoCrate.loadJango().then(answer, answer); return; }
+            answer();
             return;
         }
         if (cmd.a === 'listen') { this._listen(phone, cmd.on, msg.peer); return; }

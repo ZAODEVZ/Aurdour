@@ -55,7 +55,12 @@ export class Audius {
         const user = await this._apiGet(`/v1/users/handle/${encodeURIComponent(handle)}`);
         const id = user?.data?.id;
         if (!id) return [];
-        const data = await this._apiGet(`/v1/users/${id}/tracks?limit=${limit}`);
+        return this.getUserIdTracks(id, limit);
+    }
+
+    // Every track on one artist's Audius page, by their Audius user id.
+    async getUserIdTracks(id, limit = 100) {
+        const data = await this._apiGet(`/v1/users/${encodeURIComponent(id)}/tracks?limit=${limit}`);
         return (data.data || []).map(t => this._normalizeTrack(t));
     }
 
@@ -89,6 +94,8 @@ export class Audius {
             // Licence.js reads both.
             audiusLicense: raw.license || null,
             uploader: raw.user?.handle || null,
+            // Audius marks a song it will not stream (gated or taken down) with is_streamable false.
+            streamable: raw.is_streamable !== false,
         };
     }
 }
