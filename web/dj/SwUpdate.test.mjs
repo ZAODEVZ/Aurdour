@@ -1,4 +1,4 @@
-// A new version never reloads the desk by itself.   node web/dj/SwUpdate.test.mjs
+// A new version reloads an idle desk by itself, never a playing one.   node web/dj/SwUpdate.test.mjs
 // sw.js calls skipWaiting, so every deploy that changes a web file takes over open pages and
 // sends SW_UPDATED. index.html used to reload on it, mid-set. Now it shows a prompt: an idle
 // page reloads on one tap, a playing page warns on the first tap and never reloads unasked.
@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { swUpdatePrompt, BANNER_ID } from './SwUpdate.js';
+import { swUpdatePrompt, swUpdated, BANNER_ID, AUTO_KEY } from './SwUpdate.js';
 
 let failed = 0, passed = 0;
 const check = (label, cond) => { cond ? passed++ : failed++; console.log(`  ${cond ? 'ok  ' : 'FAIL'} ${label}`); };
@@ -66,6 +66,29 @@ console.log('A playing page');
     check('once the decks stop, one tap reloads', r2 === 1);
 }
 
+console.log('A new version arrives (swUpdated)');
+{
+    const mem = () => { const m = {}; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, m }; };
+    const doc = fakeDoc(); const store = mem(); let reloads = 0;
+    const r = swUpdated(doc, { playing: () => false, reload: () => reloads++, version: 'abc', store });
+    check('an idle page reloads by itself, no banner', reloads === 1 && r === null && doc.getElementById(BANNER_ID) === null);
+    check('it remembers the version it reloaded for', store.m[AUTO_KEY] === 'abc');
+    const r2 = swUpdated(doc, { playing: () => false, reload: () => reloads++, version: 'abc', store });
+    check('the same version again does not loop: it shows the prompt', reloads === 1 && r2 && doc.getElementById(BANNER_ID) === r2);
+    const doc3 = fakeDoc();
+    swUpdated(doc3, { playing: () => false, reload: () => reloads++, version: 'def', store });
+    check('the next version reloads by itself again', reloads === 2);
+
+    const doc4 = fakeDoc(); let r4 = 0;
+    const b = swUpdated(doc4, { playing: () => true, reload: () => r4++, version: 'xyz', store: mem() });
+    check('a playing page never reloads by itself: it gets the prompt', r4 === 0 && b && doc4.getElementById(BANNER_ID) === b);
+
+    const doc5 = fakeDoc(); let r5 = 0;
+    const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+    swUpdated(doc5, { playing: () => false, reload: () => r5++, version: 'v1', store: blocked });
+    check('blocked storage still reloads an idle page', r5 === 1);
+}
+
 console.log('The prompt itself');
 {
     const doc = fakeDoc();
@@ -86,7 +109,7 @@ console.log('The desk page');
     const i = html.indexOf("type === 'SW_UPDATED'");
     const handler = html.slice(i, html.indexOf('});', html.indexOf('})).catch', i)));
     check('index.html handles SW_UPDATED', i > 0);
-    check('with the prompt', handler.includes("import('/dj/SwUpdate.js')") && handler.includes('swUpdatePrompt(document'));
+    check('through swUpdated (idle reloads, playing gets the prompt)', handler.includes("import('/dj/SwUpdate.js')") && handler.includes('swUpdated(document') && handler.includes('djMixz?.running'));
     check('and no reload of its own', !/^\s*window\.location\.reload\(\);/m.test(handler));
     check('it reads both decks for playing', handler.includes('d?.A?.isPlaying || d?.B?.isPlaying'));
     check('SwUpdate.js is in the offline shell', sw.includes("'/dj/SwUpdate.js'"));
