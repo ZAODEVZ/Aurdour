@@ -1,5 +1,5 @@
 // Offline check of the off-air list.   node web/dj/ZaoCrate.test.mjs
-import { OFF_AIR, songKey, artistOffAir, offAirTrack, ONLY_SONGS } from './ZaoCrate.js';
+import { OFF_AIR, songKey, artistOffAir, offAirTrack, ONLY_SONGS, JANGO_AUDIUS, jangoSongs, ZaoCrate } from './ZaoCrate.js';
 
 const off = new Set(OFF_AIR);
 let fail = 0;
@@ -36,6 +36,22 @@ check(offAirTrack({ artist: 'N3M3SIS', title: 'LUI WHO?' }) === !nemKeep.include
 check(offAirTrack({ artist: 'WaveWarZ Africa', title: 'N3M3SIS - THE CALL OUT' }) === !nemKeep.includes('thecallout'), 'an N3M3SIS song posted from another account follows the same list');
 check(!offAirTrack({ artist: 'IMan Afrikah', title: 'ROYALTY' }), 'IMan songs stay');
 check(offAirTrack({ artist: 'NDA', title: 'Still' }), 'offAirTrack covers the NDA rule too');
+
+// JANGO: Jango UU's Audius page, ready to play
+const J = (id, title, extra = {}) => ({ id, title, artist: 'Jango UU', source: 'audius', streamUrl: 'https://x/' + id, ...extra });
+check(JANGO_AUDIUS.id === 'k2YadvK' && JANGO_AUDIUS.handle === 'jango.uu', 'Jango is Audius user k2YadvK, handle jango.uu');
+const js = jangoSongs([J('1', 'NEIL'), J('1', 'NEIL'), J('2', 'Gated', { streamable: false }), J('3', 'No link', { streamUrl: '' }), J('4', 'Neil'), J('5', 'Other'), null]);
+check(js.map((t) => t.id).join() === '1,5', 'jangoSongs keeps streamable songs once each (' + js.map((t) => t.id).join() + ')');
+check(jangoSongs(undefined).length === 0 && jangoSongs([]).length === 0, 'no answer from Audius gives no songs, not an error');
+const fakeLib = {};
+let calls = 0;
+const fake = { dj: { library: fakeLib, audius: { getUserIdTracks: async (id) => { calls++; return id === 'k2YadvK' ? [J('7', 'A'), J('8', 'B')] : []; } } } };
+const [l1, l2] = await Promise.all([ZaoCrate.prototype.loadJango.call(fake), ZaoCrate.prototype.loadJango.call(fake)]);
+check(l1.length === 2 && l2.length === 2 && fakeLib.jangoTracks.length === 2 && calls === 1, 'loadJango fills lib.jangoTracks with one read, even when asked twice at once');
+await ZaoCrate.prototype.loadJango.call(fake);
+check(calls === 1, 'loadJango keeps what it read');
+const down = { dj: { library: {}, audius: { getUserIdTracks: async () => { throw new Error('offline'); }, getUserTracks: async () => [] } } };
+check((await ZaoCrate.prototype.loadJango.call(down)).length === 0 && !down.dj.library.jangoTracks, 'Audius down: an empty list, nothing cached');
 
 if (fail) { console.log(`${fail} failed`); process.exit(1); }
 console.log('all passed');

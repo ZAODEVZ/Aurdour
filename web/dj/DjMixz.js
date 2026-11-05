@@ -271,6 +271,7 @@ export function tracksFrom(lib, sourceId, artist = '') {
         zao: lib.zaoTracks || [],
         battles: lib.battleTracks || [],
         wavewarz: lib.wavewarzTracks || [],
+        jango: lib.jangoTracks || [],
         local: lib.tracks || [],
         songchainn: sc,
         'songchainn-artist': sc.filter((t) => names.some((n) => String(t.artist).toLowerCase().includes(n))),
@@ -311,6 +312,7 @@ export class DjMixz {
             { id: 'zao', label: 'ZAO crate: SongChainn and Audius' },
             { id: 'battles', label: 'WaveWarZ quick battles: last battle night' },
             { id: 'wavewarz', label: 'WaveWarZ Powerhouse playlist (Audius)' },
+            { id: 'jango', label: 'JANGO: Jango UU, every song (Audius)' },
             { id: 'view', label: 'What the library is showing' },
             { id: 'local', label: 'LOCAL tab' },
         ];
@@ -632,6 +634,8 @@ export class DjMixz {
         if (this.running) this.stop();
         if (sourceId === 'songchainn') return this.mixSongChainn(moodId, minutes);
         this.scArtist = [];
+        // Jango's songs are read from Audius the first time they are asked for (the phone too).
+        if (sourceId === 'jango' && !(this.dj.library?.jangoTracks || []).length) { this._say('Fetching Jango UU from Audius…'); await this.dj.zaoCrate?.loadJango?.(); }
         const plan = this.build(sourceId, moodId, minutes);
         if (plan.length < 2) { this._say('Fewer than two playable tracks there. Pick another source.'); return false; }
         return this.start();
@@ -690,11 +694,35 @@ export class DjMixz {
         const lib = this.dj.library || {};
         if (on && !(lib.wavewarzTracks || []).length) { this._say('Fetching the WaveWarZ playlist…'); await this.dj.zaoCrate?.load(true); }
         const ok = await this.startFrom(on ? 'wavewarz' : 'zao', this.mood, 60, true);
-        const b = typeof document !== 'undefined' && document.getElementById('wavewarz-btn');
-        const live = ok !== false && on;
-        if (b) { b.classList.toggle('active', live); b.setAttribute('aria-pressed', String(live)); }
+        this._markSourceButtons(ok === false ? '' : on ? 'wavewarz' : 'zao');
         if (ok !== false) this._say(on ? 'WAVEWARZ: playing the WaveWarZ Powerhouse playlist.' : 'Back to the ZAO crate.');
         return ok;
+    }
+
+    // JANGO: only Jango UU's songs from Audius, straight into an endless set (Zaal, 5 Nov 2026:
+    // "make it just like wavewarz button", "just go right into it"). A second tap goes back to
+    // the ZAO crate. Nothing found means no set: an empty one would just sit there.
+    async toggleJango() {
+        const on = this._lastBuild?.sourceId !== 'jango' || !this.running;
+        if (on) {
+            if (!(this.dj.library?.jangoTracks || []).length) this._say('Fetching Jango UU from Audius…');
+            const songs = (await this.dj.zaoCrate?.loadJango?.()) || [];
+            if (!songs.length) { this._say("JANGO: Jango UU's songs did not load from Audius. Check the connection and tap JANGO again."); return false; }
+            if (songs.length < 2) { this._say('JANGO: only one Jango UU song plays right now, a set needs two.'); return false; }
+        }
+        const ok = await this.startFrom(on ? 'jango' : 'zao', this.mood, 60, true);
+        this._markSourceButtons(ok === false ? '' : on ? 'jango' : 'zao');
+        if (ok !== false) this._say(on ? 'JANGO: playing Jango UU.' : 'Back to the ZAO crate.');
+        return ok;
+    }
+
+    // The WAVEWARZ and JANGO buttons light up for the music that is playing, and only that one.
+    _markSourceButtons(sourceId) {
+        if (typeof document === 'undefined') return;
+        for (const [id, src] of [['wavewarz-btn', 'wavewarz'], ['jango-btn', 'jango']]) {
+            const b = document.getElementById(id);
+            if (b) { b.classList.toggle('active', sourceId === src); b.setAttribute('aria-pressed', String(sourceId === src)); }
+        }
     }
 
     // From the phone: one recipe, and the set keeps mixing that way until another is picked (Zaal,
@@ -864,6 +892,17 @@ export class DjMixz {
         ww.addEventListener('click', () => this.toggleWaveWarz());
         hop.insertAdjacentElement('afterend', ww);
 
+        // JANGO beside it: one tap plays only Jango UU's songs from Audius, a second tap goes
+        // back to the ZAO crate (Zaal, 5 Nov).
+        const jg = document.createElement('button');
+        jg.id = 'jango-btn';
+        jg.className = 'btn-toolbar wavewarz-btn jango-btn';
+        jg.title = "Play Jango UU's songs. Tap again for the ZAO crate";
+        jg.textContent = 'JANGO';
+        jg.setAttribute('aria-pressed', 'false');
+        jg.addEventListener('click', () => this.toggleJango());
+        ww.insertAdjacentElement('afterend', jg);
+
         // STREAM PAGE: opens /stream, the page to put on the live stream.
         const sp = document.createElement('a');
         sp.id = 'stream-page-btn';
@@ -873,7 +912,7 @@ export class DjMixz {
         sp.rel = 'noopener';
         sp.title = 'Open the /stream page for the live stream';
         sp.textContent = 'STREAM PAGE';
-        ww.insertAdjacentElement('afterend', sp);
+        jg.insertAdjacentElement('afterend', sp);
 
         const panel = document.createElement('div');
         panel.id = 'djmixz-panel';
@@ -1058,6 +1097,11 @@ export class DjMixz {
         });
         panel.querySelector('#djmixz-source').addEventListener('change', async (e) => {
             const pick = e.target.value === 'songchainn-artist'; artistSel.hidden = !pick;
+            if (e.target.value === 'jango' && !(this.dj.library?.jangoTracks || []).length) {
+                this._say('Fetching Jango UU from Audius…');
+                const songs = (await this.dj.zaoCrate?.loadJango?.()) || [];
+                this._say(songs.length ? `${songs.length} Jango UU songs in. Pick a mood, then build the set.` : "Jango UU's songs did not load from Audius. Check the connection and pick JANGO again.");
+            }
             if (!pick) return;
             const crate = this.dj.zaoCrate;
             const missing = crate && !(this.dj.library?.zaoTracks || []).some((t) => t.source === 'songchainn');
