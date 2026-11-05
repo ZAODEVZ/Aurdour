@@ -3,6 +3,24 @@
 // the DJ taps RELOAD when it suits, and while a deck plays the first tap only warns.
 
 export const BANNER_ID = 'sw-ready-banner';
+export const AUTO_KEY = 'mixz-sw-auto-reload';
+
+// Zaal, 5 Nov 2026: "Why are u asking me to do something that would take half a second". A page
+// with nothing playing takes the new version by itself, once per version (the key stops a reload
+// loop if the new copy comes up idle and the message arrives again). Only a playing page asks.
+// store: sessionStorage-like { getItem, setItem }, or null when the browser blocks it.
+export function swUpdated(doc, { playing = () => false, reload, version = '', store = null } = {}) {
+    if (!playing()) {
+        let seen = null;
+        try { seen = store?.getItem(AUTO_KEY); } catch { seen = null; }
+        if (seen !== String(version)) {
+            try { store?.setItem(AUTO_KEY, String(version)); } catch { /* reload anyway */ }
+            reload();
+            return null;
+        }
+    }
+    return swUpdatePrompt(doc, { playing, reload });
+}
 
 // playing: () => is a deck playing now; reload: () => reload the page.
 export function swUpdatePrompt(doc, { playing = () => false, reload } = {}) {
