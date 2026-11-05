@@ -1172,7 +1172,7 @@ class DJPlayer {
         let selectedTheme = 'full';
 
         const getOverlayUrl = () => {
-            const base = window.location.href.replace(/\/[^/]*$/, '/obs-overlay.html');
+            const base = `${window.location.origin}/obs-overlay.html`;
             return selectedTheme === 'full' ? base : `${base}?theme=${selectedTheme}`;
         };
 

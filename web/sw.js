@@ -29,6 +29,8 @@ const APP_SHELL = [
     '/how.html',
     '/llms.txt',
     '/feedback.html',
+    '/lobbies.html',
+    '/dj/Lobbies.js',
     '/dj/Feedback.js',
     '/player.js',
     '/dj/Deck.js',

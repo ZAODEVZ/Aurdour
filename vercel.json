@@ -15,6 +15,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/stream/:lobby",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lobbies",
+      "destination": "/lobbies.html"
+    },
+    {
       "source": "/admin",
       "destination": "/remote.html"
     }
