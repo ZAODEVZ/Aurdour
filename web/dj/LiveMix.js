@@ -304,6 +304,7 @@ export class LiveMixHost {
         const room = roomSlug(name);
         if (!room) return { ok: false, why: 'name' };
         await this.start();
+        if (!this.clients.length) await this._open();   // no relay came up at start: try again now
         const topic = await roomTopic(room);
         const prev = this.room;
         this.room = { room, name: roomName(name) || room, topic, checking: true };

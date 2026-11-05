@@ -10,9 +10,20 @@
 import { snapshot } from './RemoteLink.js';
 import { onAirDeck } from './NowPlaying.js';
 import { esc } from './Html.js';
+import { roomSlug } from './LiveMix.js';
+import { lobbyLabel } from './Lobbies.js';
 
 export const isStreamView = (loc = typeof location !== 'undefined' ? location : null) =>
-    !!loc && (/^\/stream\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
+    !!loc && (/^\/stream(?:\/[^/]+)?\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
+
+// /stream/<lobby> (Zaal, 5 Nov: "zaomixz.com/stream/zaal will be mine"): the stream tab claims that
+// lobby (LiveMix.js), so the lobby's watch link, mix.html#lobby=<lobby>, follows this set.
+// '' on plain /stream or a name that is not a lobby name.
+export const streamRoom = (loc = typeof location !== 'undefined' ? location : null) => {
+    const m = loc && /^\/stream\/([^/]+)\/?$/.exec(loc.pathname || '');
+    if (!m) return '';
+    try { return roomSlug(decodeURIComponent(m[1])); } catch { return ''; }
+};
 
 const fmt = (s) => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, '0')}`;
 
@@ -78,6 +89,7 @@ export class StreamView {
         // /admin talks to this tab through the phone link: keep it on without anyone clicking PHONE
         setTimeout(() => { try { if (!this.dj.remote?.relay) this.dj.remote?.start?.(); } catch (e) { /* admin can still pair by code */ } }, 1500);
         this._startChat();
+        this._claimRoom(streamRoom());
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'a' && e.key !== 'A') return;
             if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
@@ -86,12 +98,36 @@ export class StreamView {
         });
     }
 
+    // /stream/<lobby>: hold that lobby while this tab streams. The name shows on the display once
+    // it is ours; why it was refused shows only to the host, under A (the admin overlay).
+    async _claimRoom(room) {
+        if (!room) return;
+        const say = (t) => { const s = document.getElementById('sv-lobby-status'); if (s) s.textContent = t; };
+        say(`Claiming ${lobbyLabel(room)}...`);
+        let r = null;
+        for (let i = 0; i < 3 && !r?.ok; i++) {
+            if (i) await new Promise((ok) => setTimeout(ok, 15000));
+            r = await this.dj.setlist?.claimLobby?.(room);
+            if (r?.why === 'taken' || r?.why === 'name') break;   // waiting will not change these
+        }
+        if (r?.ok) {
+            const tag = document.getElementById('sv-lobby');
+            if (tag) { tag.textContent = lobbyLabel(room); tag.classList.remove('hidden'); }
+            say(`Holding ${lobbyLabel(room)}. Watch link: ${r.link}`);
+        } else {
+            say(r?.why === 'taken'
+                ? `${lobbyLabel(room)} is held by another host (played ${r.minutes} min ago). It frees up after 30 silent minutes.`
+                : `Could not claim ${lobbyLabel(room)}. Check the internet and reload.`);
+        }
+    }
+
     _build() {
         const el = document.createElement('div');
         el.id = 'stream-view';
         el.innerHTML = `
             <div class="sv-bg" id="sv-bg"></div>
-            <div class="sv-top"><span class="sv-logo">ZAO <b>MIXZ</b></span><span class="sv-live" id="sv-live">LIVE</span></div>
+            <div class="sv-top"><span class="sv-logo">ZAO <b>MIXZ</b></span><span class="sv-lobby hidden" id="sv-lobby"></span><span class="sv-live" id="sv-live">LIVE</span></div>
+            <div class="sv-lobby-status" id="sv-lobby-status"></div>
             <div class="sv-main">
                 <div class="sv-art" id="sv-art"></div>
                 <div class="sv-text">

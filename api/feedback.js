@@ -8,7 +8,7 @@
 //                                              opens a GitHub issue labelled "feedback"
 // With neither set it answers 501, and the page offers copy / open-as-issue instead.
 
-const KINDS = ['Bug', 'Idea', 'Love it', 'Song request', 'Other'];
+const KINDS = ['Bug', 'Idea', 'Love it', 'Song request', 'Lobby request', 'Other'];
 const MAX = 2000;
 
 // The message cleaned and checked, or an error string.

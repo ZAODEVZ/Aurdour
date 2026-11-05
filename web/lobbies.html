@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZAO MixZ Lobbies</title>
+<meta name="description" content="ZAO MixZ lobbies: Zaal's lobby, the guest lobby, and a form to request your own. Stream from a lobby and its watch link follows your set.">
+<link rel="icon" href="/icons/mixz-192.png">
+<style>
+  :root { --bg: #0d0f14; --panel: #161a22; --text: #e8eaf0; --muted: #9aa3b5; --accent: #ffb020; --line: #262c38; --ok: #3ddc84; --bad: #ff5a5a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  header a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  .lobby { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .lobby h2 { margin: 0 0 4px; font-size: 18px; }
+  .lobby p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { flex: 1; min-width: 120px; text-align: center; border-radius: 8px; padding: 11px 12px; font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer; font-family: inherit; }
+  .btn.primary { background: var(--accent); color: #111; border: 0; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .link { margin-top: 10px; font-size: 13px; color: var(--muted); word-break: break-all; }
+  .label { font-size: 13px; color: var(--muted); margin: 14px 0 6px; display: block; }
+  input { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 11px; font: inherit; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hp { position: absolute; left: -9999px; }
+  .send { margin-top: 16px; width: 100%; }
+  .send:disabled { opacity: 0.6; cursor: default; }
+  .note { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 1.5em; }
+  .note.ok { color: var(--ok); } .note.bad { color: var(--bad); }
+  .how { color: var(--muted); font-size: 14px; }
+  .how b { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ZAO MixZ Lobbies</h1>
+  <a href="/">Back to the decks</a>
+</header>
+<main>
+  <p class="lead">A lobby is a named room for a live set. Press STREAM on the computer playing the music: that tab becomes the stream display and holds the lobby. Everyone else presses WATCH.</p>
+
+  <div id="lobbies"></div>
+
+  <section class="lobby" id="request">
+    <h2>Request a lobby</h2>
+    <p>Want your own room for a show or a guest night? Tell us the name and who is on the decks.</p>
+    <form id="request-form" novalidate>
+      <label class="label" for="rq-lobby">Lobby name</label>
+      <input id="rq-lobby" maxlength="40" placeholder="e.g. Friday Vibes" autocomplete="off">
+      <label class="label" for="rq-who">Who will DJ</label>
+      <input id="rq-who" maxlength="80" placeholder="Your DJ name">
+      <label class="label" for="rq-when">When (optional)</label>
+      <input id="rq-when" maxlength="120" placeholder="e.g. Fridays 8pm ET">
+      <label class="label" for="rq-contact">How we reach you</label>
+      <input id="rq-contact" maxlength="120" placeholder="Telegram, Farcaster or email">
+      <input class="hp" id="rq-website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn primary send" id="rq-send" type="submit">SEND REQUEST</button>
+      <div class="note" id="rq-note" role="status"></div>
+    </form>
+  </section>
+
+  <p class="how"><b>Good to know:</b> a lobby stays with whoever streams in it until their decks have been quiet for 30 minutes. The watch link shows the songs as they play.</p>
+</main>
+
+<script type="module">
+import { LOBBIES, lobbyLinks, lobbyRequest } from '/dj/Lobbies.js';
+import { esc } from '/dj/Html.js';
+
+const origin = location.origin;
+document.getElementById('lobbies').innerHTML = LOBBIES.map((l) => {
+  const k = lobbyLinks(origin, l.room);
+  return `<section class="lobby"><h2>${esc(l.name)}</h2><p>${esc(l.about)}</p>`
+    + `<div class="row"><a class="btn primary" href="${esc(k.stream)}">STREAM</a>`
+    + `<a class="btn ghost" href="${esc(k.watch)}" target="_blank" rel="noopener">WATCH</a>`
+    + `<button class="btn ghost" type="button" data-copy="${esc(k.watch)}">COPY WATCH LINK</button></div>`
+    + `<div class="link">${esc(k.stream)}</div></section>`;
+}).join('');
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = 'COPIED'; setTimeout(() => { b.textContent = 'COPY WATCH LINK'; }, 1500); });
+});
+
+const note = document.getElementById('rq-note');
+const send = document.getElementById('rq-send');
+document.getElementById('request-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const v = (id) => document.getElementById(id).value;
+  const r = lobbyRequest({ lobby: v('rq-lobby'), who: v('rq-who'), when: v('rq-when'), contact: v('rq-contact') });
+  note.className = 'note';
+  if (typeof r === 'string') { note.textContent = r.charAt(0).toUpperCase() + r.slice(1) + '.'; note.classList.add('bad'); return; }
+  send.disabled = true; note.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...r, website: v('rq-website'), device: navigator.userAgent.slice(0, 200) }) });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && j.ok) { note.textContent = 'Sent. We will get back to you about your lobby.'; note.classList.add('ok'); e.target.reset(); }
+    else if (res.status === 501) { note.innerHTML = 'Requests are not connected yet. Post it in <a href="https://t.me/+WVf5XsztOMc4OGZk" target="_blank" rel="noopener" style="color:var(--accent)">ZM on Telegram</a> for now.'; note.classList.add('bad'); }
+    else { note.textContent = j.error ? `Not sent: ${j.error}.` : 'Not sent. Try again in a minute.'; note.classList.add('bad'); }
+  } catch { note.textContent = 'Not sent. Check the internet and try again.'; note.classList.add('bad'); }
+  send.disabled = false;
+});
+</script>
+</body>
+</html>

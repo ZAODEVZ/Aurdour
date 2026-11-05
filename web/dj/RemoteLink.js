@@ -271,13 +271,20 @@ export function fresh(msg, seen, now = Date.now()) {
     return true;
 }
 
+// One load per script, shared: a second caller waits for the same load instead of going on while
+// the script is still on its way (on /stream/<lobby> the lobby claim and the phone link both load
+// MQTT at once, and the claim found window.mqtt missing). A failed load can be tried again.
+const scriptLoads = new Map();
 export function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
-        const s = document.createElement('script');
-        s.src = src; s.onload = resolve; s.onerror = () => reject(new Error(`could not load ${src}`));
-        document.head.appendChild(s);
-    });
+    if (!scriptLoads.has(src)) {
+        scriptLoads.set(src, new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src; s.onload = resolve;
+            s.onerror = () => { scriptLoads.delete(src); s.remove(); reject(new Error(`could not load ${src}`)); };
+            document.head.appendChild(s);
+        }));
+    }
+    return scriptLoads.get(src);
 }
 export const loadPeer = () => loadScript(PEER_SRC);
 

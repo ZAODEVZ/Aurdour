@@ -1139,3 +1139,8 @@ body.stream-view.stream-admin #remote-panel { position: fixed; z-index: 99999; t
 
 /* /stream goes out on the broadcast: never show the phone link or its code there (doc 1971). */
 body.stream-view #remote-qr, body.stream-view #remote-link { display: none; }
+
+/* /stream/<lobby>: the lobby name on the display, and the claim status for the host (A) only */
+#stream-view .sv-lobby { font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; margin-left: auto; margin-right: 16px; }
+#stream-view .sv-lobby-status { display: none; position: absolute; top: 80px; left: 40px; right: 40px; font-size: 0.95rem; opacity: 0.8; }
+body.stream-view.stream-admin #stream-view .sv-lobby-status { display: block; }
