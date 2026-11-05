@@ -18,6 +18,8 @@ import { RequestQueue, cleanRequest, forCaller, canTape, autoPick } from './Requ
 import { requestData } from './StreamEvents.js';
 import { canPlay } from './Licence.js';
 import { moderate, matchRequest, chatDevice, CHAT_MAX_WAITING } from './ChatFilter.js';
+import { parseSongLink, audiusExact, songchainnMatch } from './SongLink.js';
+import { isBlocked } from './SongChainn.js';
 
 export const STATE_HZ = 5;
 export const NEXT_MODES = ['smooth', 'up', 'down', 'key', 'mood', 'genre', 'double', 'wild'];
@@ -467,24 +469,63 @@ export class RemoteHost {
 
     // A "!sr song" from Twitch or YouTube chat: moderated, matched to one playable track, and put
     // on the board marked from chat. It waits for PLAY NEXT; it never plays by itself.
-    // { ok, reason, request }.
+    // { ok, reason, request }, or a promise of it for a song link (looked up first).
+    // A "!sr <link>" (SongLink.js): an Audius or SongChainn song page is looked up and goes on the
+    // board the same way; a link to another music site stays a suggestion the DJ can only wave off.
     chatRequest(req, blocked = []) {
+        const link = parseSongLink(req?.query);
+        if (link) return this._chatLink(req, link, blocked);
         const m = moderate(req?.query, { blocked });
         if (!m.ok) return { ok: false, reason: m.reason };
         const user = moderate(req?.user, { blocked });
         if (!user.ok) return { ok: false, reason: 'name' };
-        if (this.requests.waiting().filter((r) => r.from === 'chat').length >= CHAT_MAX_WAITING) return { ok: false, reason: 'chat requests full' };
+        if (this._chatFull()) return { ok: false, reason: 'chat requests full' };
         const lib = this.dj.library || {};
         const pool = [...tracksFrom(lib, 'zao'), ...tracksFrom(lib, 'local'), ...tracksFrom(lib, 'battles')].filter((t) => canPlay(t).ok);
         const track = matchRequest(m.text, pool);
         if (!track) return { ok: false, reason: 'no match' };
+        return this._chatAdd(req, user.text, track);
+    }
+
+    _chatFull() { return this.requests.waiting().filter((r) => r.from === 'chat').length >= CHAT_MAX_WAITING; }
+
+    _chatAdd(req, name, track) {
+        if (!canPlay(track).ok || isBlocked(track.artist)) return { ok: false, reason: 'not playable' };
+        if (this._chatFull()) return { ok: false, reason: 'chat requests full' };
         const platform = req.platform === 'youtube' ? 'YouTube' : req.platform === 'twitch' ? 'Twitch' : 'chat';
-        const res = this.requests.add(chatDevice(req.platform, user.text), { id: idOfTrack(track), name: user.text.slice(0, 24), note: `via ${platform}` }, track);
+        const res = this.requests.add(chatDevice(req.platform, name), { id: idOfTrack(track), name: name.slice(0, 24), note: `via ${platform}` }, track);
         if (!res.ok) return { ok: false, reason: res.reason };
         if (!res.joined) res.request.from = 'chat';   // set here, from the connection, never from the message
         this._announce(res.request);
         this._renderRequests();
         return { ok: true, request: res.request };
+    }
+
+    _chatLink(req, link, blocked) {
+        if (link.kind === 'refused') return { ok: false, reason: link.reason };
+        const user = moderate(req?.user, { blocked });
+        if (!user.ok) return { ok: false, reason: 'name' };
+        const device = chatDevice(req.platform, user.text);
+        if (link.kind === 'suggest') {
+            const res = this.requests.suggest(device, user.text.slice(0, 24), link);
+            if (res.ok) this._renderRequests();
+            return res;
+        }
+        if (this._chatFull()) return { ok: false, reason: 'chat requests full' };
+        // One lookup per chat user at a time, and only a few at once, so a flood of links
+        // cannot keep the desk busy asking Audius
+        this._looking = this._looking || new Set();
+        if (this._looking.has(device) || this._looking.size >= 3) return { ok: false, reason: 'busy' };
+        this._looking.add(device);
+        const find = async () => {
+            if (link.kind === 'audius') return this.dj.audius ? this.dj.audius.resolveTrack(link.url, (raw) => audiusExact(raw, link)) : null;
+            if (link.kind === 'songchainn') return this.dj.songchainn ? songchainnMatch(await this.dj.songchainn.all(), link) : null;
+            return null;
+        };
+        return find()
+            .then((track) => (track ? this._chatAdd(req, user.text, track) : { ok: false, reason: 'no match' }))
+            .catch(() => ({ ok: false, reason: 'lookup failed' }))
+            .finally(() => this._looking.delete(device));
     }
 
     // Tell the callers on this request, and the stream (request.updated, docs/STREAM-EVENTS.md).
@@ -549,11 +590,12 @@ export class RemoteHost {
             this.btn.textContent = base + (open.length ? ` · ${open.length} REQ` : '');
         }
         if (!box) return;
-        const sig = (onair?.rid || '') + '|' + open.map((r) => `${r.rid}:${r.status}:${r.also.length}`).join(',');
+        const ideas = this.requests.openSuggestions();
+        const sig = (onair?.rid || '') + '|' + open.map((r) => `${r.rid}:${r.status}:${r.also.length}`).join(',') + '|' + ideas.map((s) => s.sid).join(',');
         if (box.dataset.sig === sig) return;
         box.dataset.sig = sig;
         box.textContent = '';
-        if (!onair && !open.length) return;
+        if (!onair && !open.length && !ideas.length) return;
         const head = document.createElement('div'); head.className = 'remote-req-head'; head.textContent = 'REQUEST LINE';
         const auto = document.createElement('button'); auto.className = `btn-toolbar btn-sm${this.autoPlay ? ' active' : ''}`;
         auto.textContent = `AUTO-PLAY ${this.autoPlay ? 'ON' : 'OFF'}`;
@@ -581,6 +623,19 @@ export class RemoteHost {
         };
         if (onair) box.appendChild(row(onair));
         open.forEach((r) => box.appendChild(row(r)));
+        // Suggested from chat by a link MixZ cannot play: who, and where, to look up by hand
+        ideas.forEach((s) => {
+            const el = document.createElement('div'); el.className = 'remote-req suggested';
+            const info = document.createElement('div'); info.className = 'remote-req-info';
+            const b = document.createElement('b'); b.textContent = s.title ? `${s.title} (${s.site})` : `A song on ${s.site}`;
+            const who = document.createElement('small'); who.textContent = `${s.name}: suggested, ${s.host}. Not played from chat.`;
+            info.append(b, who);
+            const tag = document.createElement('span'); tag.className = 'remote-req-tag'; tag.textContent = 'SUGGESTED';
+            const no = document.createElement('button'); no.className = 'btn-toolbar btn-sm'; no.textContent = 'NOT TONIGHT';
+            no.onclick = () => { this.requests.dismiss(s.sid); this._renderRequests(); };
+            el.append(info, tag, no);
+            box.appendChild(el);
+        });
     }
 
     // Send the live mix to the phone, so the set can be heard from anywhere. Sound cannot go

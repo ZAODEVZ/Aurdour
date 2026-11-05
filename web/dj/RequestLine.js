@@ -17,6 +17,10 @@ export const PER_PHONE = 2;          // songs one phone can have waiting
 export const NAME_MAX = 24;
 export const NOTE_MAX = 80;
 export const STATUS = ['waiting', 'next', 'onair', 'played', 'passed'];
+// Songs suggested by a link to a site MixZ cannot play (SongLink.js): the DJ sees who and where,
+// and can only wave them off. They are not requests: never on the board, never on the decks.
+export const SUGGEST_MAX = 8;        // suggestions waiting at once
+export const SUGGEST_PER_USER = 1;   // one waiting suggestion per chat user
 
 const squash = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 // The same song on the desk and in a request: compared by cleaned title and artist, because
@@ -36,6 +40,7 @@ export function cleanRequest(raw) {
 export class RequestQueue {
     constructor({ now = () => Date.now() } = {}) {
         this.items = [];
+        this.suggestions = [];
         this._n = 0;
         this._now = now;
     }
@@ -101,6 +106,33 @@ export class RequestQueue {
             up: this.waiting().sort((a, b) => ((b.status === 'next') - (a.status === 'next')) || a.at - b.at).slice(0, limit).map(brief),
             count: this.waiting().length,
         };
+    }
+
+    // A suggestion from a link (SongLink.parseSongLink, kind 'suggest'). Returns { ok, suggestion, reason }.
+    suggest(device, name, link) {
+        const open = this.openSuggestions();
+        if (open.some((s) => s.key === link.key)) return { ok: false, reason: 'Someone already suggested that one.' };
+        if (open.filter((s) => s.device === device).length >= SUGGEST_PER_USER) return { ok: false, reason: 'You have a suggestion waiting already.' };
+        if (open.length >= SUGGEST_MAX) return { ok: false, reason: 'The suggestions are full right now.' };
+        const suggestion = {
+            sid: `s${++this._n}`, device, name: oneLine(name, NAME_MAX) || 'A listener',
+            site: oneLine(link.site, 20), host: oneLine(link.host, 80), title: oneLine(link.title, 80), key: link.key,
+            status: 'open', at: this._now(),
+        };
+        this.suggestions.push(suggestion);
+        const done = this.suggestions.filter((s) => s.status !== 'open');
+        if (done.length > 20) { const cut = new Set(done.slice(0, done.length - 20)); this.suggestions = this.suggestions.filter((s) => !cut.has(s)); }
+        return { ok: true, suggestion };
+    }
+
+    openSuggestions() { return this.suggestions.filter((s) => s.status === 'open'); }
+
+    // NOT TONIGHT on a suggestion.
+    dismiss(sid) {
+        const s = this.suggestions.find((x) => x.sid === sid);
+        if (!s) return null;
+        s.status = 'dismissed';
+        return s;
     }
 
     // Finished requests drop off after a while so the list stays short.

@@ -73,6 +73,7 @@ const APP_SHELL = [
     '/dj/FlowDirector.js',
     '/dj/StreamEvents.js',
     '/dj/ChatFilter.js',
+    '/dj/SongLink.js',
     '/dj/BeatGridOverlay.js',
     '/dj/Archive.js',
     '/dj/ArtistTab.js',

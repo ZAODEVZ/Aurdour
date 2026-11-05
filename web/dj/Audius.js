@@ -68,6 +68,14 @@ export class Audius {
         return (data.data || []).map(t => this._normalizeTrack(t));
     }
 
+    // One track by its page link (audius.co/<handle>/<song>), or null. `accept` sees what Audius
+    // found before it counts (SongLink.audiusExact: that exact track, public and streamable).
+    async resolveTrack(url, accept = () => true) {
+        const found = await this._apiGet(`/v1/resolve?url=${encodeURIComponent(url)}`);
+        const t = Array.isArray(found?.data) ? found.data[0] : found?.data;
+        return t && accept(t) ? this._normalizeTrack(t) : null;
+    }
+
     getStreamUrl(trackId) {
         return `${this.host}/v1/tracks/${trackId}/stream?app_name=${this.appName}`;
     }

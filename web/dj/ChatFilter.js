@@ -4,6 +4,8 @@
 // if moderate() passes it, and a "!sr song name" request reaches the request line only if it
 // passes and matches one playable track well. A chat request then waits for a person to tap
 // PLAY NEXT: it never plays by itself (RequestLine.autoPick). docs/STREAM-EVENTS.md.
+// A "!sr <link>" never comes through moderate(): SongLink.js reads it strictly, and the link
+// itself still never reaches the stream's chat text.
 //
 // The text a line keeps is plain text, never markup: whoever shows a chat.message escapes it.
 // Blocked words match whole words after the clean-up; lookalike letters and words spelled
@@ -31,7 +33,8 @@ const SHORT = new RegExp(`(^|[^a-z0-9@-])[a-z0-9]\\.(${ENDINGS})(?![a-z0-9])`, '
 // Spaced or spelled out ("t. me/x", "t dot me/x") it counts only with a path after it, so
 // "Plan B. Me and you" passes
 const SHORT_SPACED = new RegExp(`(^|[^a-z0-9@-])[a-z0-9]\\s*${DOT}\\s*(${ENDINGS})\\/`, 'i');
-const isLink = (t) => { const d = t.replace(DOTS, '.'); return SCHEME.test(d) || BARE.test(d) || SPACED.test(d) || SHORT.test(d) || SHORT_SPACED.test(d); };
+// Exported for SongLink.js, the one place a "!sr" link is read instead of held.
+export const looksLikeLink = (t) => { const d = t.replace(DOTS, '.'); return SCHEME.test(d) || BARE.test(d) || SPACED.test(d) || SHORT.test(d) || SHORT_SPACED.test(d); };
 // Control characters and the invisible ones used to dodge filters, the soft hyphen, the
 // combining grapheme joiner and the Mongolian vowel separator included
 const HIDDEN = /[\u0000-\u001f\u007f-\u009f\u00ad\u034f\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g;
@@ -41,7 +44,7 @@ export function moderate(raw, { blocked = [] } = {}) {
     // NFKC first: fullwidth and other compatibility letters become plain ones
     const text = String(raw ?? '').normalize('NFKC').replace(HIDDEN, '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
     if (!text) return { ok: false, text: '', reason: 'empty' };
-    if (isLink(text)) return { ok: false, text, reason: 'link' };
+    if (looksLikeLink(text)) return { ok: false, text, reason: 'link' };
     const lower = text.toLowerCase();
     const hit = blocked.map((w) => String(w).trim().toLowerCase()).filter(Boolean)
         .find((w) => new RegExp(`(^|[^a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(lower));

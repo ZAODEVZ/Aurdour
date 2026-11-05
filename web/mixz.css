@@ -743,6 +743,7 @@ body.pro-mode .toolbar-select { height: 30px; border-radius: 8px; background: #1
 .remote-req { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); }
 .remote-req.onair { border-color: rgba(43, 255, 154, 0.6); }
 .remote-req.next { border-color: rgba(255, 197, 51, 0.5); }
+.remote-req.suggested { border-style: dashed; opacity: 0.85; }
 .remote-req-info { flex: 1 1 160px; min-width: 0; }
 .remote-req-info b { display: block; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .remote-req-info small { display: block; font-size: 0.7rem; color: var(--mz-muted); }
@@ -1102,6 +1103,17 @@ body.stream-view { overflow: hidden; }
 #stream-view.deck-b .sv-fill { background: var(--mz-b, #ff6b35); }
 #stream-view .sv-time { font-variant-numeric: tabular-nums; opacity: 0.7; font-weight: 700; }
 #stream-view .sv-next { margin-top: 18px; font-size: clamp(0.9rem, 1.6vw, 1.3rem); opacity: 0.75; }
+#stream-view .sv-queue { margin-top: 18px; padding: 12px 16px; background: rgba(5, 6, 10, 0.55); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; max-width: 640px; }
+#stream-view .sv-queue.hidden { display: none; }
+#stream-view .sv-queue-head { font-weight: 900; letter-spacing: 0.18em; font-size: 0.85rem; color: var(--mz-a, #00d4ff); margin-bottom: 8px; }
+#stream-view.deck-b .sv-queue-head { color: var(--mz-b, #ff6b35); }
+#stream-view .sv-queue-head span { letter-spacing: 0.02em; font-weight: 700; color: rgba(255,255,255,0.6); margin-left: 8px; }
+#stream-view .sv-queue-list { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; font-size: clamp(0.85rem, 1.3vw, 1.15rem); }
+#stream-view .sv-queue-row { overflow-wrap: anywhere; line-height: 1.25; }
+#stream-view .sv-queue-row span { opacity: 0.8; margin-left: 8px; }
+#stream-view .sv-queue-row span::before { content: "· "; }
+#stream-view .sv-queue-row small { display: block; opacity: 0.6; font-weight: 600; font-size: 0.8em; }
+#stream-view .sv-queue-row.next b { color: var(--mz-a, #00d4ff); }
 #stream-view .sv-viz { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 22vh; }
 /* Twitch chat on /stream (27 Oct): a column on the right, newest at the bottom, old lines fade out */
 #stream-view.has-chat .sv-main { right: 30vw; }

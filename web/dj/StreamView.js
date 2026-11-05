@@ -9,6 +9,7 @@
 
 import { snapshot } from './RemoteLink.js';
 import { onAirDeck } from './NowPlaying.js';
+import { esc } from './Html.js';
 
 export const isStreamView = (loc = typeof location !== 'undefined' ? location : null) =>
     !!loc && (/^\/stream\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
@@ -27,6 +28,20 @@ export function streamCard(state, art = null) {
         progress: d.dur ? Math.min(1, d.time / d.dur) : 0, time: d.dur ? `${fmt(d.time)} / ${fmt(d.dur)}` : '',
         next, live: !!state.live,
     };
+}
+
+// The request line on the display (Zaal, 5 Nov: "show it aswell like a queue on screen would be
+// cool"): the songs waiting, in the order they will come, from the board in the desk state.
+// Song, artist and the name the caller gave, nothing else: no note, no phone, no link.
+export const QUEUE_MAX = 5;
+export function upNext(board, max = QUEUE_MAX) {
+    return (board?.up || []).slice(0, max).map((r) => ({
+        title: String(r.title || 'Untitled').slice(0, 80), artist: String(r.artist || '').slice(0, 60),
+        name: String(r.name || '').slice(0, 24), next: r.status === 'next',
+    }));
+}
+export function upNextHtml(rows) {
+    return rows.map((r) => `<li class="sv-queue-row${r.next ? ' next' : ''}"><b>${esc(r.title)}</b>${r.artist ? `<span>${esc(r.artist)}</span>` : ''}${r.name ? `<small>requested by ${esc(r.name)}</small>` : ''}</li>`).join('');
 }
 
 // Twitch chat on the display (Zaal, 27 Oct: "upgrade the twitch part ... so we can see the twitch
@@ -86,6 +101,10 @@ export class StreamView {
                     <div class="sv-bar"><div class="sv-fill" id="sv-fill"></div></div>
                     <div class="sv-time" id="sv-time"></div>
                     <div class="sv-next" id="sv-next"></div>
+                    <div class="sv-queue hidden" id="sv-queue">
+                        <div class="sv-queue-head">UP NEXT <span>from the request line</span></div>
+                        <ol class="sv-queue-list" id="sv-queue-list"></ol>
+                    </div>
                 </div>
             </div>
             <div class="sv-chat hidden" id="sv-chat">
@@ -151,6 +170,18 @@ export class StreamView {
         document.getElementById('stream-view').classList.toggle('deck-b', c.deck === 'B');
         const artUrl = c.art ? `url("${String(c.art).replace(/"/g, '%22')}")` : '';
         for (const id of ['sv-art', 'sv-bg']) { const e = document.getElementById(id); if (e.dataset.art !== artUrl) { e.dataset.art = artUrl; e.style.backgroundImage = artUrl; } }
+        this._queue(state.req);
+    }
+
+    // The request line's waiting songs, painted only when they change.
+    _queue(board) {
+        const box = document.getElementById('sv-queue'), list = document.getElementById('sv-queue-list');
+        if (!box || !list) return;
+        const html = upNextHtml(upNext(board));
+        if (list.dataset.html === html) return;
+        list.dataset.html = html;
+        list.innerHTML = html;
+        box.classList.toggle('hidden', !html);
     }
 
     // Bars from the master output, so the stream moves with the music.
