@@ -1156,6 +1156,7 @@ body.stream-view.stream-admin #stream-view .sv-lobby-status { display: block; }
 body:not(.pro-mode) .top-bar { flex-wrap: nowrap; min-height: 56px; padding: 8px 16px; gap: 10px; }
 body:not(.pro-mode) .top-bar .toolbar-spacer { flex: 1 1 auto; height: 0; }
 body:not(.pro-mode) #switch-mini { display: none !important; }
+body.pro-mode .top-bar .switch-mini { display: flex; order: 50; }   /* the 8 picks now live in PRO */
 body:not(.pro-mode) .top-bar .btn-toolbar,
 body:not(.pro-mode) .top-bar .hookhop-btn,
 body:not(.pro-mode) .top-bar .wavewarz-btn,
