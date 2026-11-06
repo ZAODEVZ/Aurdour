@@ -1144,3 +1144,49 @@ body.stream-view #remote-qr, body.stream-view #remote-link { display: none; }
 #stream-view .sv-lobby { font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; margin-left: auto; margin-right: 16px; }
 #stream-view .sv-lobby-status { display: none; position: absolute; top: 80px; left: 40px; right: 40px; font-size: 0.95rem; opacity: 0.8; }
 body.stream-view.stream-admin #stream-view .sv-lobby-status { display: block; }
+
+
+/* ================================================================
+   Tidy top bar, SIMPLE view (Zaal, 6 Nov: "Tbh too many buttons", "UI is kinda jankc",
+   "Can u organize it all more"). One row: what plays on the left, where it goes in the
+   middle, the tools on the right, MASTER at the end. One look for every button; colour only
+   on the one that is on. The 8 NEXT TRACK picks live in PRO (DJ MIXZ picks the next song in
+   SIMPLE). Nothing is deleted: PRO shows everything as before.
+   ================================================================ */
+body:not(.pro-mode) .top-bar { flex-wrap: nowrap; min-height: 56px; padding: 8px 16px; gap: 10px; }
+body:not(.pro-mode) .top-bar .toolbar-spacer { flex: 1 1 auto; height: 0; }
+body:not(.pro-mode) #switch-mini { display: none !important; }
+body.pro-mode .top-bar .switch-mini { display: flex; order: 50; }   /* the 8 picks now live in PRO */
+.top-bar .btn-toolbar,
+.top-bar .hookhop-btn,
+.top-bar .wavewarz-btn,
+.top-bar .jango-btn,
+.top-bar .stream-page-btn {
+    height: 34px; padding: 0 12px; margin-left: 0; border-radius: 8px;
+    color: var(--mz-text, #e8eaf0); background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: none;
+    font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em;
+}
+.top-bar .btn-toolbar:hover { border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.08); }
+.top-bar .hookhop-btn.active,
+.top-bar .wavewarz-btn.active,
+.top-bar .jango-btn.active,
+.top-bar .djmixz-open.live { background: var(--mz-play, #2bff9a); border-color: var(--mz-play, #2bff9a); color: #05060a; }
+/* the music choices read as one group */
+.top-bar .simple-flow-group { gap: 6px; padding-right: 10px; margin-right: 0; border-right: 1px solid rgba(255, 255, 255, 0.1); }
+.top-bar .simple-flow-group .stream-page-btn { margin-left: 8px; border-color: rgba(255, 95, 95, 0.55); }
+/* PRO too (Zaal, 6 Nov: "Fix" on the PRO screenshot): menus and the 8 picks in the same calm look */
+.top-bar .tb-menu-btn { color: var(--mz-text, #e8eaf0) !important; background: rgba(255, 255, 255, 0.04) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important; box-shadow: none !important; }
+.top-bar .switch-mini .switch-mini-btn[data-mode] { --sw: rgba(255, 255, 255, 0.55); }
+.top-bar .switch-mini .switch-mini-btn[data-mode]:hover { --sw: #fff; }
+body:not(.pro-mode) .top-bar .toolbar-group { gap: 6px; flex: 0 0 auto; }
+body:not(.pro-mode) .top-bar .master-section { order: 99; flex: 0 0 auto; padding-left: 12px; }
+body:not(.pro-mode) .top-bar #master-meter { display: none; }
+@media (max-width: 1100px) {
+    body:not(.pro-mode) .top-bar, body:not(.pro-mode) .top-bar .simple-flow-group { flex-wrap: wrap; }
+}
+
+/* The stream's own link on the display (Zaal, 6 Nov: one link per stream) */
+#stream-view .sv-link { position: absolute; bottom: 150px; left: 40px; font-weight: 800; letter-spacing: 0.06em; font-size: 1rem; padding: 8px 14px; border-radius: 10px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); z-index: 2; }
+#stream-view .sv-link::before { content: 'LISTEN LIVE  '; color: #ff5f5f; }
+#stream-view .sv-link.hidden { display: none; }

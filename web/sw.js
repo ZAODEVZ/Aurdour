@@ -31,6 +31,8 @@ const APP_SHELL = [
     '/feedback.html',
     '/lobbies.html',
     '/dj/Lobbies.js',
+    '/dj/LiveStream.js',
+    '/listen.html',
     '/dj/Feedback.js',
     '/player.js',
     '/dj/Deck.js',

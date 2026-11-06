@@ -12,6 +12,7 @@ import { onAirDeck } from './NowPlaying.js';
 import { esc } from './Html.js';
 import { roomSlug } from './LiveMix.js';
 import { lobbyLabel } from './Lobbies.js';
+import { startHost } from './LiveStream.js';
 
 export const isStreamView = (loc = typeof location !== 'undefined' ? location : null) =>
     !!loc && (/^\/stream(?:\/[^/]+)?\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
@@ -149,6 +150,7 @@ export class StreamView {
         setTimeout(() => { try { if (!this.dj.remote?.relay) this.dj.remote?.start?.(); } catch (e) { /* admin can still pair by code */ } }, 1500);
         this._startChat();
         this._claimRoom(streamRoom());
+        this._goLive(streamRoom());
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'a' && e.key !== 'A') return;
             if (!document.body.classList.contains('stream-view')) return;   // back on the desk: A is the desk's again
@@ -170,6 +172,20 @@ export class StreamView {
                 ch.postMessage({ state, art: this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null });
             } catch (e) { /* a missed beat is fine */ }
         }, 1000);
+    }
+
+    // One link per stream (Zaal, 6 Nov): the stream page sends the mix through LiveKit and shows its
+    // own link, mixz.com/stream/<id>, on screen. Not set up yet (no LiveKit keys): nothing changes.
+    async _goLive(lobby) {
+        if (this._live) return;
+        this._live = 'starting';
+        let s = null;
+        try { s = await startHost(this.dj, { lobby, name: lobby ? lobbyLabel(lobby) : 'ZAO MixZ', getCard: () => this._lastCard || {} }); } catch (e) { s = null; }
+        this._live = s;
+        if (!s) return;
+        const tag = document.getElementById('sv-link');
+        if (tag) { tag.textContent = `${location.host}${s.link}`; tag.classList.remove('hidden'); }
+        try { localStorage.setItem('mixz-last-stream', s.link); } catch (e) { /* private window */ }
     }
 
     // /stream/<lobby>: hold that lobby while this tab streams. The name shows on the display once
@@ -201,6 +217,7 @@ export class StreamView {
         el.innerHTML = `
             <div class="sv-bg" id="sv-bg"></div>
             <div class="sv-top"><span class="sv-logo">ZAO <b>MIXZ</b></span><span class="sv-lobby hidden" id="sv-lobby"></span><span class="sv-live" id="sv-live">LIVE</span></div>
+            <div class="sv-link hidden" id="sv-link"></div>
             <div class="sv-lobby-status" id="sv-lobby-status"></div>
             <div class="sv-main">
                 <div class="sv-art" id="sv-art"></div>
@@ -274,6 +291,7 @@ export class StreamView {
         const art = picked.mirrored ? picked.art : state.live_deck ? this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null : null;
         state = picked.state;
         const c = streamCard(state, art);
+        this._lastCard = c;
         const set = (id, v) => { const e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
         set('sv-title', c.title); set('sv-artist', c.artist); set('sv-time', c.time);
         set('sv-next', c.next ? `Up next: ${c.next}` : '');
@@ -331,7 +349,8 @@ export class StreamView {
 
 // Fewer buttons on the desk (Zaal, 25 Oct: "can we make less buttons"): in SIMPLE view, the extras
 // (TRAVEL, FEEDBACK, the shortcuts ?) move into one MORE menu at the end of the top bar.
-export const MORE_IDS = ['travel-mode-btn', 'feedback-btn', 'shortcuts-btn'];
+// Zaal, 6 Nov ("too many buttons ... can u organize it all more"): LOBBIES moves in here too.
+export const MORE_IDS = ['travel-mode-btn', 'feedback-btn', 'shortcuts-btn', 'lobbies-btn'];
 export function moreMenu(doc = typeof document !== 'undefined' ? document : null) {
     if (!doc || doc.getElementById('more-menu')) return null;
     const settings = doc.getElementById('settings-btn');

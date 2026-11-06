@@ -15,6 +15,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/stream/:id(d{8})",
+      "destination": "/listen.html"
+    },
+    {
+      "source": "/lobby/:name",
+      "destination": "/listen.html"
+    },
+    {
       "source": "/stream/:lobby",
       "destination": "/index.html"
     },
