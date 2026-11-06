@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="/">
+    <title>ZAO MixZ · Listen live</title>
+    <meta name="description" content="Listen to a ZAO MixZ set live.">
+    <link rel="icon" href="/icons/mixz-192.png">
+    <style>
+        :root { --bg: #05060a; --text: #f2f4f8; --muted: #9aa3b5; --a: #00d4ff; --b: #ff6b35; --line: rgba(255, 255, 255, 0.12); }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+        .bg { position: fixed; inset: -40px; background-size: cover; background-position: center; filter: blur(40px) brightness(0.3) saturate(1.3); z-index: 0; }
+        main { position: relative; z-index: 1; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; gap: 22px; text-align: center; }
+        .logo { position: fixed; top: 20px; left: 20px; font-weight: 900; letter-spacing: 0.08em; z-index: 2; }
+        .logo b { color: var(--a); }
+        .live { position: fixed; top: 18px; right: 20px; z-index: 2; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.14em; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); }
+        .live.on { background: #ff3b3b; border-color: #ff3b3b; color: #fff; }
+        .art { width: min(260px, 60vw); aspect-ratio: 1; border-radius: 18px; background: #0c0f18 center / cover; border: 1px solid var(--line); }
+        .label { color: var(--a); font-weight: 800; letter-spacing: 0.18em; font-size: 0.75rem; }
+        h1 { margin: 0; font-size: clamp(1.8rem, 6vw, 3.4rem); line-height: 1.05; max-width: 900px; overflow-wrap: anywhere; }
+        .artist { color: var(--muted); font-size: clamp(1rem, 3vw, 1.4rem); font-weight: 700; }
+        .bar { width: min(520px, 90vw); height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+        .fill { height: 100%; width: 0; background: var(--a); transition: width 0.9s linear; }
+        body.deck-b .fill, body.deck-b .label { background: none; }
+        body.deck-b .fill { background: var(--b); }
+        body.deck-b .label { color: var(--b); }
+        .time, .next { color: var(--muted); font-size: 0.95rem; }
+        button { font: inherit; font-weight: 800; letter-spacing: 0.12em; font-size: 0.9rem; padding: 14px 28px; border-radius: 12px; border: 0; background: var(--a); color: #05060a; cursor: pointer; }
+        button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+        .status { color: var(--muted); font-size: 0.9rem; min-height: 1.2em; max-width: 520px; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        input[type=range] { width: 140px; accent-color: var(--a); }
+    </style>
+</head>
+<body>
+    <div class="bg" id="bg"></div>
+    <div class="logo">ZAO <b>MIXZ</b></div>
+    <div class="live" id="live">OFF AIR</div>
+    <main>
+        <div class="art" id="art"></div>
+        <div class="label">NOW PLAYING</div>
+        <h1 id="title">ZAO MixZ</h1>
+        <div class="artist" id="artist"></div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
+        <div class="time" id="time"></div>
+        <div class="next" id="next"></div>
+        <div class="row">
+            <button id="go">TAP TO LISTEN</button>
+            <label class="row" style="align-items:center;gap:8px;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em">VOL <input type="range" id="vol" min="0" max="100" value="100"></label>
+        </div>
+        <div class="status" id="status"></div>
+        <audio id="audio" autoplay playsinline></audio>
+    </main>
+    <script type="module">
+        import { listen, streamIdFrom, lobbyFrom } from './dj/LiveStream.js';
+        const $ = (id) => document.getElementById(id);
+        const say = (t) => { $('status').textContent = t; };
+        const audio = $('audio');
+        $('vol').addEventListener('input', (e) => { audio.volume = Number(e.target.value) / 100; });
+
+        function card(c) {
+            $('title').textContent = c.on ? (c.title || 'Untitled') : 'ZAO MixZ';
+            $('artist').textContent = c.on ? c.artist : 'Back in a moment';
+            $('time').textContent = c.time || '';
+            $('next').textContent = c.next ? `Up next: ${c.next}` : '';
+            $('fill').style.width = `${Math.round((c.progress || 0) * 1000) / 10}%`;
+            document.body.classList.toggle('deck-b', c.deck === 'B');
+            const art = c.art ? `url("${c.art.replace(/"/g, '%22')}")` : '';
+            for (const id of ['art', 'bg']) if ($(id).dataset.art !== art) { $(id).dataset.art = art; $(id).style.backgroundImage = art; }
+        }
+        function state(s) {
+            const on = s === 'playing';
+            $('live').classList.toggle('on', on);
+            $('live').textContent = on ? 'LIVE' : 'OFF AIR';
+            if (s === 'playing') say('');
+            if (s === 'waiting') say('Connected. Waiting for the DJ to send the mix.');
+            if (s === 'ended') say('This stream has ended.');
+        }
+
+        async function resolveId() {
+            const id = streamIdFrom(location.pathname);
+            if (id) return id;
+            const lobby = lobbyFrom(location.pathname) || new URLSearchParams(location.search).get('lobby') || '';
+            if (!lobby) return '';
+            const r = await fetch(`/api/live?lobby=${encodeURIComponent(lobby)}`);
+            if (r.ok) { const j = await r.json(); history.replaceState(null, '', j.link); return j.id; }
+            say(`Nobody is live in the ${lobby} lobby right now. This page checks again every 20 seconds.`);
+            await new Promise((ok) => setTimeout(ok, 20000));
+            return resolveId();
+        }
+
+        let started = false;
+        $('go').addEventListener('click', async () => {
+            if (started) { audio.muted = !audio.muted; $('go').textContent = audio.muted ? 'UNMUTE' : 'MUTE'; return; }
+            started = true;
+            $('go').textContent = 'CONNECTING';
+            try {
+                const id = await resolveId();
+                if (!id) { say('This link has no stream in it. Ask the DJ for the stream link.'); $('go').textContent = 'TAP TO LISTEN'; started = false; return; }
+                await listen(id, { onCard: card, onState: state, audioEl: audio });
+                await audio.play().catch(() => {});
+                $('go').textContent = 'MUTE';
+                $('go').classList.add('ghost');
+            } catch (e) {
+                say(e.message || 'Could not connect. Try again.');
+                $('go').textContent = 'TRY AGAIN';
+                started = false;
+            }
+        });
+        say('Tap to listen. Browsers only play sound after a tap.');
+    </script>
+</body>
+</html>
