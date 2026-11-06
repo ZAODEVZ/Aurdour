@@ -331,7 +331,8 @@ export class StreamView {
 
 // Fewer buttons on the desk (Zaal, 25 Oct: "can we make less buttons"): in SIMPLE view, the extras
 // (TRAVEL, FEEDBACK, the shortcuts ?) move into one MORE menu at the end of the top bar.
-export const MORE_IDS = ['travel-mode-btn', 'feedback-btn', 'shortcuts-btn'];
+// Zaal, 6 Nov ("too many buttons ... can u organize it all more"): LOBBIES moves in here too.
+export const MORE_IDS = ['travel-mode-btn', 'feedback-btn', 'shortcuts-btn', 'lobbies-btn'];
 export function moreMenu(doc = typeof document !== 'undefined' ? document : null) {
     if (!doc || doc.getElementById('more-menu')) return null;
     const settings = doc.getElementById('settings-btn');
