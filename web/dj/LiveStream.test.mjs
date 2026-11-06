@@ -1,7 +1,7 @@
 // node web/dj/LiveStream.test.mjs — one link per stream: links, the card message, and /api/live.
 import { createRequire } from 'module';
 import crypto from 'crypto';
-import { streamIdFrom, lobbyFrom, cardMessage, STREAM_ID } from './LiveStream.js';
+import { streamIdFrom, lobbyFrom, cardMessage, hearingMix, STREAM_ID } from './LiveStream.js';
 
 const require = createRequire(import.meta.url);
 const live = require('../../api/live.js');
@@ -20,6 +20,12 @@ check('lobby names are cleaned', live.cleanLobby(' Zaal ') === 'zaal' && live.cl
 const m = cardMessage({ on: true, title: 'x'.repeat(200), artist: 'IMan', progress: 0.123456, time: '1:00 / 4:00', next: 'Topier', deck: 'B', art: 'javascript:alert(1)' });
 check('card: title cut, progress rounded, deck kept', m.title.length === 80 && m.progress === 0.123 && m.deck === 'B' && m.t === 'card');
 check('card: only https cover art passes', m.art === '' && cardMessage({ art: 'https://x/a.jpg' }).art === 'https://x/a.jpg');
+
+// After connecting, a listener already hearing the mix stays LIVE
+const T = { Kind: { Audio: 'audio' } };
+const roomWith = (pubs) => ({ remoteParticipants: new Map([['host', { trackPublications: new Map(pubs.map((p, i) => [String(i), p])) }]]) });
+check('mix already playing after connect: LIVE, not OFF AIR', hearingMix(roomWith([{ kind: 'audio', track: {} }]), T) === true);
+check('host there but no sound yet: waiting', hearingMix(roomWith([{ kind: 'audio', track: null }]), T) === false && hearingMix({ remoteParticipants: new Map() }, T) === false);
 
 // Tickets are real HS256 JWTs with the right grants
 const tok = live.ticket('KEY', 'SECRET', { identity: 'listen-1', ttl: 60, video: { room: '73822762', roomJoin: true, canPublish: false, canSubscribe: true } });
@@ -52,9 +58,11 @@ const created = calls.find((c) => c.url === 'https://test.livekit.cloud/twirp/li
 check('POST: the room is made with the lobby in it and closes when empty', created && created.body.name === r.body.id && JSON.parse(created.body.metadata).lobby === 'zaal' && created.body.empty_timeout === 300);
 const hostGrant = JSON.parse(Buffer.from(r.body.token.split('.')[1], 'base64url').toString()).video;
 check('POST: the host may send, only into its own room', hostGrant.canPublish === true && hostGrant.room === r.body.id);
-r = res(); await live({ method: 'GET', query: { id: '73822762' } }, r);
+r = res(); await live({ method: 'GET', query: { id: '22222222' } }, r);
 const listenGrant = JSON.parse(Buffer.from(r.body.token.split('.')[1], 'base64url').toString()).video;
-check('GET ?id: a listener may only listen', r.code === 200 && listenGrant.canSubscribe === true && listenGrant.canPublish === false && listenGrant.canPublishData === false);
+check('GET ?id: a listener may only listen, in a stream that exists', r.code === 200 && listenGrant.canSubscribe === true && listenGrant.canPublish === false && listenGrant.canPublishData === false);
+r = res(); await live({ method: 'GET', query: { id: '73822762' } }, r);
+check('GET ?id for a stream that ended or never was: 404, no empty room opened', r.code === 404 && !r.body.token);
 r = res(); await live({ method: 'GET', query: { lobby: 'zaal' } }, r);
 check('GET ?lobby: the newest stream that is actually sending', r.code === 200 && r.body.id === '22222222' && r.body.link === '/stream/22222222');
 r = res(); await live({ method: 'GET', query: { lobby: 'nobody' } }, r);
