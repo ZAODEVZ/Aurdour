@@ -15,6 +15,8 @@ import { lobbyLabel } from './Lobbies.js';
 
 export const isStreamView = (loc = typeof location !== 'undefined' ? location : null) =>
     !!loc && (/^\/stream(?:\/[^/]+)?\/?$/.test(loc.pathname) || new URLSearchParams(loc.search).get('view') === 'stream');
+// Whether the page was opened as /stream (a fresh stream tab) or turned into it from the desk.
+const isStreamViewAtLoad = typeof location !== 'undefined' && isStreamView();
 
 // /stream/<lobby> (Zaal, 5 Nov: "zaomixz.com/stream/zaal will be mine"): the stream tab claims that
 // lobby (LiveMix.js), so the lobby's watch link, mix.html#lobby=<lobby>, follows this set.
@@ -33,7 +35,13 @@ export function streamCard(state, art = null) {
     const d = live ? state[live] : null;
     const m = state.mixz || {};
     if (!d?.loaded) return { on: false, title: 'ZAO MixZ', artist: 'Back in a moment', progress: 0, time: '', next: '' };
-    const next = m.running && m.next?.title ? `${m.next.title}${m.next.artist ? ' · ' + m.next.artist : ''}` : '';
+    // Up next under the song (Zaal, 6 Nov: "the up next under the song playing now ... that could
+    // change if ppl suggest things"): a request marked next wins, then DJ MixZ's pick, then the
+    // song waiting on the other deck.
+    const line = (t) => (t?.title ? `${t.title}${t.artist ? ' · ' + t.artist : ''}` : '');
+    const req = (state.req?.up || []).find((r) => r.status === 'next');
+    const other = state[live === 'A' ? 'B' : 'A'];
+    const next = line(req) || (m.running ? line(m.next) : '') || (other?.loaded && !other.playing ? line(other) : '');
     return {
         on: true, deck: live, title: d.title || 'Untitled', artist: d.artist || '', art,
         progress: d.dur ? Math.min(1, d.time / d.dur) : 0, time: d.dur ? `${fmt(d.time)} / ${fmt(d.dur)}` : '',
@@ -91,7 +99,42 @@ export function chatLines(lines, msg, now = Date.now(), max = CHAT_MAX, ttl = CH
 export class StreamView {
     constructor(dj) {
         this.dj = dj;
-        if (!isStreamView()) { moreMenu(); this._shareDesk(); return; }
+        if (!isStreamView()) { moreMenu(); this._shareDesk(); this._inTabButton(); return; }
+        this._enter();
+    }
+
+    // STREAM PAGE while music plays (Zaal, 6 Nov: "Audio isn't coming out on stream page ... we need
+    // audio from it"): a new tab has its own silent decks, so turn THIS tab into the stream page
+    // instead. The music never stops, and a tab share carries the sound. Back (or Esc) returns to
+    // the desk. With nothing loaded, the button still opens a fresh /stream tab as before.
+    _inTabButton() {
+        const hook = () => {
+            const btn = document.getElementById('stream-page-btn');
+            if (!btn) return false;
+            btn.addEventListener('click', (e) => {
+                const on = ['A', 'B'].some((d) => this.dj.decks?.[d]?.isLoaded);
+                if (!on || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                e.preventDefault();
+                try { history.pushState({ mixzStream: 1 }, '', '/stream' + location.search); } catch (err) { /* file:// */ }
+                this._enter();
+            });
+            addEventListener('popstate', () => { if (!isStreamView()) this._leave(); });
+            addEventListener('keydown', (e) => { if (e.key === 'Escape' && this._inTab && document.body.classList.contains('stream-view')) history.back(); });
+            return true;
+        };
+        if (!hook()) { let n = 0; const t = setInterval(() => { if (hook() || ++n > 40) clearInterval(t); }, 250); }
+    }
+
+    _leave() {
+        document.body.classList.remove('stream-view', 'stream-admin');
+        document.title = this._deskTitle || document.title;
+    }
+
+    _enter() {
+        if (this._entered) { document.body.classList.add('stream-view'); return; }
+        this._entered = true;
+        this._inTab = !isStreamViewAtLoad;
+        this._deskTitle = document.title;
         document.body.classList.add('stream-view');
         document.title = 'ZAO MixZ · Live';
         this._build();
@@ -108,6 +151,7 @@ export class StreamView {
         this._claimRoom(streamRoom());
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'a' && e.key !== 'A') return;
+            if (!document.body.classList.contains('stream-view')) return;   // back on the desk: A is the desk's again
             if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
             const on = document.body.classList.toggle('stream-admin');
             document.getElementById('remote-panel')?.classList.toggle('hidden', !on);
@@ -265,6 +309,17 @@ export class StreamView {
         const g = cv.getContext('2d'), n = 64, bw = w / n;
         g.clearRect(0, 0, w, h);
         const b = document.getElementById('stream-view').classList.contains('deck-b');
+        // The waveform (Zaal, 6 Nov: "we should have waveforms"): the live wave over the bars.
+        const wave = this._wave || (this._wave = new Uint8Array(an.fftSize));
+        an.getByteTimeDomainData(wave);
+        g.beginPath();
+        for (let i = 0; i < w; i += 2) {
+            const y = h * 0.55 + ((wave[Math.floor((i / w) * wave.length)] - 128) / 128) * h * 0.4;
+            if (i) g.lineTo(i, y); else g.moveTo(i, y);
+        }
+        g.strokeStyle = b ? 'rgba(255, 200, 150, 0.85)' : 'rgba(150, 230, 255, 0.85)';
+        g.lineWidth = 2;
+        g.stroke();
         for (let i = 0; i < n; i++) {
             const v = data[Math.floor((i / n) ** 1.6 * data.length * 0.7)] / 255;
             const bh = Math.max(2, v * h);

@@ -170,6 +170,8 @@ function draw() {
     }
     if (!held.xf) $('xf').value = Math.round(state.xf * 1000);
     if (!held.master) $('master').value = Math.round(state.master * 1000);
+    $('mute-btn').textContent = state.master > 0.01 ? 'MUTE' : 'UNMUTE';
+    $('mute-btn').classList.toggle('on', !(state.master > 0.01));
     for (const d of ['A', 'B']) if (!held[`vol-${d}`]) $(`vol-${d}`).value = Math.round(state.vol[d] * 1000);
 
     // STREAM tab: what the room hears, and DJ MixZ
@@ -294,6 +296,13 @@ function slider(id, make) {
 }
 slider('xf', v => ({ a: 'crossfader', v }));
 slider('master', v => ({ a: 'master', v }));
+// MUTE (Zaal, 6 Nov: "an easy place to mute on controller"): master to zero, tap again for the
+// level it had. The stream page and the room go quiet together.
+let unmuteTo = 0.8;
+$('mute-btn').onclick = () => {
+    const now = Number(state?.master) || 0;
+    if (now > 0.01) { unmuteTo = now; send('master', { v: 0 }); } else send('master', { v: unmuteTo });
+};
 slider('vol-A', v => ({ a: 'volume', d: 'A', v }));
 slider('vol-B', v => ({ a: 'volume', d: 'B', v }));
 

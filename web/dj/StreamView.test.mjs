@@ -23,6 +23,12 @@ check('empty stream tab shows the desk tab', pickState(empty, desk, 2000).mirror
 check('its own loaded deck wins over the desk tab', !pickState(state, { at: 1000, state: { live_deck: 'A', A: { loaded: true, title: 'Other' } } }, 2000).mirrored);
 check('a desk tab that went quiet stops showing', !pickState(empty, desk, 1000 + MIRROR_TTL + 1).mirrored);
 check('no desk tab: the holding card', streamCard(pickState(empty, null).state).artist === 'Back in a moment');
+// Up next under the song: a request marked next, then DJ MixZ, then the other deck
+const two = { live_deck: 'A', A: { loaded: true, playing: true, title: 'Now', dur: 100, time: 1 }, B: { loaded: true, playing: false, title: 'Cued', artist: 'IMan Afrikah' }, mixz: {} };
+check('up next: the song waiting on the other deck', streamCard(two).next === 'Cued · IMan Afrikah');
+check('up next: DJ MixZ pick beats the other deck', streamCard({ ...two, mixz: { running: true, next: { title: 'Pick' } } }).next === 'Pick');
+check('up next: a request marked next beats both', streamCard({ ...two, mixz: { running: true, next: { title: 'Pick' } }, req: { up: [{ title: 'Asked', artist: 'Fan', status: 'next' }] } }).next === 'Asked · Fan');
+check('up next: nothing waiting, nothing shown', streamCard({ ...two, B: { loaded: false } }).next === '');
 // Twitch chat on the display
 check('chat channel: the link wins, then the saved one, then Zaal\'s', chatChannel({ search: '?chat=ZAOfestivals' }, 'other') === 'zaofestivals' && chatChannel({ search: '' }, '#Saved_One') === 'saved_one' && chatChannel({ search: '' }, '') === DEFAULT_CHAT);
 check('?chat= with nothing turns the chat off', chatChannel({ search: '?chat=' }, 'saved') === '');
