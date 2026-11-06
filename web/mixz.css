@@ -451,8 +451,19 @@ body { background: var(--mz-bg); color: var(--mz-text); }
 
 /* ── Fit and finish ─────────────────────────────────────────── */
 /* The app's own simple/pro rules set the middle column; these win. */
-body .decks-row, body:not(.pro-mode) .decks-row { grid-template-columns: minmax(0, 1fr) 244px minmax(0, 1fr) !important; }
-body.pro-mode .decks-row { grid-template-columns: minmax(0, 1fr) 304px minmax(0, 1fr) !important; }
+/* Wide screens only: on a phone these forced three squeezed columns and pushed deck B off screen. */
+@media (min-width: 901px) {
+    body .decks-row, body:not(.pro-mode) .decks-row { grid-template-columns: minmax(0, 1fr) 244px minmax(0, 1fr) !important; }
+    body.pro-mode .decks-row { grid-template-columns: minmax(0, 1fr) 304px minmax(0, 1fr) !important; }
+}
+@media (max-width: 900px) {
+    body .decks-row, body.pro-mode .decks-row { grid-template-columns: minmax(0, 1fr) !important; }
+    /* Library on a phone: search wraps under the tabs, tabs swipe sideways, rows swipe to LOAD A / B. */
+    .library-header { flex-wrap: wrap; row-gap: 8px; }
+    .library-tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+    .library-tab { flex: 0 0 auto; }
+    .library-table-wrapper { overflow-x: auto; }
+}
 .mixer { min-width: 0; overflow: hidden; }
 .deck { min-width: 0; }
 
