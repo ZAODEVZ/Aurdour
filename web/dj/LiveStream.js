@@ -51,10 +51,16 @@ export async function startHost(dj, { lobby = '', name = 'Host', getCard, fetchI
     const dest = ctx.createMediaStreamDestination();
     dj.audioRouter.masterAnalyser.connect(dest);        // the master mix, after MASTER (so MUTE mutes it)
     const track = dest.stream.getAudioTracks()[0];
-    await room.localParticipant.publishTrack(track, {
-        name: 'mix', source: Track.Source.Microphone, dtx: false, red: false,
-        audioPreset: { maxBitrate: 128_000 }, forceStereo: true,
-    });
+    try {
+        await room.localParticipant.publishTrack(track, {
+            name: 'mix', source: Track.Source.Microphone, dtx: false, red: false,
+            audioPreset: { maxBitrate: 128_000 }, forceStereo: true,
+        });
+    } catch (e) {   // could not send the mix: leave the room instead of holding it open
+        try { dj.audioRouter.masterAnalyser.disconnect(dest); } catch (err) { /* already */ }
+        await room.disconnect();
+        return null;
+    }
     const enc = new TextEncoder();
     const beat = setInterval(() => {
         try { room.localParticipant.publishData(enc.encode(JSON.stringify(cardMessage(getCard?.() || {}))), { reliable: false }); } catch (e) { /* next beat */ }
@@ -64,10 +70,18 @@ export async function startHost(dj, { lobby = '', name = 'Host', getCard, fetchI
     return { id: info.id, link: info.link, lobby: info.lobby, room, stop };
 }
 
+// Is a host's audio track already playing in this room?
+export function hearingMix(room, Track) {
+    for (const p of room.remoteParticipants?.values?.() || []) {
+        for (const pub of p.trackPublications?.values?.() || []) if (pub.kind === Track.Kind.Audio && pub.track) return true;
+    }
+    return false;
+}
+
 // Listener: join stream <id>, play the mix through <audio>, call onCard with each card.
 export async function listen(id, { onCard, onState, audioEl, fetchImpl = fetch } = {}) {
     const r = await fetchImpl(`/api/live?id=${encodeURIComponent(id)}`);
-    if (!r.ok) throw new Error(r.status === 501 ? 'Live streams are not switched on yet.' : 'Could not get into this stream.');
+    if (!r.ok) throw new Error(r.status === 501 ? 'Live streams are not switched on yet.' : r.status === 404 ? 'This stream has ended.' : 'Could not get into this stream.');
     const info = await r.json();
     const { Room, RoomEvent, Track } = await loadLiveKit();
     const room = new Room({ adaptiveStream: false });
@@ -77,6 +91,7 @@ export async function listen(id, { onCard, onState, audioEl, fetchImpl = fetch }
     room.on(RoomEvent.DataReceived, (payload) => { try { const m = JSON.parse(dec.decode(payload)); if (m.t === 'card') onCard?.(m); } catch (e) { /* not ours */ } });
     room.on(RoomEvent.Disconnected, () => onState?.('ended'));
     await room.connect(info.url, info.token);
-    onState?.(room.remoteParticipants.size ? 'connected' : 'waiting');
+    // The mix may already be playing (TrackSubscribed fires during connect): say so, never undo it.
+    onState?.(hearingMix(room, Track) ? 'playing' : 'waiting');
     return room;
 }

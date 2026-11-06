@@ -6,7 +6,7 @@
 // replaces the free public relays and the laptop-to-every-listener calls that made /stream glitchy.
 //
 //   POST /api/live {lobby?, name?}  -> a new stream: { id, link, url, token } (host may publish)
-//   GET  /api/live?id=73822762      -> a listener ticket: { id, url, token } (listen only)
+//   GET  /api/live?id=73822762      -> a listener ticket: { id, url, token } (listen only), 404 once it ended
 //   GET  /api/live?lobby=zaal       -> the lobby's stream that is live now: { id, link } or 404
 //
 // Set in the Vercel project's environment (never in git):
@@ -71,6 +71,10 @@ async function handler(req, res) {
         if (req.method === 'GET') {
             const id = String(req.query?.id || '');
             if (ID.test(id)) {
+                // Only for a stream that exists: LiveKit would otherwise open an empty room for any
+                // 8-digit guess, and every listener minute in it counts against the plan.
+                const { rooms = [] } = await roomApi(env, 'ListRooms', { names: [id] }, { roomList: true });
+                if (!rooms.some((r) => r.name === id)) return res.status(404).json({ error: 'this stream has ended' });
                 const token = ticket(env.key, env.secret, {
                     identity: `listen-${crypto.randomBytes(5).toString('hex')}`, ttl: LISTEN_TTL,
                     video: { room: id, roomJoin: true, canPublish: false, canPublishData: false, canSubscribe: true },
