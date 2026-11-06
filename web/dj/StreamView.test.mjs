@@ -1,5 +1,5 @@
 // /stream: what the display shows, from the desk state.
-import { streamCard, isStreamView, chatChannel, chatLines, DEFAULT_CHAT, upNext, upNextHtml, QUEUE_MAX } from './StreamView.js';
+import { streamCard, isStreamView, chatChannel, chatLines, DEFAULT_CHAT, upNext, upNextHtml, QUEUE_MAX, pickState, MIRROR_TTL } from './StreamView.js';
 
 let passed = 0, failed = 0;
 const check = (name, cond) => { if (cond) { passed++; console.log('  ok  ', name); } else { failed++; console.log('  FAIL', name); } };
@@ -16,6 +16,13 @@ check('up next from DJ MixZ', c.next === 'Topier · IMan Afrikah');
 check('live flag and cover art', c.live === true && c.art === 'https://x/art.jpg');
 check('nothing loaded: a holding card, not a blank', streamCard({ live_deck: null, mixz: {} }).title === 'ZAO MixZ');
 
+// The desk tab mirrored onto an empty /stream tab (Zaal, 5 Nov: stream button with music playing)
+const empty = { live_deck: null, mixz: {} };
+const desk = { at: 1000, state, art: 'https://x/a.jpg' };
+check('empty stream tab shows the desk tab', pickState(empty, desk, 2000).mirrored && streamCard(pickState(empty, desk, 2000).state).title === 'Wild Out' && pickState(empty, desk, 2000).art === 'https://x/a.jpg');
+check('its own loaded deck wins over the desk tab', !pickState(state, { at: 1000, state: { live_deck: 'A', A: { loaded: true, title: 'Other' } } }, 2000).mirrored);
+check('a desk tab that went quiet stops showing', !pickState(empty, desk, 1000 + MIRROR_TTL + 1).mirrored);
+check('no desk tab: the holding card', streamCard(pickState(empty, null).state).artist === 'Back in a moment');
 // Twitch chat on the display
 check('chat channel: the link wins, then the saved one, then Zaal\'s', chatChannel({ search: '?chat=ZAOfestivals' }, 'other') === 'zaofestivals' && chatChannel({ search: '' }, '#Saved_One') === 'saved_one' && chatChannel({ search: '' }, '') === DEFAULT_CHAT);
 check('?chat= with nothing turns the chat off', chatChannel({ search: '?chat=' }, 'saved') === '');

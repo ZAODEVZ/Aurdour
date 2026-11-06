@@ -41,6 +41,18 @@ export function streamCard(state, art = null) {
     };
 }
 
+// The desk in another tab (Zaal, 5 Nov: "stream button doest work when im playing musci"): STREAM
+// PAGE opens /stream in a new tab, which has its own empty decks, so it said "Back in a moment"
+// while the desk tab played. The desk tab now tells same-site tabs what is on air every second; the
+// stream tab shows that whenever its own decks are empty. Its own decks always win when loaded.
+export const DESK_CHANNEL = 'mixz-desk';
+export const MIRROR_TTL = 3000;
+const ownOnAir = (state) => !!(state?.live_deck && state[state.live_deck]?.loaded);
+export function pickState(own, mirror, now = Date.now(), ttl = MIRROR_TTL) {
+    if (ownOnAir(own) || !mirror?.state || now - mirror.at > ttl || !ownOnAir(mirror.state)) return { state: own, art: null, mirrored: false };
+    return { state: mirror.state, art: mirror.art || null, mirrored: true };
+}
+
 // The request line on the display (Zaal, 5 Nov: "show it aswell like a queue on screen would be
 // cool"): the songs waiting, in the order they will come, from the board in the desk state.
 // Song, artist and the name the caller gave, nothing else: no note, no phone, no link.
@@ -79,11 +91,15 @@ export function chatLines(lines, msg, now = Date.now(), max = CHAT_MAX, ttl = CH
 export class StreamView {
     constructor(dj) {
         this.dj = dj;
-        if (!isStreamView()) { moreMenu(); return; }
+        if (!isStreamView()) { moreMenu(); this._shareDesk(); return; }
         document.body.classList.add('stream-view');
         document.title = 'ZAO MixZ · Live';
         this._build();
         this._tick = this._tick.bind(this);
+        try {
+            const ch = new BroadcastChannel(DESK_CHANNEL);
+            ch.onmessage = (e) => { if (e.data?.state) this._mirror = { state: e.data.state, art: e.data.art || null, at: Date.now() }; };
+        } catch (e) { /* no BroadcastChannel: the stream tab shows its own decks only */ }
         setInterval(() => this._card(), 500);
         requestAnimationFrame(this._tick);
         // /admin talks to this tab through the phone link: keep it on without anyone clicking PHONE
@@ -96,6 +112,20 @@ export class StreamView {
             const on = document.body.classList.toggle('stream-admin');
             document.getElementById('remote-panel')?.classList.toggle('hidden', !on);
         });
+    }
+
+    // Desk tab: tell a /stream tab what is on air, once a second, only while a deck is loaded.
+    _shareDesk() {
+        let ch;
+        try { ch = new BroadcastChannel(DESK_CHANNEL); } catch (e) { return; }
+        setInterval(() => {
+            try {
+                const state = snapshot(this.dj);
+                state.live_deck = state.live_deck || onAirDeck(this.dj);
+                if (!ownOnAir(state)) return;
+                ch.postMessage({ state, art: this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null });
+            } catch (e) { /* a missed beat is fine */ }
+        }, 1000);
     }
 
     // /stream/<lobby>: hold that lobby while this tab streams. The name shows on the display once
@@ -196,7 +226,9 @@ export class StreamView {
         let state;
         try { state = snapshot(this.dj); } catch (e) { return; }
         state.live_deck = state.live_deck || onAirDeck(this.dj);
-        const art = state.live_deck ? this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null : null;
+        const picked = pickState(state, this._mirror);
+        const art = picked.mirrored ? picked.art : state.live_deck ? this.dj.decks?.[state.live_deck]?.metadata?.metadata?.artwork || null : null;
+        state = picked.state;
         const c = streamCard(state, art);
         const set = (id, v) => { const e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
         set('sv-title', c.title); set('sv-artist', c.artist); set('sv-time', c.time);
