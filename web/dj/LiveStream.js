@@ -34,6 +34,8 @@ export function cardMessage(card) {
 
 let lk = null;
 const loadLiveKit = () => (lk ||= import(LIVEKIT_SRC));
+// Tests swap in a fake livekit-client (no network).
+export const useLiveKitForTests = (mod) => { lk = Promise.resolve(mod); };
 
 // Host: start a stream for this lobby ('' for none). Resolves { id, link } or null when live
 // streaming is not set up (501) or the server said no; the stream page then works as before.
@@ -41,6 +43,7 @@ export async function startHost(dj, { lobby = '', name = 'Host', getCard, fetchI
     let info;
     try {
         const r = await fetchImpl('/api/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lobby, name }) });
+        if (r.status === 409) return { busy: true };   // someone is already live in this lobby
         if (!r.ok) return null;
         info = await r.json();
     } catch (e) { return null; }
@@ -65,7 +68,17 @@ export async function startHost(dj, { lobby = '', name = 'Host', getCard, fetchI
     const beat = setInterval(() => {
         try { room.localParticipant.publishData(enc.encode(JSON.stringify(cardMessage(getCard?.() || {}))), { reliable: false }); } catch (e) { /* next beat */ }
     }, 1000);
-    const stop = async () => { clearInterval(beat); try { dj.audioRouter.masterAnalyser.disconnect(dest); } catch (e) { /* already */ } await room.disconnect(); };
+    // End the stream for everyone: the server deletes the room, so listeners see "ended" at once
+    // instead of waiting in an open room (specs/stream.qnt, rule 1). keepalive lets it go out on pagehide.
+    let stopped = false;
+    const stop = async () => {
+        if (stopped) return;
+        stopped = true;
+        clearInterval(beat);
+        try { dj.audioRouter.masterAnalyser.disconnect(dest); } catch (e) { /* already */ }
+        try { await fetchImpl(`/api/live?id=${encodeURIComponent(info.id)}`, { method: 'DELETE', headers: { authorization: `Bearer ${info.token}` }, keepalive: true }); } catch (e) { /* listeners still time out */ }
+        await room.disconnect();
+    };
     addEventListener('pagehide', () => { stop(); });
     return { id: info.id, link: info.link, lobby: info.lobby, room, stop };
 }
@@ -78,20 +91,31 @@ export function hearingMix(room, Track) {
     return false;
 }
 
+// How long a listener waits for the mix to come back before the page says the stream ended.
+// Covers a DJ whose laptop died or lost power, so STOP never reached the server.
+export const GRACE_MS = 45_000;
+
 // Listener: join stream <id>, play the mix through <audio>, call onCard with each card.
-export async function listen(id, { onCard, onState, audioEl, fetchImpl = fetch } = {}) {
+export async function listen(id, { onCard, onState, audioEl, fetchImpl = fetch, graceMs = GRACE_MS } = {}) {
     const r = await fetchImpl(`/api/live?id=${encodeURIComponent(id)}`);
     if (!r.ok) throw new Error(r.status === 501 ? 'Live streams are not switched on yet.' : r.status === 404 ? 'This stream has ended.' : 'Could not get into this stream.');
     const info = await r.json();
     const { Room, RoomEvent, Track } = await loadLiveKit();
     const room = new Room({ adaptiveStream: false });
     const dec = new TextDecoder();
-    room.on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === Track.Kind.Audio) { track.attach(audioEl); onState?.('playing'); } });
-    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach(); onState?.('waiting'); });
+    let quiet = null;
+    const hush = () => { clearTimeout(quiet); quiet = null; };
+    const waitForMix = () => {
+        onState?.('waiting');
+        hush();
+        quiet = setTimeout(() => { if (!hearingMix(room, Track)) room.disconnect(); }, graceMs);
+    };
+    room.on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === Track.Kind.Audio) { hush(); track.attach(audioEl); onState?.('playing'); } });
+    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach(); waitForMix(); });
     room.on(RoomEvent.DataReceived, (payload) => { try { const m = JSON.parse(dec.decode(payload)); if (m.t === 'card') onCard?.(m); } catch (e) { /* not ours */ } });
-    room.on(RoomEvent.Disconnected, () => onState?.('ended'));
+    room.on(RoomEvent.Disconnected, () => { hush(); onState?.('ended'); });
     await room.connect(info.url, info.token);
     // The mix may already be playing (TrackSubscribed fires during connect): say so, never undo it.
-    onState?.(hearingMix(room, Track) ? 'playing' : 'waiting');
+    if (hearingMix(room, Track)) onState?.('playing'); else waitForMix();
     return room;
 }
