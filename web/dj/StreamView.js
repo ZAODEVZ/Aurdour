@@ -181,6 +181,12 @@ export class StreamView {
         this._live = 'starting';
         let s = null;
         try { s = await startHost(this.dj, { lobby, name: lobby ? lobbyLabel(lobby) : 'ZAO MixZ', getCard: () => this._lastCard || {} }); } catch (e) { s = null; }
+        if (s?.busy) {
+            this._live = null;
+            const say = document.getElementById('sv-lobby-status');
+            if (say) say.textContent = `Someone is already live in ${lobbyLabel(lobby)}. Pick another lobby, or wait for their set to end.`;
+            return;
+        }
         this._live = s;
         if (!s) return;
         const tag = document.getElementById('sv-link');

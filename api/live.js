@@ -8,6 +8,11 @@
 //   POST /api/live {lobby?, name?}  -> a new stream: { id, link, url, token } (host may publish)
 //   GET  /api/live?id=73822762      -> a listener ticket: { id, url, token } (listen only), 404 once it ended
 //   GET  /api/live?lobby=zaal       -> the lobby's stream that is live now: { id, link } or 404
+//   DELETE /api/live?id=73822762    -> the host ends the stream (Authorization: Bearer <host token>);
+//                                      everyone listening hears it end at once
+//
+// The rules below are checked in specs/stream.qnt (Quint, ZAOresearch 2438): nobody gets stuck in
+// a stream that ended, and a lobby has one live stream at a time.
 //
 // Set in the Vercel project's environment (never in git):
 //   LIVEKIT_URL         wss://<project>.livekit.cloud  (or a self-hosted LiveKit server)
@@ -49,6 +54,27 @@ async function roomApi(env, method, body, video) {
     return r.json();
 }
 
+// The newest stream in this lobby that is sending the mix, or null.
+async function liveInLobby(env, lobby) {
+    const { rooms = [] } = await roomApi(env, 'ListRooms', {}, { roomList: true });
+    return rooms
+        .map((r) => { try { return { id: r.name, meta: JSON.parse(r.metadata || '{}'), n: r.num_publishers ?? r.numPublishers ?? 0 }; } catch { return null; } })
+        .filter((r) => r && ID.test(r.id) && r.meta.lobby === lobby && r.n > 0)
+        .sort((a, b) => (b.meta.started || 0) - (a.meta.started || 0))[0] || null;
+}
+
+// Is this a host ticket we signed for stream <id>, still in date? Only the host may end a stream.
+function isHostOf(token, id, secret) {
+    const [h, b, sig] = String(token || '').split('.');
+    if (!h || !b || !sig) return false;
+    const good = crypto.createHmac('sha256', secret).update(`${h}.${b}`).digest('base64url');
+    if (sig.length !== good.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good))) return false;
+    try {
+        const body = JSON.parse(Buffer.from(b, 'base64url').toString());
+        return body.sub === `host-${id}` && body.video?.room === id && body.exp > Date.now() / 1000;
+    } catch { return false; }
+}
+
 async function handler(req, res) {
     const env = { url: process.env.LIVEKIT_URL, key: process.env.LIVEKIT_API_KEY, secret: process.env.LIVEKIT_API_SECRET };
     res.setHeader('cache-control', 'no-store');
@@ -58,6 +84,8 @@ async function handler(req, res) {
             const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
             const lobby = cleanLobby(body.lobby);
             const name = String(body.name || 'Host').trim().slice(0, 40) || 'Host';
+            // One live stream per lobby: a second DJ is told, instead of splitting the listeners.
+            if (lobby && await liveInLobby(env, lobby)) return res.status(409).json({ error: 'someone is live in this lobby, try another lobby or wait' });
             const id = newId();
             const metadata = JSON.stringify({ lobby, host: name, started: Date.now() });
             // The room closes 5 minutes after everyone leaves.
@@ -74,7 +102,9 @@ async function handler(req, res) {
                 // Only for a stream that exists: LiveKit would otherwise open an empty room for any
                 // 8-digit guess, and every listener minute in it counts against the plan.
                 const { rooms = [] } = await roomApi(env, 'ListRooms', { names: [id] }, { roomList: true });
-                if (!rooms.some((r) => r.name === id)) return res.status(404).json({ error: 'this stream has ended' });
+                // A room the DJ has left is over, even while old listeners keep it open.
+                const room = rooms.find((r) => r.name === id);
+                if (!room || !((room.num_publishers ?? room.numPublishers ?? 0) > 0)) return res.status(404).json({ error: 'this stream has ended' });
                 const token = ticket(env.key, env.secret, {
                     identity: `listen-${crypto.randomBytes(5).toString('hex')}`, ttl: LISTEN_TTL,
                     video: { room: id, roomJoin: true, canPublish: false, canPublishData: false, canSubscribe: true },
@@ -83,16 +113,20 @@ async function handler(req, res) {
             }
             const lobby = cleanLobby(req.query?.lobby);
             if (lobby) {
-                const { rooms = [] } = await roomApi(env, 'ListRooms', {}, { roomList: true });
-                const live = rooms
-                    .map((r) => { try { return { id: r.name, meta: JSON.parse(r.metadata || '{}'), n: r.num_publishers ?? r.numPublishers ?? 0 }; } catch { return null; } })
-                    .filter((r) => r && ID.test(r.id) && r.meta.lobby === lobby && r.n > 0)
-                    .sort((a, b) => (b.meta.started || 0) - (a.meta.started || 0))[0];
+                const live = await liveInLobby(env, lobby);
                 return live ? res.status(200).json({ id: live.id, link: `/stream/${live.id}`, host: live.meta.host || '' }) : res.status(404).json({ error: 'nobody is live in this lobby' });
             }
             return res.status(400).json({ error: 'ask with ?id= or ?lobby=' });
         }
-        return res.status(405).json({ error: 'GET or POST' });
+        if (req.method === 'DELETE') {
+            const id = String(req.query?.id || '');
+            if (!ID.test(id)) return res.status(400).json({ error: 'ask with ?id=' });
+            const auth = String(req.headers?.authorization || '').replace(/^Bearer\s+/i, '');
+            if (!isHostOf(auth, id, env.secret)) return res.status(403).json({ error: 'only the host can end this stream' });
+            await roomApi(env, 'DeleteRoom', { room: id }, { roomCreate: true });
+            return res.status(200).json({ id, ended: true });
+        }
+        return res.status(405).json({ error: 'GET, POST or DELETE' });
     } catch (e) {
         return res.status(502).json({ error: 'the stream server did not answer, try again' });
     }
@@ -102,3 +136,4 @@ module.exports = handler;
 module.exports.ticket = ticket;
 module.exports.newId = newId;
 module.exports.cleanLobby = cleanLobby;
+module.exports.isHostOf = isHostOf;
